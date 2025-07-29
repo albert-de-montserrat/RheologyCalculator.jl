@@ -16,7 +16,7 @@ function solve(c::AbstractCompositeModel, x::SVector, vars, others; tol::Float64
         α = bt_line_search(Δx, J, x, r, c, vars, others)
         x -= α .* Δx
 
-        er = norm(iszero(xᵢ) ? 0.0e0 : Δxᵢ / abs(xᵢ) for (Δxᵢ, xᵢ) in zip(Δx, x)) # norm(r)
+        er = mynorm(Δx, x)
 
         it > itermax && break
     end
@@ -41,4 +41,17 @@ function bt_line_search(Δx, J, x, r, composite, vars, others; α = 1.0, ρ = 0.
         perturbed_r = compute_residual(composite, perturbed_x, vars, others)
     end
     return α
+end
+
+@generated function mynorm(x::SVector{N,T}, y::SVector{N,T}) where {N, T}
+    quote 
+        @inline
+        v = zero(T)
+        Base.@nexprs $N i -> begin
+            xi = @inbounds x[i]
+            yi = @inbounds y[i]
+            v += !iszero(xi) * abs(xi / yi)
+        end
+        return v
+    end
 end
