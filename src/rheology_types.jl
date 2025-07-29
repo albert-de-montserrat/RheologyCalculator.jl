@@ -14,7 +14,7 @@ Represents a linear viscosity model following Newton's law of viscosity.
 struct LinearViscosity{T} <: AbstractViscosity
     η::T
 end
-local_kwargs(r::LinearViscosity) = (τ=0,)
+local_kwargs(r::LinearViscosity) = (τ = 0,)
 
 """
     BulkViscosity{T} <: AbstractViscosity
@@ -49,7 +49,7 @@ Represents a power-law viscosity model where viscosity depends on strain rate.
 - `η::T`: The viscosity coefficient.
 - `n::I`: The power-law exponent (note: not promoted to floating point by default).
 """
-struct PowerLawViscosity{T,I} <: AbstractViscosity
+struct PowerLawViscosity{T, I} <: AbstractViscosity
     η::T
     n::I # DO NOT PROMOTE TO FP BY DEFAULT
 end
@@ -68,7 +68,7 @@ Represents diffusion creep deformation mechanism in materials.
 - `V::T`: The activation volume.
 - `R::T`: The universal gas constant.
 """
-struct DiffusionCreep{I,T} <: AbstractViscosity
+struct DiffusionCreep{I, T} <: AbstractViscosity
     n::I
     r::T
     p::T
@@ -92,7 +92,7 @@ Represents dislocation creep deformation mechanism in materials.
 - `V::T`: The activation volume.
 - `R::T`: The universal gas constant.
 """
-struct DislocationCreep{I,T} <: AbstractViscosity
+struct DislocationCreep{I, T} <: AbstractViscosity
     n::I # power-law exponent
     r::T # exponent of water-fugacity
     A::T # material specific rheological parameter
@@ -179,7 +179,7 @@ DruckerPrager(args...) = DruckerPrager(promote(args...)...)
 
 ## METHODS FOR SERIES MODELS
 @inline length_state_functions(r::AbstractRheology) = length(series_state_functions(r))
-@inline length_state_functions(r::NTuple{N,AbstractRheology}) where {N} = length_state_functions(first(r))..., length_state_functions(Base.tail(r))...
+@inline length_state_functions(r::NTuple{N, AbstractRheology}) where {N} = length_state_functions(first(r))..., length_state_functions(Base.tail(r))...
 @inline length_state_functions(r::Tuple{}) = ()
 
 # table of methods needed per rheology
@@ -205,7 +205,7 @@ end
 
 
 # returns the flattened statefunctions along with NTuples with global & local element numbers
-function series_state_functions(r::NTuple{N,AbstractRheology}, num::MVector{N,Int}) where {N}
+function series_state_functions(r::NTuple{N, AbstractRheology}, num::MVector{N, Int}) where {N}
     statefuns = (series_state_functions(first(r))..., series_state_functions(Base.tail(r))...)
     len = ntuple(i -> length(series_state_functions(r[i])), N)
     statenum = ntuple(i -> val(i, len, num), Val(sum(len)))
@@ -215,7 +215,7 @@ function series_state_functions(r::NTuple{N,AbstractRheology}, num::MVector{N,In
 end
 
 # does not allocate:
-@inline series_state_functions(r::NTuple{N,AbstractRheology}) where {N} = series_state_functions(first(r))..., series_state_functions(Base.tail(r))...
+@inline series_state_functions(r::NTuple{N, AbstractRheology}) where {N} = series_state_functions(first(r))..., series_state_functions(Base.tail(r))...
 # @inline series_state_functions(::Tuple{}) = ()
 
 ## METHODS FOR PARALLEL MODELS
@@ -230,10 +230,10 @@ end
 @inline parallel_state_functions(::AbstractRheology) = error("Rheology not defined")
 
 # handle tuples
-@inline parallel_state_functions(r::NTuple{N,AbstractRheology}) where {N} = parallel_state_functions(first(r))..., parallel_state_functions(Base.tail(r))...
+@inline parallel_state_functions(r::NTuple{N, AbstractRheology}) where {N} = parallel_state_functions(first(r))..., parallel_state_functions(Base.tail(r))...
 @inline parallel_state_functions(::Tuple{}) = ()
 
-function parallel_state_functions(r::NTuple{N,AbstractRheology}, num::MVector{N,Int}) where {N}
+function parallel_state_functions(r::NTuple{N, AbstractRheology}, num::MVector{N, Int}) where {N}
     statefuns = (parallel_state_functions(first(r))..., parallel_state_functions(Base.tail(r))...)
 
     len = ntuple(i -> length(parallel_state_functions(r[i])), N)
@@ -243,15 +243,15 @@ function parallel_state_functions(r::NTuple{N,AbstractRheology}, num::MVector{N,
     return statefuns, statenum, stateelements
 end
 
-@generated function flatten_repeated_functions(funs::NTuple{N,Any}) where {N}
+@generated function flatten_repeated_functions(funs::NTuple{N, Any}) where {N}
     return quote
         @inline
-        f = Base.@ntuple $N i -> i == 1 ? (funs[1],) : (funs[i] ∉ funs[1:(i-1)] ? (funs[i],) : ())
+        f = Base.@ntuple $N i -> i == 1 ? (funs[1],) : (funs[i] ∉ funs[1:(i - 1)] ? (funs[i],) : ())
         Base.IteratorsMD.flatten(f)
     end
 end
 
-function get_unique_state_functions(composite::NTuple{N,AbstractRheology}, model::Symbol) where {N}
+function get_unique_state_functions(composite::NTuple{N, AbstractRheology}, model::Symbol) where {N}
     funs = if model === :series
         get_unique_state_functions(composite, series_state_functions)
     elseif model === :parallel
@@ -262,7 +262,7 @@ function get_unique_state_functions(composite::NTuple{N,AbstractRheology}, model
     return funs
 end
 
-function get_unique_state_functions(composite::NTuple{N,AbstractRheology}, state_fn) where {N}
+function get_unique_state_functions(composite::NTuple{N, AbstractRheology}, state_fn) where {N}
     funs = state_fn(composite)
     # get unique state functions
     return flatten_repeated_functions(funs)
