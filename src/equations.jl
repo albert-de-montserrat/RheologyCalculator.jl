@@ -23,7 +23,7 @@ end
         iparent = 0
         iself = 0
         isGlobal = Val(true)
-        el_num = global_eltype_numbering(c)        # global element numbering (to be followed )
+        el_num = global_eltype_numbering(c) # global element numbering (to be followed )
         eqs = Base.@ntuple $N i -> begin
             ind_input = i
             eqs = generate_equations(c, fns[i], ind_input, isGlobal, isvolumetric(c), el_num; iparent = iparent, iself = iself)
@@ -355,7 +355,6 @@ Base.@propagate_inbounds @inline _extract_local_kwargs(vals_args::Tuple, name, k
     return evaluate_state_function(fn, rheology, args, others, el_number)
 end
 
-
 @inline evaluate_state_function(fn::F, rheology::Tuple{}, args, others, el_number) where {F} = 0
 
 @generated function evaluate_state_function(fn::F, rheology::NTuple{N, AbstractRheology}, args, others, el_number) where {N, F}
@@ -382,16 +381,6 @@ evaluate_state_function(fn::F, rheology::Tuple{}, args, others) where {F} = 0.0e
 end
 
 add_child(::SVector, ::Tuple{}) = 0.0e0
-# @generated function add_child(x::SVector{M}, child::NTuple{N}) where {M, N}
-#     quote
-#         @inline
-#         v = Base.@ntuple $N i -> begin
-#             ind = child[i]
-#             M > ind ? x[ind] : 0e0
-#         end
-#         sum(v)
-#     end
-# end
 
 @generated function add_child(x::SVector{M}, child::NTuple{N}) where {M, N}
     return quote
@@ -427,9 +416,7 @@ end
     end
 end
 
-function subtract_parent(residual::Number, x::SVector, eq::CompositeEquation, vars)
-    return residual - subtract_parent(x, eq, vars)
-end
+subtract_parent(residual::Number, x::SVector, eq::CompositeEquation, vars) = residual - subtract_parent(x, eq, vars)
 
 function compute_residual(c, x::SVector{N, T}, vars, others) where {N, T}
 
@@ -445,13 +432,13 @@ function compute_residual(c, x::SVector{N, T}, vars, others) where {N, T}
     return SA[residual3...]
 end
 
-function compute_residual(c, x::SVector{N, T}, vars, others, ind::Int64, ipartial::Int64) where {N, T}
+function compute_residual(c, x::SVector{N, T}, vars, others, ::Int64, ::Int64) where {N, T}
 
     eqs = generate_equations(c)
-    args_all = generate_args_template(eqs, x, others)[1]
+    args_all = first(generate_args_template(eqs, x, others))
 
     # evaluates the self-components of the residual
-    eq = eqs[1]
+    eq = first(eqs)
     residual1 = evaluate_state_function(eq, args_all, others)
     residual2 = add_children(residual1, x, eq)
     residual3 = subtract_parent(residual2, x, eq, vars)

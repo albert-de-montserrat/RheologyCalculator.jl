@@ -14,9 +14,7 @@ end
 @generated function initial_guess_x(eqs::NTuple{N, CompositeEquation}, vars, args, others) where {N}
     return quote
         @inline
-        Base.@ntuple $N i -> begin
-            estimate_initial_value(eqs[i], vars, args, others)
-        end
+        Base.@ntuple $N i -> estimate_initial_value(eqs[i], vars, args, others)
     end
 end
 
@@ -25,7 +23,6 @@ end
 Returns the keys of the local solution vector `x` (note that they can be repeated)
 """
 x_keys(c::AbstractCompositeModel) = x_keys(generate_equations(c))
-
 
 """
     x_keys = x_keys(eqs::NTuple{N,CompositeEquation})
@@ -47,14 +44,13 @@ estimate_initial_value(eq::CompositeEquation, vars, args, others) = _estimate_in
 @inline _estimate_initial_value(::typeof(compute_stress), eq, vars, args, others) = _estimate_initial_value_arith(eq.fn, eq.rheology, eq.el_number, vars, args, others)
 @inline _estimate_initial_value(::typeof(compute_pressure), eq, vars, args, others) = _estimate_initial_value_arith(eq.fn, eq.rheology, eq.el_number, vars, args, others)
 
-
 @inline _estimate_initial_value_harm(fn, rheology::Tuple{}, el_number, vars, args, others) = 1
 @inline _estimate_initial_value_arith(fn, rheology::Tuple{}, el_number, vars, args, others) = 1
 
 @generated function _estimate_initial_value_harm(fn, rheology::NTuple{N, AbstractRheology}, el_number, vars, args, others) where {N}
-
     return quote
         @inline
+        # extract values
         vals = Base.@ntuple $N i -> begin
             keys_hist = history_kwargs(rheology[i])
             args_local = extract_local_kwargs(others, keys_hist, el_number[i])
@@ -62,24 +58,20 @@ estimate_initial_value(eq::CompositeEquation, vars, args, others) = _estimate_in
             fn_c = counterpart(fn)
             val_local = fn_c(rheology[i], args_combined)
             inv(val_local)
-
         end
-
+        # harmonic mean
         sum_vals = 0.0
-        for i in 1:N
-            if !isinf(vals[i])
-                sum_vals += vals[i]
-            end
+        Base.@nexprs $N i -> begin
+            sum_vals += isinf(vals[i]) ? 0.0 : vals[i]
         end
-        if sum_vals == 0.0
-            sum_vals = 1.0
+        if iszero(sum_vals)
+            sum_vals = one(sum_vals)
         end
-        inv(sum_vals)
+        return $N / inv(sum_vals)
     end
 end
 
 @generated function _estimate_initial_value_arith(fn, rheology::NTuple{N, AbstractRheology}, el_number, vars, args, others) where {N}
-
     return quote
         @inline
         vals = Base.@ntuple $N i -> begin
@@ -87,9 +79,8 @@ end
             args_local = extract_local_kwargs(others, keys_hist, el_number[i])
             args_combined = merge(args, args_local, vars)
             fn_c = counterpart(fn)
-            val_local = fn_c(rheology[i], args_combined)
-            val_local
+            fn_c(rheology[i], args_combined)
         end
-        sum(vals)
+        return sum(vals)
     end
 end

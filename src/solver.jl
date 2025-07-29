@@ -15,7 +15,7 @@ function solve(c::AbstractCompositeModel, x::SVector, vars, others; tol::Float64
         Δx = J \ r
         α = bt_line_search(Δx, J, x, r, c, vars, others)
         x -= α .* Δx
-
+        # check convergence
         er = mynorm(Δx, x)
 
         it > itermax && break
@@ -31,7 +31,8 @@ function bt_line_search(Δx, J, x, r, composite, vars, others; α = 1.0, ρ = 0.
     perturbed_x = @. x - α * Δx
     perturbed_r = compute_residual(composite, perturbed_x, vars, others)
 
-    while sqrt(sum(perturbed_r .^ 2)) > sqrt(sum((r + (c * α * (J * Δx))) .^ 2))
+    J_times_Δx = J * Δx
+    while sqrt(sum(perturbed_r .^ 2)) > sqrt(sum((r + (c * α * (J_times_Δx))) .^ 2))
         α *= ρ
         if α < α_min
             α = α_min

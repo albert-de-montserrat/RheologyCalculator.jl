@@ -63,7 +63,6 @@ struct ParallelModel{L, B} <: AbstractCompositeModel # not 100% about the subtyp
     end
 end
 
-
 @inline series_leafs(c::NTuple{N, AbstractRheology}) where {N} = c
 @inline series_leafs(c::AbstractRheology) = (c,)
 @inline series_leafs(::ParallelModel) = ()
