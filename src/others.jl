@@ -3,6 +3,8 @@
 @inline superflatten(::Tuple{}) = ()
 @inline superflatten(x) = (x,)
 
+isvolumetric(c::AbstractCompositeModel) = Val(_isvolumetric(c))
+
 @generated function _isvolumetric(r::NTuple{N, AbstractRheology}) where {N}
     return quote
         @inline
@@ -18,18 +20,17 @@ end
 # @inline _isvolumetric(c::AbstractCompositeModel) = _isvolumetric(c.leafs)
 @inline _isvolumetric(::Tuple{}) = false
 
-function _isvolumetric(c::AbstractCompositeModel)
-    b1 = _isvolumetric(c.leafs)
-    branches = c.branches
-    b2 = ntuple(Val(length(branches))) do i
-        @inline
-        _isvolumetric(branches[i])
-    end
-    b = (b1, b2) |> superflatten
-    return reduce(|, b)
-end
+_isvolumetric(c::AbstractCompositeModel) = _isvolumetric(c.leafs, c.branches)
 
-isvolumetric(c::AbstractCompositeModel) = Val(_isvolumetric(c))
+@generated function _isvolumetric(leafs, branches::NTuple{N, Any}) where {N}
+    quote
+        @inline
+        b1 = _isvolumetric(leafs)
+        b2 = Base.@ntuple $N i ->_isvolumetric(branches[i])
+        b = (b1, b2) |> superflatten
+        return reduce(|, b)
+    end
+end
 
 # @generated function harmonic_average(r::NTuple{N, AbstractRheology}, fn::F, args) where {N, F}
 #     quote

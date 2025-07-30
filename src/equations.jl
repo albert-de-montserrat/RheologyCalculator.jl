@@ -65,10 +65,6 @@ function generate_equations(c::AbstractCompositeModel, fns_own_global::F, ind_in
 
     fn = counterpart(fns_own_global)
     parallel_eqs = generate_equations_unroller(branches, fn, el_num, global_eqs, iself_ref)
-    # parallel_eqs = ntuple(Val(nbranches)) do i
-    #     @inline
-    #     generate_equations(branches[i], fn, 0, Val(false), isvolumetric(branches[i]), el_num[2][i]; iparent = global_eqs.self, iself = iself_ref[])
-    # end
 
     return (global_eqs, local_eqs..., parallel_eqs...) |> superflatten
 end
