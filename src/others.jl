@@ -23,10 +23,10 @@ end
 _isvolumetric(c::AbstractCompositeModel) = _isvolumetric(c.leafs, c.branches)
 
 @generated function _isvolumetric(leafs, branches::NTuple{N, Any}) where {N}
-    quote
+    return quote
         @inline
         b1 = _isvolumetric(leafs)
-        b2 = Base.@ntuple $N i ->_isvolumetric(branches[i])
+        b2 = Base.@ntuple $N i -> _isvolumetric(branches[i])
         b = (b1, b2) |> superflatten
         return reduce(|, b)
     end

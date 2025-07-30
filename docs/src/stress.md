@@ -10,24 +10,52 @@ spring1    = Elasticity(G, K1)
 spring2    = Elasticity(G, K2)
 ```
 
-```julia
-p = ParallelModel(damper2, spring1)
-c = SeriesModel(damper3, spring2, p)
+```julia-repl
+julia> p = ParallelModel(damper2, spring1)
+|--⟦▪̲̅▫̲̅▫̲̅▫̲̅¹--|
+|--/\/\/¹--|
+
+julia> c = SeriesModel(damper3, spring2, p)
+--⟦▪̲̅▫̲̅▫̲̅▫̲̅¹----/\/\/¹--|--⟦▪̲̅▫̲̅▫̲̅▫̲̅²--|
+                    |--/\/\/²--|
 ```
 
-Input variables: strain rate `ε` and volumetric strain rate `θ`, they are constant all the time:
+In this case, the inout variables are the strain rate `ε` and the volumetric strain rate `θ`, which are constant over the time
 ```julia
 vars = (; ε = 1.0e-15, θ = 1.0e-20)  # input variables (constant)
 ```
-
+Initial guess for the variables we want to solve for:
 ```julia
-args = (; τ = 1.0e3, P = 1.0e6)             # guess variables (we solve for these, differentiable)
+args = (; τ = 1.0e3, P = 1.0e6) 
 ```
-
-```julia
-others = (; dt = 1.0e10, τ0 = (1.0, 2.0), P0=(0.0, 0.1))       # other non-differentiable variables needed to evaluate the state functions
-```
-
+Solution vector `x` contains the initial guess for the variables we want to solve for:
 ```julia
 x   = initial_guess_x(c, vars, args, others)
+```
+
+```julia
+ntime = 200
+dt    = 1.0e9
+τ1    = zeros(ntime)
+τ2    = zeros(ntime)
+P1    = zeros(ntime)
+P2    = zeros(ntime)
+t_v   = zeros(ntime)
+τ_e   = (0.0, 0.0)
+P_e   = (0.0, 0.0)
+t     = 0.0
+for i in 2:ntime
+    # non-differentiable variables needed to evaluate the state functions
+    others = (; dt = dt, τ0 = τ_e, P0 = P_e) 
+    # solve the system of equations
+    x      = solve(c, x, vars, others)
+    # Post-process the results
+    τ_e    = compute_stress_elastic(c, x, others)   # elastic stress
+    P_e    = compute_pressure_elastic(c, x, others) # elastic pressure
+    # Store the results
+    τ1[i], τ2[i] = τ_e
+    P1[i], P2[i] = P_e
+    t     += others.dt
+    t_v[i] = t
+end
 ```

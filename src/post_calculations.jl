@@ -9,21 +9,21 @@ is_eq_elastic(::T) where {T} = false
 
 Returns stress of the elastic elements
 """
+compute_stress_elastic(c::AbstractCompositeModel, xnew, others) = compute_stress_elastic(generate_equations(c), xnew, others)
+
 @generated function compute_stress_elastic(eqs::NTuple{N, CompositeEquation}, xnew, others) where {N}
-    return quote
+    quote
         @inline
         args_all = generate_args_template(eqs, xnew, others)
         τ_elastic = Base.@ntuple $N i_eq -> begin
             args = args_all[i_eq]
             eq = eqs[i_eq]
             (; self, rheology, fn, el_number) = eq
-
             @inline _compute_stress_elastic(rheology, self, fn, el_number, xnew, others, args)
         end |> superflatten
         return superflatten(τ_elastic)
     end
 end
-compute_stress_elastic(c::AbstractCompositeModel, xnew, others) = compute_stress_elastic(generate_equations(c), xnew, others)
 
 @generated function _compute_stress_elastic(rheology::NTuple{N, Any}, self, fn::F, el_number, xnew, others, args) where {N, F}
     return quote
@@ -73,7 +73,6 @@ Returns pressure of the elastic elements
     end
 end
 compute_pressure_elastic(c::AbstractCompositeModel, xnew, others) = compute_pressure_elastic(generate_equations(c), xnew, others)
-
 
 @generated function _compute_pressure_elastic(rheology::NTuple{N, Any}, self, fn::F, el_number, xnew, others, args) where {N, F}
     return quote
