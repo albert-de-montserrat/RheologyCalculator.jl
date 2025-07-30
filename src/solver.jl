@@ -53,7 +53,6 @@ function solve_timed(c::AbstractCompositeModel, x::SVector, vars, others; tol::F
     return x
 end
 
-
 function bt_line_search(Δx, J, x, r, composite, vars, others; α = 1.0, ρ = 0.5, c = 1.0e-4, α_min = 1.0e-8)
 
     perturbed_x = @. x - α * Δx
@@ -72,8 +71,8 @@ function bt_line_search(Δx, J, x, r, composite, vars, others; α = 1.0, ρ = 0.
     return α
 end
 
-@generated function mynorm(x::SVector{N,T}, y::SVector{N,T}) where {N, T}
-    quote 
+@generated function mynorm(x::SVector{N, T}, y::SVector{N, T}) where {N, T}
+    return quote
         @inline
         v = zero(T)
         Base.@nexprs $N i -> begin
