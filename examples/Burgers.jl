@@ -13,8 +13,7 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
     τ_e = (0.0, 0.0)
     P_e = (0.0, 0.0)
     t = 0.0
-    to = TimerOutput()
-    @timeit to "numerical" for i in 2:ntime
+    for i in 2:ntime
         #global τ_e, P_e, x, vars, others, t
         others = (; dt = dt, τ0 = τ_e, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
 
@@ -31,7 +30,6 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
         t += others.dt
         t_v[i] = t
     end
-    display(to)
     return t_v, τ1, τ2, P1, P2, x
 end
 
@@ -43,8 +41,7 @@ function simulate_series_Burgers_model(E1, η1, E2, η2, ε̇, t_max, dt)
     ε_KV = zeros(N)          # Strain in Kelvin–Voigt element
     σ_KV = zeros(N)
     σ_spring = zeros(N) # Stress in the spring of the Kelvin-Voigt element
-    to = TimerOutput()
-    @timeit to "analytical" for i in 2:N
+    for i in 2:N
         # Previous values
         ε_KV_prev = ε_KV[i - 1]
         σ_prev = σ[i - 1]
@@ -56,7 +53,6 @@ function simulate_series_Burgers_model(E1, η1, E2, η2, ε̇, t_max, dt)
         # Stress in the spring of the Kelvin-Voigt element (elastic part)
         σ_spring[i] = E2 * ε_KV[i]
     end
-    display(to)
     return t, σ, σ_spring
 end
 
@@ -95,19 +91,20 @@ else
 end
 
 # Burgers model, numerics
-t_v, τ1, τ2, P1, P2, x1 = stress_time(c, vars, x; ntime = 200, dt = 1.0e9);
+t_v, τ1, τ2, P1, P2, x1 = stress_time(c, vars, x; ntime = 25, dt = 1.0e9);
 t_anal, τ1_anal, τ2_anal = simulate_series_Burgers_model(G1, η1, G2, η2, vars.ε, t_v[end], (t_v[2] - t_v[1]) / 10);
 
 SecYear = 3600 * 24 * 365.25
 fig = Figure(fontsize = 30, size = (800, 600))
-ax = Axis(fig[1, 1], title = "Burgers model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]", xticks = (0:2:20))
+ax = Axis(fig[1, 1], title = "Burgers model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
 
-scatter!(ax, t_v / SecYear / 1.0e3, τ1 / 1.0e6, label = "τ1", color = :red)
+lines!(ax, t_anal / SecYear / 1.0e3, τ1_anal / 1.0e6, label = "analytical", linewidth = 5, color = :black)
+scatter!(ax, t_v / SecYear / 1.0e3, τ1 / 1.0e6, label = "numerical", color = :red, markersize = 15)
 #scatter!(ax,t_v/SecYear/1e3,τ2/1e6, label="τ2")
-lines!(ax, t_anal / SecYear / 1.0e3, τ1_anal / 1.0e6, label = "τ1 analytical")
 
 axislegend(ax, position = :rb)
 #title!(ax,"Burgers model")
 ax.xlabel = L"t [kyr]"
-ax.ylabel = L"\tau [Pa]"
+ax.ylabel = L"\tau [MPa]"
+save("docs/assets/Burgers_model.png", fig)
 display(fig)
