@@ -98,8 +98,8 @@ t_anal, τ_anal = simulate_series_Burgers_model(G1, η1, G2, η2, vars.ε, t_v[e
 
 # make figure
 SecYear = 3600 * 24 * 365.25
-fig = Figure(fontsize = 30, size = (800, 600))
-ax = Axis(fig[1, 1], title = "Burgers model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
+fig     = Figure(fontsize = 30, size = (800, 600))
+ax      = Axis(fig[1, 1], title = "Burgers model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
 
 lines!(ax, t_anal / SecYear / 1.0e3, τ_anal / 1.0e6, label = "analytical", linewidth = 5, color = :black)
 scatter!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6, label = "numerical", color = :red, markersize = 15)
@@ -109,3 +109,5 @@ ax.xlabel = L"t [kyr]"
 ax.ylabel = L"\tau [MPa]"
 display(fig)
 ```
+
+![](../assets/Burgers_model.png)
