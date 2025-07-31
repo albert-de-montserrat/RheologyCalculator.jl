@@ -21,10 +21,10 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
 
         x = solve(c, x, vars, others, verbose = false)
         τ1[i] = x[1]
+        t += others.dt
         τ_an[i] = analytical_solution(vars.ε, t, c.leafs[2].G, c.leafs[1].η)
         τ_e = compute_stress_elastic(c, x, others)
     
-        t += others.dt
         t_v[i] = t
     end
 
