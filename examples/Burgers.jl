@@ -111,14 +111,15 @@ let
         ax = Axis(fig[1, 1], title = L"$$Burgers model", xlabel = L"$t$ [kyr]", ylabel = L"$\tau$ [MPa]")
 
         lines!(ax, t_anal / SecYear / 1.0e3, τ1_anal / 1.0e6, label = "analytical", linewidth = 5, color = :black)
-        scatter!(ax, t_v / SecYear / 1.0e3, τ1 / 1.0e6, label = "numerical", color = :red, markersize = 15)
+        scatter!(ax, t_v[1:10:end] / SecYear / 1.0e3, τ1[1:10:end] / 1.0e6, label = "numerical", color = :red, markersize = 15)
         #scatter!(ax,t_v/SecYear/1e3,τ2/1e6, label="τ2")
+        axislegend(ax, position = :rb, labelsize=18)
 
-        ax2 = Axis(fig[2, 1], title = L"$$Convergence", xlabel = L"$\log_{10} \frac{1}{dt} $ [1/s]", ylabel = L"$ϵ$ [MPa]")
+        ax2 = Axis(fig[2, 1], title = L"$$Convergence", xlabel = L"$\log_{10}$ $\frac{1}{dt}$ [1/s]", ylabel = L"$\log_{10}$ $ϵ$ [Pa]")
         lines!(ax2, log10.(1 ./ dt_arr), log10.(ϵ_arr), color=:black, label="1st order")
         scatter!(ax2, log10.(1 ./ dt), log10.(ϵ), color=:black, label="numerics")
+        axislegend(labelsize=18)
 
-        axislegend(ax, position = :rb)
         save("docs/assets/Burgers_model.png", fig)
         display(fig)
     end
