@@ -2,6 +2,7 @@ using ForwardDiff, RheologyCalculator
 import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 
 using GLMakie
+Makie.update_theme!( fonts = (regular = texfont(), bold = texfont(:bold), italic = texfont(:italic)))
 
 function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
     # Extract elastic stresses/pressure from solutio vector
@@ -96,15 +97,12 @@ t_anal, τ1_anal, τ2_anal = simulate_series_Burgers_model(G1, η1, G2, η2, var
 
 SecYear = 3600 * 24 * 365.25
 fig = Figure(fontsize = 30, size = (800, 600))
-ax = Axis(fig[1, 1], title = "Burgers model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
+ax = Axis(fig[1, 1], title = L"$$Burgers model", xlabel = L"$t$ [kyr]", ylabel = L"$\tau$ [MPa]")
 
 lines!(ax, t_anal / SecYear / 1.0e3, τ1_anal / 1.0e6, label = "analytical", linewidth = 5, color = :black)
 scatter!(ax, t_v / SecYear / 1.0e3, τ1 / 1.0e6, label = "numerical", color = :red, markersize = 15)
 #scatter!(ax,t_v/SecYear/1e3,τ2/1e6, label="τ2")
 
 axislegend(ax, position = :rb)
-#title!(ax,"Burgers model")
-ax.xlabel = L"t [kyr]"
-ax.ylabel = L"\tau [MPa]"
 save("docs/assets/Burgers_model.png", fig)
 display(fig)
