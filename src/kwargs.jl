@@ -18,9 +18,9 @@ end
 end
 
 # Define history kwargs variables (which we can define as tuples )
-history_kwargs(a::AbstractElasticity) = (:τ0, :P0)
-history_kwargs(a::AbstractViscosity) = (:d,)
-history_kwargs(a::AbstractPlasticity) = ()
+history_kwargs(::AbstractElasticity) = (:τ0, :P0)
+history_kwargs(::AbstractViscosity) = (:d,)
+history_kwargs(::AbstractPlasticity) = ()
 
 # dummy NamedTuple allocators
 @inline residual_kwargs(::Type{T}, ::Function) where {T} = (; tmp = zero(T))
