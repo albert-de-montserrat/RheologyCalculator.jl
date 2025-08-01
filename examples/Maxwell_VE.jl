@@ -51,28 +51,33 @@ end
 
 let
     dt = 1e10 .* [1.0, 1/2, 1/4, 1/8]
+    nt = 1_000 .* [1.0, 2, 4, 8]
     ϵ  = zero(dt) 
+
     for it in eachindex(dt)
-        t_v, τ, τ_an = stress_time(c, vars, x; ntime = 100_000, dt = dt[it])
+        t_v, τ, τ_an = stress_time(c, vars, x; ntime = Int64(nt[it]), dt = dt[it])
         ϵ[it] = maximum(abs.(τ .- τ_an))
+
+        # Order
+        θ      = log(ϵ[1]/ϵ[2]) / log(dt[1]/dt[2])
+        dt_arr = LinRange(dt[end], dt[1], 100)
+        ϵ_arr  = 10 .^(log10.(ϵ[1]) .- θ.*( log10.(1 ./ (dt_arr)) .- log10.(1 ./ (dt_arr[end]))))
+
+        SecYear = 3600 * 24 * 365.25
+        fig = Figure(fontsize = 30, size = (800, 600) .* 1)
+
+        ax1 = Axis(fig[1, 1], title = L"$$Maxwell model", xlabel = L"$t$ [kyr]", ylabel = L"$\tau$ [MPa]")
+        lines!(ax1, t_v / SecYear / 1.0e3, τ_an / 1.0e6, color=:black, label = "analytical")
+        scatter!(ax1, t_v[1:1000:end] / SecYear / 1.0e3, τ[1:1000:end] / 1.0e6,  color=:red, label = "numerical")
+        axislegend(ax, position = :rb, labelsize=18)
+        
+        ax2 = Axis(fig[2, 1], title = L"$$Convergence", xlabel = L"$\log_{10}$ $\frac{1}{dt} $ [1/s]", ylabel = L"$\log_{10}$ $ϵ$ [MPa]")
+        lines!(ax2, log10.(1 ./ dt_arr), log10.(ϵ_arr), color=:black, label="1st order")
+        scatter!(ax2, log10.(1 ./ dt), log10.(ϵ), color=:black, label="numerics")
+        axislegend(labelsize=18)
+
+        save("docs/assets/Maxwell_VE_model.png", fig)
+        display(fig)
     end
 
-    # Order
-    θ      = log(ϵ[1]/ϵ[2]) / log(dt[1]/dt[2])
-    dt_arr = LinRange(dt[end], dt[1], 100)
-    ϵ_arr  = 10 .^(log10.(ϵ[1]) .- θ.*( log10.(1 ./ (dt_arr)) .- log10.(1 ./ (dt_arr[end]))))
-
-    SecYear = 3600 * 24 * 365.25
-    fig = Figure(fontsize = 30, size = (800, 600) .* 1)
-
-    ax1 = Axis(fig[1, 1], title = L"$$Maxwell model", xlabel = L"$t$ [kyr]", ylabel = L"$\tau$ [MPa]")
-    lines!(ax1, t_v / SecYear / 1.0e3, τ_an / 1.0e6, color=:black, label = "analytical")
-    scatter!(ax1, t_v[1:1000:end] / SecYear / 1.0e3, τ[1:1000:end] / 1.0e6,  color=:red, label = "numerical")
-
-    ax2 = Axis(fig[2, 1], title = L"$$Convergence", xlabel = L"$t$ [kyr]", ylabel = L"$\tau$ [MPa]")
-    lines!(ax2, log10.(1 ./ dt_arr), log10.(ϵ_arr), color=:black, label="1st order")
-    scatter!(ax2, log10.(1 ./ dt), log10.(ϵ), color=:black, label="numerics")
-
-    axislegend()
-    display(fig)
 end
