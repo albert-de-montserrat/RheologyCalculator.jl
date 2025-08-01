@@ -35,10 +35,9 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
 end
 
 # Analytical solution for Burgers model
-function simulate_series_Burgers_model(E1, η1, E2, η2, ε̇, t_max, dt)
-    N = Int(round(t_max / dt)) + 1
-    t = range(0, step = dt, length = N)
-    σ = zeros(N)          # Stress
+function simulate_series_Burgers_model(E1, η1, E2, η2, ε̇, N, dt)
+    t    = LinRange(0., N*dt, N)
+    σ    = zeros(N)          # Stress
     ε_KV = zeros(N)          # Strain in Kelvin–Voigt element
     σ_KV = zeros(N)
     σ_spring = zeros(N) # Stress in the spring of the Kelvin-Voigt element
@@ -91,18 +90,37 @@ else
     G2 = 0.0
 end
 
-# Burgers model, numerics
-t_v, τ1, τ2, P1, P2, x1 = stress_time(c, vars, x; ntime = 25, dt = 1.0e9);
-t_anal, τ1_anal, τ2_anal = simulate_series_Burgers_model(G1, η1, G2, η2, vars.ε, t_v[end], (t_v[2] - t_v[1]) / 10);
+let
+    dt = 1e9 .* [1.0, 1/2, 1/4, 1/8]
+    nt = 25 .* [1.0, 2, 4, 8]
+    ϵ  = zero(dt)
 
-SecYear = 3600 * 24 * 365.25
-fig = Figure(fontsize = 30, size = (800, 600))
-ax = Axis(fig[1, 1], title = L"$$Burgers model", xlabel = L"$t$ [kyr]", ylabel = L"$\tau$ [MPa]")
+    for it in eachindex(dt)
+        # Burgers model, numerics
+        t_v, τ1, τ2, P1, P2, x1 = stress_time(c, vars, x; ntime = Int64(nt[it]), dt = dt[it]);
+        t_anal, τ1_anal, τ2_anal = simulate_series_Burgers_model(G1, η1, G2, η2, vars.ε, Int64(nt[it]),  dt[it]);
+        ϵ[it] = maximum(abs.(τ1 .- τ1_anal))
 
-lines!(ax, t_anal / SecYear / 1.0e3, τ1_anal / 1.0e6, label = "analytical", linewidth = 5, color = :black)
-scatter!(ax, t_v / SecYear / 1.0e3, τ1 / 1.0e6, label = "numerical", color = :red, markersize = 15)
-#scatter!(ax,t_v/SecYear/1e3,τ2/1e6, label="τ2")
+        # Order
+        θ      = log(ϵ[1]/ϵ[2]) / log(dt[1]/dt[2])
+        dt_arr = LinRange(dt[end], dt[1], 100)
+        ϵ_arr  = 10 .^(log10.(ϵ[1]) .- θ.*( log10.(1 ./ (dt_arr)) .- log10.(1 ./ (dt_arr[end]))))
 
-axislegend(ax, position = :rb)
-save("docs/assets/Burgers_model.png", fig)
-display(fig)
+        SecYear = 3600 * 24 * 365.25
+        fig = Figure(fontsize = 30, size = (800, 600))
+        ax = Axis(fig[1, 1], title = L"$$Burgers model", xlabel = L"$t$ [kyr]", ylabel = L"$\tau$ [MPa]")
+
+        lines!(ax, t_anal / SecYear / 1.0e3, τ1_anal / 1.0e6, label = "analytical", linewidth = 5, color = :black)
+        scatter!(ax, t_v / SecYear / 1.0e3, τ1 / 1.0e6, label = "numerical", color = :red, markersize = 15)
+        #scatter!(ax,t_v/SecYear/1e3,τ2/1e6, label="τ2")
+
+        ax2 = Axis(fig[2, 1], title = L"$$Convergence", xlabel = L"$\log_{10} \frac{1}{dt} $ [1/s]", ylabel = L"$ϵ$ [MPa]")
+        lines!(ax2, log10.(1 ./ dt_arr), log10.(ϵ_arr), color=:black, label="1st order")
+        scatter!(ax2, log10.(1 ./ dt), log10.(ϵ), color=:black, label="numerics")
+
+        axislegend(ax, position = :rb)
+        save("docs/assets/Burgers_model.png", fig)
+        display(fig)
+    end
+    @show ϵ
+end
