@@ -20,7 +20,7 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
     for i in 2:ntime
         others = (; dt = dt, τ0 = τ_e, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
 
-        x = solve(c, x, vars, others, verbose = false)
+        x = solve(c, x, vars, others, verbose = true)
         τ1[i] = x[1]
         t += others.dt
         τ_an[i] = analytical_solution(vars.ε, t, c.leafs[2].G, c.leafs[1].η)
@@ -57,7 +57,7 @@ c, x, vars, args, others = let
     c, x, vars, args, others
 end
 
-t_v, τ, τ_an = stress_time(c, vars, x; ntime = 10_000, dt = 1e9)
+t_v, τ, τ_an = stress_time(c, vars, x; ntime = 2_000, dt = 1e9)
 
 SecYear = 3600 * 24 * 365.25
 fig = Figure(fontsize = 30, size = (800, 600) .* 2)
