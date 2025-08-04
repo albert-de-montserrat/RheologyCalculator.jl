@@ -45,7 +45,7 @@ end
 # compute_volumetric_strain_rate methods
 @inline function compute_lambda(r::DruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)
     F = compute_F(r, τ, P)
-    return (F > 0) * F - λ
+    return F - λ # * (F > 0)
 end
 @inline compute_lambda(r::AbstractRheology; kwargs...) = 0.0e0 # for any other rheology that doesnt need this method
 # splatter wrapper
@@ -74,7 +74,7 @@ compute_Q(r::DruckerPrager, τ, P) = τ - P * sind(r.ψ)
 # compute_pressure methods
 @inline compute_pressure(r::Elasticity; θ = 0, P0 = 0, dt = 0, kwargs...) = P0 + r.K * dt * θ
 @inline compute_pressure(r::BulkElasticity; θ = 0, P0 = 0, dt = 0, kwargs...) = P0 + r.K * dt * θ
-@inline compute_pressure(r::BulkViscosity; θ = 0, kwargs...) = θ * 1 * r.χ
+@inline compute_pressure(r::BulkViscosity; θ = 0, kwargs...) = θ * r.χ
 @inline compute_pressure(r::DruckerPrager; P_pl = 0, kwargs...) = P_pl
 @inline compute_pressure(r::AbstractRheology; kwargs...) = 0.0e0 # for any other rheology that doesnt need this method
 # splatter wrapper
