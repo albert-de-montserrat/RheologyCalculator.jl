@@ -19,14 +19,14 @@ end
 
 viscous_strain_rate(η, τ)         = τ / (2 * η)
 elastic_strain_rate(G, τ, τ0, dt) = (τ - τ0) / (2 * G * dt)
-plastic_strain_rate(λ, τ, P, ψ, ηvp)   = λ * ForwardDiff.derivative(τ -> compute_Q(τ, P, ψ, ηvp, λ), τ)
+plastic_strain_rate(λ, τ, P, ψ, ηvp)   = λ/2 * ForwardDiff.derivative(τ -> compute_Q(τ, P, ψ, ηvp, λ), τ)
 
-compute_Q(τ, P, ψ, ηvp, λ) = τ - P * sind(ψ) - ηvp*λ
+compute_Q(τ, P, ψ, ηvp, λ) = τ - P * sind(ψ)
 
 function compute_F(τ, P, C, ϕ, ηvp, λ)
     η_mult = 1.0  # Lagarange multiplier, value doesn't matter
     f      = τ - P * sind(ϕ) - C * cosd(ϕ)
-    f_vp   = τ - P * sind(ϕ) - C * cosd(ϕ) - 2*ηvp*λ
+    f_vp   = τ - P * sind(ϕ) - C * cosd(ϕ) - ηvp*λ
     F      = f_vp*(f>=0) + η_mult*λ*(f<0)
     return F
 end
