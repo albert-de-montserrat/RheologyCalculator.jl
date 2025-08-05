@@ -22,9 +22,10 @@ plastic_strain_rate(λ, τ, P, ψ)   = λ * ForwardDiff.derivative(τ -> compute
 
 compute_Q(τ, P, ψ) = τ - P * sind(ψ)
 
-function compute_F(τ, P, C, ϕ, λ)
-    F = τ - P * sind(ϕ) - C * cosd(ϕ)
-    return F * (F > 0)
+function compute_F(τ, P, C, ϕ, λ, ηve)
+    F = τ - P * sind(ϕ) - C * cosd(ϕ) #- λ * ηve
+    F *= (F > 0)
+    return F # - λ * ηve
 end
 
 function strain_rate(τ, τ0, dt, η, G, λ, P, ψ)
@@ -36,13 +37,14 @@ function strain_rate(τ, τ0, dt, η, G, λ, P, ψ)
 end
 
 strain_rate_residual(ε, τ, τ0, dt, η, G, λ, P, ψ) = strain_rate(τ, τ0, dt, η, G, λ, P, ψ) - ε
-F_residual(τ, P, C, ϕ, λ) = compute_F(τ, P, C, ϕ, λ)
+F_residual(τ, P, C, ϕ, λ, ηve) = compute_F(τ, P, C, ϕ, λ, ηve)
 
 function residual_vector(x::SVector, ε, τ0, dt, η, G, P, ψ, C, ϕ)
     τ   = x[1]
     λ   = x[2]
+    ηve = 1/(1/(η) + 1/(G*dt))
     r_τ = strain_rate_residual(ε, τ, τ0, dt, η, G, λ, P, ψ)
-    r_F = F_residual(τ, P, C, ϕ, λ)
+    r_F = F_residual(τ, P, C, ϕ, λ, ηve)
     return SA[r_τ, r_F]
 end
 
@@ -58,7 +60,7 @@ function solve(ε, τ, τ0, dt, η, G, λ, P, ψ, C, ϕ; tol::Float64 = 1.0e-9, 
         r = residual_vector(x, ε, τ0, dt, η, G, P, ψ, C, ϕ)
         J = ForwardDiff.jacobian(x -> residual_vector(x, ε, τ0, dt, η, G, P, ψ, C, ϕ), x)
         Δx = J \ r
-        α = 1 # bt_line_search(Δx, J, x, r, c, vars, others)
+        α  = 1 # bt_line_search(Δx, J, x, r, c, vars, others)
         x -= α .* Δx
         # check convergence
         er = mynorm(Δx, x)
@@ -75,18 +77,18 @@ end
 
 function stress_time()
 
-    ntime = 2_000
-    dt = 1e8
-    ε  = 1e-14
-    τ  = 10e6
-    τ0 = 0
-    η  = 1e22
-    G  = 10e9
-    λ  = 0
-    P  = 1e6
-    C  = 10e6
-    ϕ  = 30
-    ψ  = 0
+    ntime = 20_000
+    dt    = 1e7
+    ε     = 1e-14
+    τ     = 1e3
+    τ0    = 0
+    η     = 1e22
+    G     = 10e9
+    λ     = 1e-12
+    P     = 1e6
+    C     = 10e6
+    ϕ     = 30
+    ψ     = 0
 
     # Extract elastic stresses/pressure from solutio vector
     τv    = zeros(ntime)
@@ -95,7 +97,7 @@ function stress_time()
     tv    = zeros(ntime)
     t     = 0.0
     for i in 2:ntime
-        sol          = solve(ε, τ, τ0, dt, η, G, λ, P, ψ, C, ϕ; verbose = true)
+        sol          = solve(ε, τ, τ0, dt, η, G, λ, P, ψ, C, ϕ; verbose = false)
         τv[i], λv[i] = sol
         τ0           = sol[1]
         τ            = sol[1] # this is just a guess for the next iteration
@@ -111,15 +113,14 @@ end
 
 tv, τv, τv_an = stress_time()
 
-
 fig = Figure(fontsize = 30, size = (800, 600) .* 2)
 ax  = Axis(fig[1, 1], xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
 # ax2 = Axis(fig[2, 1], xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
 
-lines!(ax, tv / SecYear / 1.0e3, τv_an / 1.0e6, color=:black, label = "analytical")
-scatter!(ax, tv / SecYear / 1.0e3, τv / 1.0e6,  color=:red, label = "numerical")
+lines!(  ax, tv / SecYear / 1.0e3, τv_an / 1.0e6, color=:black, label = "analytical")
+scatter!(ax, tv / SecYear / 1.0e3, τv / 1.0e6,    color=:red,   label = "numerical")
 
-lines!(ax2, tv / SecYear / 1.0e3, log10.(abs.(τ_an.-τ) ./ τ_an), color=:black)
+# lines!(ax2, tv / SecYear / 1.0e3, log10.(abs.(τ_an.-τ) ./ τ_an), color=:black)
 
 # axislegend(ax, position = :rb)
 #title!(ax,"Burgers model")
