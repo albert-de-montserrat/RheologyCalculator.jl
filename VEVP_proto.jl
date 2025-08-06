@@ -26,31 +26,31 @@ compute_Q(τ, P, ψ) = τ - P * sind(ψ)
 function compute_F(τ, P, C, ϕ, λ, ηve)
     F = τ - P * sind(ϕ) - C * cosd(ϕ) #- λ * ηve
     F *= (F > 0)
-    return F - λ #* ηve
+    return F - λ * 1
 end
 
-function strain_rate(τ, τ0, dt, η, G, λ, P, ψ)
+function strain_rate(τ, τ0, dt, η, G, ε_p)
     ε_v = viscous_strain_rate(η, τ)
     ε_e = elastic_strain_rate(G, τ, τ0, dt)
-    ε_p = plastic_strain_rate(λ, τ, P, ψ)
     ε = ε_v + ε_e + ε_p
     return ε
 end
 
-strain_rate_residual(ε, τ, τ0, dt, η, G, λ, P, ψ) = strain_rate(τ, τ0, dt, η, G, λ, P, ψ) - ε
-F_residual(τ, P, C, ϕ, λ, ηve)                    = compute_F(τ, P, C, ϕ, λ, ηve)
-parallel_strain_rate_residual(τ, τpl, ε, η)       = τpl + viscous_stress(η, ε) - τ
-plastic_stress_residual(τ, P, ε, λ)               = plastic_strain_rate(λ, τ, P, ψ) - ε
+strain_rate_residual(ε, τ, τ0, dt, η, G, ε_p) = strain_rate(τ, τ0, dt, η, G, ε_p) - ε
+F_residual(τ, P, C, ϕ, λ, ηve)                = compute_F(τ, P, C, ϕ, λ, ηve)
+parallel_strain_rate_residual(τ, τpl, ε, η)   = τpl + viscous_stress(η, ε) - τ
+plastic_stress_residual(τ, P, ε, λ, ψ)        = plastic_strain_rate(λ, τ, P, ψ) - ε
+
 
 function residual_vector(x::SVector, ε, τ0, dt, η, ηreg, G, P, ψ, C, ϕ)
-    τ   = x[1]
-    εpl = x[2]
-    τpl = x[3]
-    λ   = x[4]
-    ηve = 1/(1/(η) + 1/(G*dt))
-    r_τ   = strain_rate_residual(ε, τ, τ0, dt, η, G, λ, P, ψ)
-    r_εpl = parallel_strain_rate_residual(τ, τpl, εpl, ηreg) 
-    r_τpl = plastic_stress_residual(τpl, P, εpl, λ)
+    τ     = x[1]
+    εp    = x[2]
+    τpl   = x[3]
+    λ     = x[4]
+    ηve   = 1/(1/(η) + 1/(G*dt))
+    r_τ   = strain_rate_residual(ε, τ, τ0, dt, η, G, εp)
+    r_εpl = parallel_strain_rate_residual(τ, τpl, εp, ηreg)
+    r_τpl = plastic_stress_residual(τpl, P, εp, λ, ψ)
     r_F   = F_residual(τpl, P, C, ϕ, λ, ηve)
     return SA[r_τ, r_εpl, r_τpl, r_F]
 end
@@ -59,7 +59,7 @@ function solve(ε, τ, τ0, dt, η, ηreg, G, λ, P, ψ, C, ϕ; tol::Float64 = 1
 
     it = 0
     er = Inf
-    x  = SA[τ, ε/3, 0, λ]  # Initial guess
+    x  = SA[τ, ε, 0, 0]  # Initial guess
     α  = 1e0
     while er > tol
         it += 1
@@ -105,17 +105,13 @@ function stress_time()
     tv    = zeros(ntime)
     t     = 0.0
     for i in 2:ntime
-        sol          = solve(ε, τ, τ0, dt, η, ηreg, G, λ, P, ψ, C, ϕ; verbose = false)
-        τv[i]        = sol[1]
-
-        τpl          = sol[3] + viscous_stress(ηreg, ε) # parallel stress
-
-        τ0           = τpl
-        # τ            = sol[1] # this is just a guess for the next iteration
-        λ            = sol[4] # this is just a guess for the next iteration
-        t           += dt
-        τv_an[i]     = analytical_solution(ε, t, G, η)
-        tv[i]       = t
+        sol       = solve(ε, τ, τ0, dt, η, ηreg, G, λ, P, ψ, C, ϕ; verbose = false)
+        τv[i]     = sol[1]
+        τ         = sol[1]
+        τ0        = sol[1]
+        t        += dt
+        τv_an[i]  = analytical_solution(ε, t, G, η)
+        tv[i]     = t
     end
 
     return tv, τv, τv_an
