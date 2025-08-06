@@ -90,7 +90,7 @@ function stress_time()
     τ     = 1e3
     τ0    = 0
     η     = 1e22
-    ηreg  = 1e20
+    ηvp   = 1e20
     G     = 10e9
     λ     = 1e-12
     P     = 1e6
@@ -100,32 +100,54 @@ function stress_time()
 
     # Extract elastic stresses/pressure from solutio vector
     τv    = zeros(ntime)
+    τv_pc = zeros(ntime)
     λv    = zeros(ntime)
     τv_an = zeros(ntime)
     tv    = zeros(ntime)
     t     = 0.0
+    τ_pc  = 0.0
+
     for i in 2:ntime
-        sol       = solve(ε, τ, τ0, dt, η, ηreg, G, λ, P, ψ, C, ϕ; verbose = false)
+        sol       = solve(ε, τ, τ0, dt, η, ηvp, G, λ, P, ψ, C, ϕ; verbose = false)
         τv[i]     = sol[1]
         τ         = sol[1]
         τ0        = sol[1]
         t        += dt
         τv_an[i]  = analytical_solution(ε, t, G, η)
         tv[i]     = t
+
+
+        # Standard predictor-corrector
+        η_ve       = (1/η + 1/(G*dt))^-1
+        τ_pc0      = τ_pc
+        τ_pc       = 2*η_ve * (ε + τ_pc0/(2*G*dt))
+        f_p        = τ_pc - (C*cosd(ϕ) + P*sind(ϕ))
+        if f_p > 0
+            λ    = f_p / (η_ve + ηvp)
+            εp   = λ*τ_pc/2/abs(τ_pc)
+            f_c  = τ_pc - η_ve*λ - (C*cosd(ϕ) + P*sind(ϕ) + λ*ηvp)   
+            @show f_c
+            τ_pc = 2*η_ve * (ε + τ_pc0/(2*G*dt) - εp)
+        end
+        τv_pc[i]   = τ_pc
+
     end
 
-    return tv, τv, τv_an
+    return tv, τv, τv_pc, τv_an
 end
 
 
-tv, τv, τv_an = stress_time()
+tv, τv, τv_pc, τv_an = stress_time()
 
 fig = Figure(fontsize = 30, size = (800, 600) .* 2)
 ax  = Axis(fig[1, 1], xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
 # ax2 = Axis(fig[2, 1], xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
 
-lines!(  ax, tv / SecYear / 1.0e3, τv_an / 1.0e6, color=:black, label = "analytical")
-scatter!(ax, tv / SecYear / 1.0e3, τv / 1.0e6,    color=:red,   label = "numerical")
+step1 = 10
+step2 = 100
+lines!(ax, tv / SecYear / 1.0e3, τv_an / 1.0e6, color=:black, label = "analytical")
+scatter!(ax, tv[1:step1:end] / SecYear / 1.0e3, τv[1:step1:end]    / 1.0e6,  color=:red, label = "numerical")
+scatter!(ax, tv[1:step2:end] / SecYear / 1.0e3, τv_pc[1:step2:end] / 1.0e6,  color=:blue, label = "predictor-corrector")
 
 # lines!(ax2, tv / SecYear / 1.0e3, log10.(abs.(τ_an.-τ) ./ τ_an), color=:black)
 
@@ -134,6 +156,6 @@ scatter!(ax, tv / SecYear / 1.0e3, τv / 1.0e6,    color=:red,   label = "numeri
 ax.xlabel = L"t [kyr]"
 ax.ylabel = L"\tau [MPa]"
 
-# ax2.xlabel = L"t [kyr]"
-# ax2.ylabel = L"\log_{10}\text{relative error}"
+axislegend(ax, position = :rb)
+
 display(fig)
