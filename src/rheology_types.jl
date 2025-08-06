@@ -226,7 +226,8 @@ end
 @inline parallel_state_functions(::BulkElasticity) = (compute_pressure,)
 @inline parallel_state_functions(::BulkViscosity) = (compute_pressure,)
 @inline parallel_state_functions(::IncompressibleElasticity) = (compute_stress,)
-@inline parallel_state_functions(::DruckerPrager) = compute_stress, compute_pressure, compute_lambda, compute_plastic_strain_rate, compute_volumetric_plastic_strain_rate
+# @inline parallel_state_functions(::DruckerPrager) = compute_stress, compute_pressure, compute_lambda, compute_plastic_strain_rate, compute_volumetric_plastic_strain_rate
+@inline parallel_state_functions(::DruckerPrager) = compute_stress, compute_lambda, compute_plastic_strain_rate
 @inline parallel_state_functions(::AbstractRheology) = error("Rheology not defined")
 
 # handle tuples

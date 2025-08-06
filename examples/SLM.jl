@@ -21,7 +21,7 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
         τ1[i] = x[1]
 
         τ_e = compute_stress_elastic(c, x, others)
-        # P_e = compute_pressure_elastic(c, x, others)
+        P_e = compute_pressure_elastic(c, x, others)
 
         # τ1[i] = τ_e[1]
         # P1[i] = P_e[1]
