@@ -42,20 +42,20 @@ parallel_strain_rate_residual(τ, τpl, ε, η)   = τpl + viscous_stress(η, ε
 plastic_stress_residual(τ, P, ε, λ, ψ)        = plastic_strain_rate(λ, τ, P, ψ) - ε
 
 
-function residual_vector(x::SVector, ε, τ0, dt, η, ηreg, G, P, ψ, C, ϕ)
+function residual_vector(x::SVector, ε, τ0, dt, η, ηvp, G, P, ψ, C, ϕ)
     τ     = x[1]
     εp    = x[2]
     τpl   = x[3]
     λ     = x[4]
     ηve   = 1/(1/(η) + 1/(G*dt))
     r_τ   = strain_rate_residual(ε, τ, τ0, dt, η, G, εp)
-    r_εpl = parallel_strain_rate_residual(τ, τpl, εp, ηreg)
+    r_εpl = parallel_strain_rate_residual(τ, τpl, εp, ηvp)
     r_τpl = plastic_stress_residual(τpl, P, εp, λ, ψ)
     r_F   = F_residual(τpl, P, C, ϕ, λ, ηve)
     return SA[r_τ, r_εpl, r_τpl, r_F]
 end
 
-function solve(ε, τ, τ0, dt, η, ηreg, G, λ, P, ψ, C, ϕ; tol::Float64 = 1.0e-9, itermax = 1.0e4, verbose::Bool = false)
+function solver(ε, τ, τ0, dt, η, ηvp, G, λ, P, ψ, C, ϕ; tol::Float64 = 1.0e-9, itermax = 1.0e4, verbose::Bool = false)
 
     it = 0
     er = Inf
@@ -64,8 +64,8 @@ function solve(ε, τ, τ0, dt, η, ηreg, G, λ, P, ψ, C, ϕ; tol::Float64 = 1
     while er > tol
         it += 1
 
-        r = residual_vector(x, ε, τ0, dt, η, ηreg, G, P, ψ, C, ϕ)
-        J = ForwardDiff.jacobian(x -> residual_vector(x, ε, τ0, dt, η, ηreg, G, P, ψ, C, ϕ), x)
+        r = residual_vector(x, ε, τ0, dt, η, ηvp, G, P, ψ, C, ϕ)
+        J = ForwardDiff.jacobian(x -> residual_vector(x, ε, τ0, dt, η, ηvp, G, P, ψ, C, ϕ), x)
         Δx = J \ r
         α  = 1 # bt_line_search(Δx, J, x, r, c, vars, others)
         x -= α .* Δx
@@ -84,10 +84,10 @@ end
 
 function stress_time()
 
-    ntime = 20_000
-    dt    = 1e7
+    ntime = 1_500
+    dt    = 1e8
     ε     = 1e-14
-    τ     = 1e3
+    τ     = 2e3
     τ0    = 0
     η     = 1e22
     ηvp   = 1e20
@@ -106,9 +106,10 @@ function stress_time()
     tv    = zeros(ntime)
     t     = 0.0
     τ_pc  = 0.0
-
+    sol_t = Any[]
     for i in 2:ntime
-        sol       = solve(ε, τ, τ0, dt, η, ηvp, G, λ, P, ψ, C, ϕ; verbose = false)
+        sol       = solver(ε, τ, τ0, dt, η, ηvp, G, λ, P, ψ, C, ϕ; verbose = false)
+        push!(sol_t, sol)
         τv[i]     = sol[1]
         τ         = sol[1]
         τ0        = sol[1]
@@ -133,11 +134,11 @@ function stress_time()
 
     end
 
-    return tv, τv, τv_pc, τv_an
+    return tv, τv, τv_pc, τv_an, sol_t   
 end
 
 
-tv, τv, τv_pc, τv_an = stress_time()
+tv, τv, τv_pc, τv_an, sol_t_proto = stress_time()
 
 fig = Figure(fontsize = 30, size = (800, 600) .* 2)
 ax  = Axis(fig[1, 1], xlabel = "t [kyr]", ylabel = L"\tau [MPa]")

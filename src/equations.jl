@@ -368,38 +368,14 @@ end
             keys_hist = history_kwargs(rheology[i])
             args_local = extract_local_kwargs(others, keys_hist, el_number[i])
             args_combined = merge(args, args_local)
+            # @show args_combined
             fn(rheology[i], args_combined)
         end
         sum(vals)
     end
 end
 
-evaluate_state_function(fn::F, rheology::Tuple{}, args, others) where {F} = 0.0e0
-
-
-
-# @generated function add_children(residual::NTuple{N, Any}, x::SVector{N}, eqs::NTuple{N, CompositeEquation}) where {N}
-#     return quote
-#         @inline
-#         Base.@ntuple $N i -> residual[i] + add_child(x, eqs[i].child)
-#     end
-# end
-
-# function add_children(residual::Number, x::SVector, eq::CompositeEquation)
-#     return residual + add_child(x, eq.child)
-# end
-
-# add_child(::SVector, ::Tuple{}) = 0.0e0
-# @generated function add_child(x::SVector{M}, child::NTuple{N}) where {M, N}
-#     return quote
-#         @inline
-#         v = Base.@ntuple $N i -> begin
-#             x[child[i]]
-#         end
-#         sum(v)
-#     end
-# end
-
+@inline evaluate_state_function(fn::F, rheology::Tuple{}, args, others) where {F} = 0.0e0
 
 @generated function add_children(residual::NTuple{N, Any}, x::SVector{N}, eqs::NTuple{N, CompositeEquation}) where {N}
     return quote
@@ -431,18 +407,23 @@ add_child(::SVector, ::NTuple{N, CompositeEquation}, ::Tuple{}) where N = 0.0e0
 
 
 # if global, subtract the variables
+@generated function subtract_parent(residual::NTuple{N, Any}, x, eqs::NTuple{N, CompositeEquation}, vars) where {N}
+    return quote
+        @inline
+        Base.@ntuple $N i -> begin
+            # @show subtract_parent(x, eqs[i], vars)
+            residual[i] - subtract_parent(x, eqs[i], vars)
+        end 
+    end
+end
+
 @inline subtract_parent(::SVector, eq::CompositeEquation{true}, vars) = vars[eq.ind_input]
 @inline subtract_parent(x::SVector, eq::CompositeEquation{false}, ::NamedTuple) = x[eq.parent]
 # exception for lambda
 @inline subtract_parent(x::SVector, eq::CompositeEquation{false, T, typeof(compute_lambda)}, ::NamedTuple) where {T} = 0 # x[eq.self]
 @inline subtract_parent(x::SVector, eq::CompositeEquation{false, T, typeof(compute_lambda_parallel)}, ::NamedTuple) where {T} = 0 # x[eq.self]
 
-@generated function subtract_parent(residual::NTuple{N, Any}, x, eqs::NTuple{N, CompositeEquation}, vars) where {N}
-    return quote
-        @inline
-        Base.@ntuple $N i -> residual[i] - subtract_parent(x, eqs[i], vars)
-    end
-end
+
 
 subtract_parent(residual::Number, x::SVector, eq::CompositeEquation, vars) = residual - subtract_parent(x, eq, vars)
 
