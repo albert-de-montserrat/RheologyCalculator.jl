@@ -1,6 +1,5 @@
 using RheologyCalculator
 import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
-import RheologyCalculator as RC
 
 using GLMakie
 
@@ -17,7 +16,7 @@ function stress_time(c, vars, x, others; ntime = 200, dt = 1.0e8)
         x        = solve(c, x, vars, others, verbose = false)
         τ1[i]    = x[1]
         t       += others.dt
-        τ_e      = x[1] # compute_stress_elastic(c, x, others)
+        τ_e      = x[1] 
     
         t_v[i] = t
     end
