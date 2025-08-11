@@ -259,7 +259,6 @@ function add_global_equations(iparent, ilocal_childs, iparallel_childs, iself_re
     iself_ref[] += 1
     corrected_children = correct_children(fns_own_global, branches, iparallel_childs)
     children = (ilocal_childs..., corrected_children...)
-    #@show children, corrected_children
     return CompositeEquation(iparent, children, iself_ref[], fns_own_global, leafs, ind_input, Val(B), el_number)
 end
 
@@ -346,6 +345,15 @@ Base.@propagate_inbounds @inline _extract_local_kwargs(vals_args::Tuple, name, k
 
 @inline ismember(name::Symbol, keys_hist::NTuple{N, Symbol}) where {N} = name in keys_hist
 
+
+# @inline evaluate_state_functions(eqs::NTuple{N, CompositeEquation}, args) where N = promote(ntuple(i -> evaluate_state_function(eqs[i], args[i]), Val(N))...)
+@generated function evaluate_state_functions(eqs::NTuple{N, CompositeEquation}, args, others) where {N}
+    return quote
+        @inline
+        Base.@ntuple $N i -> evaluate_state_function(eqs[i], args[i], others)
+    end
+end
+
 @inline function evaluate_state_function(eq::CompositeEquation, args, others)
     (; fn, rheology, el_number) = eq
     return evaluate_state_function(fn, rheology, args, others, el_number)
@@ -368,13 +376,7 @@ end
 
 evaluate_state_function(fn::F, rheology::Tuple{}, args, others) where {F} = 0.0e0
 
-# @inline evaluate_state_functions(eqs::NTuple{N, CompositeEquation}, args) where N = promote(ntuple(i -> evaluate_state_function(eqs[i], args[i]), Val(N))...)
-@generated function evaluate_state_functions(eqs::NTuple{N, CompositeEquation}, args, others) where {N}
-    return quote
-        @inline
-        Base.@ntuple $N i -> evaluate_state_function(eqs[i], args[i], others)
-    end
-end
+
 
 # @generated function add_children(residual::NTuple{N, Any}, x::SVector{N}, eqs::NTuple{N, CompositeEquation}) where {N}
 #     return quote
@@ -419,6 +421,7 @@ end
 
 add_child(x, ::CompositeEquation, eq_ind) = x[eq_ind]
 add_child(::SVector{N, T}, ::CompositeEquation{A, B, typeof(compute_lambda)}, eq_ind) where {N,A,B,T} = zero(T)
+add_child(::SVector{N, T}, ::CompositeEquation{A, B, typeof(compute_lambda_parallel)}, eq_ind) where {N,A,B,T} = zero(T)
 add_child(::SVector{N, T}, ::CompositeEquation{A, B, typeof(compute_plastic_strain_rate)}, eq_ind) where {N,A,B,T} = zero(T)
 # add_child(::SVector{Any, T}, ::CompositeEquation{Any, Any, typeof(compute_plastic_strain_rate)}, eq_ind) where T = zero(T)
 
@@ -432,6 +435,7 @@ add_child(::SVector, ::NTuple{N, CompositeEquation}, ::Tuple{}) where N = 0.0e0
 @inline subtract_parent(x::SVector, eq::CompositeEquation{false}, ::NamedTuple) = x[eq.parent]
 # exception for lambda
 @inline subtract_parent(x::SVector, eq::CompositeEquation{false, T, typeof(compute_lambda)}, ::NamedTuple) where {T} = 0 # x[eq.self]
+@inline subtract_parent(x::SVector, eq::CompositeEquation{false, T, typeof(compute_lambda_parallel)}, ::NamedTuple) where {T} = 0 # x[eq.self]
 
 @generated function subtract_parent(residual::NTuple{N, Any}, x, eqs::NTuple{N, CompositeEquation}, vars) where {N}
     return quote

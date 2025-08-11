@@ -42,11 +42,18 @@ end
 # splatter wrapper
 @inline compute_volumetric_strain_rate(r::AbstractRheology, kwargs::NamedTuple) = compute_volumetric_strain_rate(r; kwargs...)
 
-# compute_volumetric_strain_rate methods
+@inline function compute_lambda_parallel(r::DruckerPrager; τ_pl = 0, λ = 0, P = 0, kwargs...)
+    F = compute_F(r, τ_pl, P)
+    return F - λ  # * (F > 0)
+end
+@inline compute_lambda_parallel(r::AbstractRheology; kwargs...) = 0.0e0 
+@inline compute_lambda_parallel(r::AbstractRheology, kwargs::NamedTuple) = compute_lambda_parallel(r; kwargs...)
+
 @inline function compute_lambda(r::DruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)
     F = compute_F(r, τ, P)
     return F - λ  # * (F > 0)
 end
+
 @inline compute_lambda(r::AbstractRheology; kwargs...) = 0.0e0 # for any other rheology that doesnt need this method
 # splatter wrapper
 @inline compute_lambda(r::AbstractRheology, kwargs::NamedTuple) = compute_lambda(r; kwargs...)
