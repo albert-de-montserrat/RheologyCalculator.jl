@@ -4,27 +4,19 @@ import RheologyCalculator as RC
 
 using GLMakie
 
-analytical_solution(ϵ, t, G, η) = 2 * ϵ * η * (1 - exp(-G * t / η))
 
 function stress_time(c, vars, x, others; ntime = 200, dt = 1.0e8)
     # Extract elastic stresses/pressure from solutio vector
     τ1   = zeros(ntime)
-    λ    = zeros(ntime)
-    τ_an = zeros(ntime)
-    # τ2 = zeros(ntime)
-    # P1 = zeros(ntime)
-    # P2 = zeros(ntime)
     t_v = zeros(ntime)
     τ_e = (0.0,)
     P_e = (0.0,)
     t = 0.0
     for i in 2:ntime
         others   = (; dt = dt, τ0 = τ_e, P=others.P, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
-
         x        = solve(c, x, vars, others, verbose = false)
         τ1[i]    = x[1]
         t       += others.dt
-        τ_an[i]  = analytical_solution(vars.ε, t, c.leafs[2].G, c.leafs[1].η)
         τ_e      = x[1] # compute_stress_elastic(c, x, others)
     
         t_v[i] = t
@@ -41,7 +33,6 @@ c, x, vars, args, others = let
     # Maxwell visco-elasto-(visco-plastic) model
     p  = ParallelModel(viscous_reg, plastic)
     c  = SeriesModel(viscous, elastic, p)
-    # c  = SeriesModel(viscous, elastic)
 
     # input variables (constant)
     vars   = (; ε = 1.0e-14)
@@ -58,17 +49,14 @@ end
 using StaticArrays
 
 let
-    t_v, τ, τ_an = stress_time(c, vars, x, others; ntime = 1_500, dt = 1e8)
+    t_v, τ = stress_time(c, vars, x, others; ntime = 1_500, dt = 1e8)
 
     SecYear = 3600 * 24 * 365.25
     fig = Figure(fontsize = 30, size = (800, 600) .* 2)
     ax  = Axis(fig[1, 1], title = "Visco-elasto-plastic model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
 
-    lines!(ax, t_v / SecYear / 1.0e3, τ_an / 1.0e6, color=:black, label = "viscoelastic analytical")
     scatter!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6,  color=:red, label = "numerical")
 
-
-    axislegend(ax, position = :rb)
     ax.xlabel = L"t [kyr]"
     ax.ylabel = L"\tau [MPa]"
     display(fig)
