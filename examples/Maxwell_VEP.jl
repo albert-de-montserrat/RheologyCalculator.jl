@@ -3,7 +3,15 @@ import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 
 using GLMakie
 
-analytical_solution(ϵ, t, G, η) = 2 * ϵ * η * (1 - exp(-G * t / η))
+function analytical_solution(ϵ, t, G, η, c, ϕ, P) 
+    τ =  2 * ϵ * η * (1 - exp(-G * t / η))
+    τy = c*cosd(ϕ) + P*sind(ϕ)
+    if τy < τ
+        return τy
+    else
+        return τ
+    end
+end
 
 function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
     # Extract elastic stresses/pressure from solutio vector
@@ -23,7 +31,7 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
         x = solve(c, x, vars, others, verbose = true)
         τ1[i] = x[1]
         t += others.dt
-        τ_an[i] = analytical_solution(vars.ε, t, c.leafs[2].G, c.leafs[1].η)
+        τ_an[i] = analytical_solution(vars.ε, t, c.leafs[2].G, c.leafs[1].η, c.leafs[3].C, c.leafs[3].ϕ, x[2])
         τ_e = compute_stress_elastic(c, x, others)
     
         t_v[i] = t
@@ -61,8 +69,8 @@ t_v, τ, τ_an = stress_time(c, vars, x; ntime = 2_000, dt = 1e9)
 
 SecYear = 3600 * 24 * 365.25
 fig = Figure(fontsize = 30, size = (800, 600) .* 2)
-ax  = Axis(fig[1, 1], title = "Burgers model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
-ax2 = Axis(fig[2, 1], title = "Burgers model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
+ax  = Axis(fig[1, 1], title = "Maxwell viscoelastoplastic model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
+ax2 = Axis(fig[2, 1], title = "Maxwell viscoelastoplastic model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
 
 lines!(ax, t_v / SecYear / 1.0e3, τ_an / 1.0e6, color=:black, label = "analytical")
 scatter!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6,  color=:red, label = "numerical")
@@ -70,11 +78,12 @@ scatter!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6,  color=:red, label = "numerical"
 lines!(ax2, t_v / SecYear / 1.0e3, log10.(abs.(τ_an.-τ) ./ τ_an), color=:black)
 
 axislegend(ax, position = :rb)
-#title!(ax,"Burgers model")
+#title!(ax,"Maxwell viscoelastoplastic model")
 ax.xlabel = L"t [kyr]"
 ax.ylabel = L"\tau [MPa]"
 
 ax2.xlabel = L"t [kyr]"
 ax2.ylabel = L"\log_{10}\text{relative error}"
+ax2.limits=(0,10,-3.5,-3)
 display(fig)
 
