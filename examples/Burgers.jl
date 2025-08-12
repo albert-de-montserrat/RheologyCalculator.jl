@@ -106,5 +106,5 @@ axislegend(ax, position = :rb)
 #title!(ax,"Burgers model")
 ax.xlabel = L"t [kyr]"
 ax.ylabel = L"\tau [MPa]"
-save("docs/assets/Burgers_model.png", fig)
+save("Burgers_model.png", fig)
 display(fig)
