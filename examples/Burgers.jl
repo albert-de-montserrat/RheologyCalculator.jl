@@ -1,6 +1,8 @@
 using ForwardDiff, RheologyCalculator
 import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 
+include("RheologyDefinitions.jl")
+
 using GLMakie
 
 function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)

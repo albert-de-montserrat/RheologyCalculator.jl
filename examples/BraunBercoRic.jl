@@ -1,5 +1,7 @@
 using Plots, Printf, LinearAlgebra, Statistics
 
+include("RheologyDefinitions.jl")
+
 function BraunBercoRic()
     # Main
     H = 1.0e3      # size
