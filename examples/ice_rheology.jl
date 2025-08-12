@@ -250,10 +250,10 @@ function ice_rheology()
             d = @. d + dd
         end #lit
 
-        p1 = plot()
-        p1 = plot!(1:lit, log10.(re_vec[1:lit]))
-        p1 = plot!(1:lit, log10.(rd_vec[1:lit]))
-        display(p1)
+        p1 = Plots.plot()
+        p1 = Plots.plot!(1:lit, log10.(re_vec[1:lit]))
+        p1 = Plots.plot!(1:lit, log10.(rd_vec[1:lit]))
+        Plots.display(p1)
 
         # Dominant mechanisms
         Eii_el = elastic * (Tii - Tii_o) / 2 / eta_el
@@ -282,12 +282,12 @@ function ice_rheology()
 
     end
 
-    p2 = heatmap(Tvec, log10.(Eiivec), log10.(d)', title = "log10 d", xlabel = "T [K]", ylabel = "log10 ε̇ [1/s]")
-    p3 = heatmap(Tvec, log10.(Eiivec), log10.(Tii)', title = "log10 τII", xlabel = "T [K]", ylabel = "log10 ε̇ [1/s]")
-    p4 = heatmap(Tvec, log10.(Eiivec), mech', title = "mechanism", xlabel = "T [K]", ylabel = "log10 ε̇ [1/s]")
-    p5 = heatmap(Tvec, log10.(Eiivec), log10.(eta_ve)', title = "log10 η", xlabel = "T [K]", ylabel = "log10 ε̇ [1/s]")
+    p2 = Plots.heatmap(Tvec, log10.(Eiivec), log10.(d)', title = "log10 d", xlabel = "T [K]", ylabel = "log10 ε̇ [1/s]")
+    p3 = Plots.heatmap(Tvec, log10.(Eiivec), log10.(Tii)', title = "log10 τII", xlabel = "T [K]", ylabel = "log10 ε̇ [1/s]")
+    p4 = Plots.heatmap(Tvec, log10.(Eiivec), mech', title = "mechanism", xlabel = "T [K]", ylabel = "log10 ε̇ [1/s]")
+    p5 = Plots.heatmap(Tvec, log10.(Eiivec), log10.(eta_ve)', title = "log10 η", xlabel = "T [K]", ylabel = "log10 ε̇ [1/s]")
 
-    return display(plot(p2, p3, p4, p5))
+    return Plots.display(Plots.plot(p2, p3, p4, p5))
 
 end
 
