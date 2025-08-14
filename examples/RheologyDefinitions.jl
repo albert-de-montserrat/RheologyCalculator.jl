@@ -82,9 +82,9 @@ end
 @inline parallel_state_functions(::Elasticity) = compute_stress, compute_pressure
 
 @inline compute_strain_rate(r::Elasticity; τ = 0, τ0 = 0, dt = 0, kwargs...) = (τ - τ0) / (2 * r.G * dt)
-@inline compute_volumetric_strain_rate(r::Elasticity; P = 0, P0 = 0, dt = 0, kwargs...) = (P - P0) / (r.K * dt)
+@inline compute_volumetric_strain_rate(r::Elasticity; P = 0, P0 = 0, dt = 0, kwargs...) = -(P - P0) / (r.K * dt)
 @inline compute_stress(r::Elasticity; ε = 0, τ0 = 0, dt = 0, kwargs...) = τ0 + 2 * r.G * dt * ε
-@inline compute_pressure(r::Elasticity; θ = 0, P0 = 0, dt = 0, kwargs...) = P0 + r.K * dt * θ
+@inline compute_pressure(r::Elasticity; θ = 0, P0 = 0, dt = 0, kwargs...) = P0 - r.K * dt * θ
 # --------------------------------------------------------------------
 
 # Bulk Elasticity ----------------------------------------------------
@@ -103,8 +103,8 @@ end
 
 @inline series_state_functions(::BulkElasticity) = (compute_volumetric_strain_rate,)
 @inline parallel_state_functions(::BulkElasticity) = (compute_pressure,)
-@inline compute_volumetric_strain_rate(r::BulkElasticity; P = 0, P0 = 0, dt = 0, kwargs...) = (P - P0) / (r.K * dt)
-@inline compute_pressure(r::BulkElasticity; θ = 0, P0 = 0, dt = 0, kwargs...) = P0 + r.K * dt * θ
+@inline compute_volumetric_strain_rate(r::BulkElasticity; P = 0, P0 = 0, dt = 0, kwargs...) = -(P - P0) / (r.K * dt)
+@inline compute_pressure(r::BulkElasticity; θ = 0, P0 = 0, dt = 0, kwargs...) = P0 - r.K * dt * θ
 # --------------------------------------------------------------------
 
 # Bulk Viscosity -----------------------------------------------------
@@ -188,7 +188,8 @@ struct DruckerPrager{T} <: AbstractPlasticity
     ϕ::T # in degrees for now
     ψ::T # in degrees for now
 end
-@inline series_state_functions(::DruckerPrager) = (compute_strain_rate, compute_lambda)
+@inline _isvolumetric(::DruckerPrager) = true
+@inline series_state_functions(::DruckerPrager) = (compute_strain_rate, compute_lambda, compute_volumetric_strain_rate)
 @inline parallel_state_functions(::DruckerPrager) = compute_stress, compute_pressure, compute_lambda, compute_plastic_strain_rate, compute_volumetric_plastic_strain_rate
 
 DruckerPrager(args...) = DruckerPrager(promote(args...)...)
@@ -208,7 +209,7 @@ end
 # special plastic helper functions
 function compute_F(r::DruckerPrager, τ, P)
     F = (τ - P * sind(r.ϕ) - r.C * cosd(r.ϕ))
-    return F * (F > 0)
+    return F * (F > -1e-8)
 end
 compute_Q(r::DruckerPrager, τ, P) = τ - P * sind(r.ψ)
 
