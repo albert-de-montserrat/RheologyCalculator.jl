@@ -20,7 +20,7 @@ struct LinearViscosity{T} <: AbstractViscosity
     η::T
 end
 
-@eval @inline series_state_functions(::LinearViscosity) = (compute_strain_rate,)
+@inline series_state_functions(::LinearViscosity) = (compute_strain_rate,)
 @inline parallel_state_functions(::LinearViscosity) = (compute_stress,)
 
 @inline compute_strain_rate(r::LinearViscosity; τ = 0, kwargs...) = τ / (2 * r.η)
@@ -57,7 +57,7 @@ struct PowerLawViscosity{T, I} <: AbstractViscosity
     η::T
     n::I # DO NOT PROMOTE TO FP BY DEFAULT
 end
-@eval @inline series_state_functions(::PowerLawViscosity) = (compute_strain_rate,)
+@inline series_state_functions(::PowerLawViscosity) = (compute_strain_rate,)
 @inline parallel_state_functions(::PowerLawViscosity) = (compute_stress,)
 @inline compute_strain_rate(r::PowerLawViscosity; τ = 0, kwargs...) = τ^r.n / (2 * r.η)
 @inline compute_stress(r::PowerLawViscosity; ε = 0, kwargs...) = ε^(1 / r.n) * (2 * r.η)^(1 / r.n)
@@ -139,7 +139,7 @@ Represents incompressible elastic deformation (shear only).
 struct IncompressibleElasticity{T} <: AbstractElasticity
     G::T
 end
-@eval @inline series_state_functions(::IncompressibleElasticity) = (compute_strain_rate,)
+@inline series_state_functions(::IncompressibleElasticity) = (compute_strain_rate,)
 @inline parallel_state_functions(::IncompressibleElasticity) = (compute_stress,)
 @inline compute_strain_rate(r::IncompressibleElasticity; τ = 0, τ0 = 0, dt = 0, kwargs...) = (τ - τ0) / (2 * r.G * dt)
 @inline compute_stress(r::IncompressibleElasticity; ε = 0, τ0 = 0, dt = 0, kwargs...) = τ0 + 2 * r.G * dt * ε
@@ -165,7 +165,7 @@ struct LTPViscosity{T} <: AbstractViscosity
     σr::T # 3.4 Gpa
 end
 LTPViscosity(args...) = LTPViscosity(promote(args...)...)
-@eval @inline series_state_functions(::LTPViscosity) = (compute_strain_rate,)
+@inline series_state_functions(::LTPViscosity) = (compute_strain_rate,)
 
 @inline compute_strain_rate(r::LTPViscosity; τ = 0, kwargs...) = max(r.ε0 * sinh(r.Q * (τ - r.σb) / r.σr), 0.0)
 # @inline compute_strain_rate(r::LTPViscosity; τ = 0, kwargs...) = r.ε0 * sinh(r.Q * (τ - r.σb) / r.σr)
@@ -259,7 +259,7 @@ DiffusionCreep(args...) = DiffusionCreep(args[1], promote(args[2:end]...)...)
     # ε = A * TauII ^n * exp(-(E + P * V) / (R * T))
     return ε
 end
-@eval @inline series_state_functions(::DiffusionCreep) = (compute_strain_rate,)
+@inline series_state_functions(::DiffusionCreep) = (compute_strain_rate,)
 # --------------------------------------------------------------------
 
 
@@ -286,7 +286,7 @@ struct DislocationCreep{I, T} <: AbstractViscosity
     R::T # universal gas constant
 end
 DislocationCreep(args...) = DislocationCreep(args[1], promote(args[2:end]...)...)
-@eval @inline series_state_functions(::DislocationCreep) = (compute_strain_rate,)
+@inline series_state_functions(::DislocationCreep) = (compute_strain_rate,)
 
 @inline function compute_strain_rate(r::DislocationCreep; τ = 0, T = 0, P = 0, f = 0, args...)
     (; n, r, A, E, V, R) = r
