@@ -12,10 +12,11 @@ function solve(c::AbstractCompositeModel, x::SVector, vars, others; tol::Float64
     while er > tol
         it += 1
         r = compute_residual(c, x, vars, others)
+        
         J = ForwardDiff.jacobian(y -> compute_residual(c, y, vars, others), x)
         Δx = J \ r
         #α = bt_line_search_armijo(Δx, J, x, r, c, vars, others, α_min = 1.0e-8, c=0.9)
-        α = bt_line_search(Δx, x, c, vars, others; α = 1.0, ρ = 0.5, lstol=0.9, α_min = 1.0e-8) 
+        α = bt_line_search(Δx, x, c, vars, others; α = 1.0, ρ = 0.5, lstol=0.9, α_min = 0.001) 
         x -= α .* Δx
         # check convergence
         er = mynorm(Δx, x)
@@ -44,7 +45,9 @@ function solve_timed(c::AbstractCompositeModel, x::SVector, vars, others; tol::F
         @timeit to "update solution" x -= α .* Δx
         # check convergence
         @timeit to "convergence check" er = mynorm(Δx, x)
-
+        if verbose
+            println("Iterations: $it, Error: $er, α = $α")
+        end
         it > itermax && break
     end
     display(to)
