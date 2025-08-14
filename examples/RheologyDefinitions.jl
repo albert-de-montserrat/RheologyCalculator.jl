@@ -190,6 +190,7 @@ struct DruckerPrager{T} <: AbstractPlasticity
 end
 @inline _isvolumetric(::DruckerPrager) = true
 @inline series_state_functions(::DruckerPrager) = (compute_strain_rate, compute_lambda, compute_volumetric_strain_rate)
+
 @inline parallel_state_functions(::DruckerPrager) = compute_stress, compute_pressure, compute_lambda, compute_plastic_strain_rate, compute_volumetric_plastic_strain_rate
 
 DruckerPrager(args...) = DruckerPrager(promote(args...)...)
@@ -225,6 +226,60 @@ end
 end
 
 @inline compute_plastic_stress(r::DruckerPrager; τ_pl = 0, kwargs...) = τ_pl
+# --------------------------------------------------------------------
+
+# DruckerPragerIncompressible ------------------------------------------------------
+"""
+    DruckerPragerIncompressible{T} <: AbstractPlasticity
+
+Represents the incompressible Drucker-Prager plasticity model for pressure-dependent yielding.
+
+# Fields
+- `C::T`: The cohesion parameter.
+- `ϕ::T`: The friction angle (in degrees).
+"""
+struct DruckerPragerIncompressible{T} <: AbstractPlasticity
+    C::T
+    ϕ::T # in degrees for now
+end
+@inline _isvolumetric(::DruckerPragerIncompressible) = false
+@inline series_state_functions(::DruckerPragerIncompressible) = (compute_strain_rate, compute_lambda)
+
+@inline parallel_state_functions(::DruckerPragerIncompressible) = compute_stress, compute_pressure, compute_lambda, compute_plastic_strain_rate
+
+DruckerPragerIncompressible(args...) = DruckerPragerIncompressible(promote(args...)...)
+@inline function compute_strain_rate(r::DruckerPragerIncompressible; τ = 0, λ = 0, P_pl = 0, kwargs...)
+    ε_pl = compute_plastic_strain_rate(r::DruckerPragerIncompressible; τ_pl = τ, λ = λ, P_pl = P_pl, kwargs...)
+    return ε_pl
+end
+@inline function compute_volumetric_strain_rate(r::DruckerPragerIncompressible; τ = 0, λ = 0, P = 0, kwargs...)
+    return λ * ForwardDiff.derivative(x -> compute_Q(r, τ, x), P) # perhaps this derivative needs to be hardcoded
+end
+
+@inline function compute_lambda(r::DruckerPragerIncompressible; τ = 0, λ = 0, P = 0, kwargs...)
+    F = compute_F(r, τ, P)
+    return F - λ # * (F > 0)
+end
+
+# special plastic helper functions
+function compute_F(r::DruckerPragerIncompressible, τ, P)
+    F = (τ - P * sind(r.ϕ) - r.C * cosd(r.ϕ))
+    return F * (F > -1e-8)
+end
+compute_Q(::DruckerPragerIncompressible, τ, P) = τ 
+
+@inline compute_stress(r::DruckerPragerIncompressible; τ_pl = 0, kwargs...) = τ_pl
+@inline compute_pressure(r::DruckerPragerIncompressible; P_pl = 0, kwargs...) = P_pl
+
+@inline function compute_plastic_strain_rate(r::DruckerPragerIncompressible; τ_pl = 0, λ = 0, P_pl = 0, ε = 0, kwargs...)
+    return λ * ForwardDiff.derivative(x -> compute_Q(r, x, P_pl), τ_pl) - ε # perhaps this derivative needs to be hardcoded
+end
+
+@inline function compute_volumetric_plastic_strain_rate(r::DruckerPragerIncompressible; τ_pl = 0, λ = 0, P_pl = 0, θ = 0, kwargs...)
+    return λ * ForwardDiff.derivative(x -> compute_Q(r, τ_pl, x), P_pl) - θ # perhaps this derivative needs to be hardcoded
+end
+
+@inline compute_plastic_stress(r::DruckerPragerIncompressible; τ_pl = 0, kwargs...) = τ_pl
 # --------------------------------------------------------------------
 
 # DiffusionCreep -----------------------------------------------------

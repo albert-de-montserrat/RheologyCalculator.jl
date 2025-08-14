@@ -47,7 +47,7 @@ c, x, vars, args, others = let
     viscous = LinearViscosity(1e22)
     elastic = IncompressibleElasticity(10e9)
     # elastic = Elasticity(10e9, 20e9)
-    plastic = DruckerPrager(15e6, 30, 0)
+    plastic = DruckerPragerIncompressible(15e6, 30)
 
     # Maxwell viscoelastic model
     # elastic --- viscous
