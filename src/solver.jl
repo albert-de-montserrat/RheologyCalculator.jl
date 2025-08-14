@@ -14,7 +14,8 @@ function solve(c::AbstractCompositeModel, x::SVector, vars, others; tol::Float64
         r = compute_residual(c, x, vars, others)
         J = ForwardDiff.jacobian(y -> compute_residual(c, y, vars, others), x)
         Δx = J \ r
-        α = bt_line_search(Δx, J, x, r, c, vars, others)
+        #α = bt_line_search_armijo(Δx, J, x, r, c, vars, others, α_min = 1.0e-8, c=0.9)
+        α = bt_line_search(Δx, x, c, vars, others; α = 1.0, ρ = 0.5, lstol=0.9, α_min = 1.0e-8) 
         x -= α .* Δx
         # check convergence
         er = mynorm(Δx, x)
@@ -53,7 +54,7 @@ function solve_timed(c::AbstractCompositeModel, x::SVector, vars, others; tol::F
     return x
 end
 
-function bt_line_search(Δx, J, x, r, composite, vars, others; α = 1.0, ρ = 0.5, c = 1.0e-4, α_min = 1.0e-8)
+function bt_line_search_armijo(Δx, J, x, r, composite, vars, others; α = 1.0, ρ = 0.5, c = 1.0e-4, α_min = 1.0e-8)
 
     perturbed_x = @. x - α * Δx
     perturbed_r = compute_residual(composite, perturbed_x, vars, others)
@@ -68,6 +69,32 @@ function bt_line_search(Δx, J, x, r, composite, vars, others; α = 1.0, ρ = 0.
         perturbed_x = @. x - α * Δx
         perturbed_r = compute_residual(composite, perturbed_x, vars, others)
     end
+    return α
+end
+
+
+function bt_line_search(Δx, x, composite, vars, others; α = 1.0, ρ = 0.5, lstol=0.9, α_min = 1.0e-8)
+    
+    perturbed_x = @. x - α * Δx
+    rnorm = compute_residual(composite, perturbed_x, vars, others)
+
+    # Iterate unless step length becomes too small
+    while α > α_min
+        # Apply scaled update
+        perturbed_x = @. x - α * Δx
+        
+        # Get updated residual
+        rmnorm =   compute_residual(composite, perturbed_x, vars, others)
+
+        # Check whether residual is sufficiently reduced
+        if rmnorm <= lstol * rnorm
+            break
+        end
+
+        # Bisect step length
+        α *= ρ
+    end
+
     return α
 end
 
