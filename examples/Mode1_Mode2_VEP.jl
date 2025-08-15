@@ -291,11 +291,9 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
     t       = 0.0
     for i in 2:ntime
         others = (; dt = dt, τ0 = τ_e, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
-
-        #others = (others..., flag=false)
-        x = solve_local(c, x, vars, others, verbose = true, tol=1e-8, itermax=10_000)
-        #others = (others..., flag=true)
-      
+        
+        x = RheologyCalculator.solve(c, x, vars, others, verbose = true, tol=1e-8, itermax=10_000)
+       
         t += others.dt
         
         τ_e = compute_stress_elastic(c, x, others)
@@ -345,7 +343,7 @@ end
 
 # Plot yield stress - this is reproducing Fig. 2 of the paper
 τII = 0:0.01e6:2e6
-P   = -0e6:0.01e6:2e6
+P   = -1e6:0.01e6:2e6
 
 F = zeros(length(P), length(τII))
 Q = zeros(length(P), length(τII))

@@ -424,7 +424,7 @@ function compute_residual(c, x::SVector{N, T}, vars, others) where {N, T}
 
     # evaluates the self-components of the residual
     residual1 = evaluate_state_functions(eqs, args_all, others)
-    residual2 = add_children(residual1, x, eqs)
+    residual2 = add_children(residual1, x*0, eqs)
     residual3 = subtract_parent(residual2, x, eqs, vars)
 
     return SA[residual3...]
