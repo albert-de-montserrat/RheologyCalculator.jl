@@ -11,7 +11,9 @@ struct CompositeEquation{IsGlobal, T, F, R, RT}
 
     function CompositeEquation(parent::Int64, child::T, self::Int64, fn::F, rheology::R, ind_input, ::Val{B}, el_number::RT) where {T, F, R, B, RT}
         @assert B isa Bool
+        #return new{B, T, F, R, RT}(parent, child, self, fn, rheology, ind_input, el_number)
         return new{B, T, F, R, RT}(parent, child, self, fn, rheology, ind_input, el_number)
+        
     end
 end
 

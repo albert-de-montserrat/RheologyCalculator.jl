@@ -196,29 +196,29 @@ end
 DruckerPrager(args...) = DruckerPrager(promote(args...)...)
 @inline function compute_strain_rate(r::DruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)
     ε_pl = compute_plastic_strain_rate(r::DruckerPrager; τ_pl = τ, λ = λ, P_pl = P, kwargs...)
-    return ε_pl
+    return ε_pl*0
 end
 @inline function compute_volumetric_strain_rate(r::DruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)
     #return -λ * ForwardDiff.derivative(x -> compute_Q(r, τ, x), P) # perhaps this derivative needs to be hardcoded
     θ_pl = compute_volumetric_plastic_strain_rate(r::DruckerPrager; τ_pl = τ, λ = λ, P_pl = P, kwargs...)
-    return θ_pl
+    return θ_pl*0
 
 end
 
 @inline function compute_lambda(r::DruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)
     F = compute_F(r, τ, P)
-    return F + λ # * (F > 0)
+    return 0*F + λ # * (F > 0)
 end
 
 # special plastic helper functions
 function compute_F(r::DruckerPrager, τ, P)
     F = (τ - P * sind(r.ϕ) - r.C * cosd(r.ϕ))
-    return F * (F > -1e-8)
+    return F * (F > -1e-8)*0
 end
 compute_Q(r::DruckerPrager, τ, P) = τ - P * sind(r.ψ)
 
-@inline compute_stress(r::DruckerPrager; τ_pl = 0, kwargs...) = τ_pl
-@inline compute_pressure(r::DruckerPrager; P_pl = 0, kwargs...) = P_pl
+@inline compute_stress(r::DruckerPrager; τ_pl = 0, kwargs...) = τ_pl*0
+@inline compute_pressure(r::DruckerPrager; P_pl = 0, kwargs...) = P_pl*0
 
 @inline function compute_plastic_strain_rate(r::DruckerPrager; τ_pl = 0, λ = 0, P_pl = 0, ε = 0, kwargs...)
     return λ * ForwardDiff.derivative(x -> compute_Q(r, x, P_pl), τ_pl) - ε # perhaps this derivative needs to be hardcoded
@@ -228,7 +228,7 @@ end
     return -λ * ForwardDiff.derivative(x -> compute_Q(r, τ_pl, x), P_pl) - θ # perhaps this derivative needs to be hardcoded
 end
 
-@inline compute_plastic_stress(r::DruckerPrager; τ_pl = 0, kwargs...) = τ_pl
+@inline compute_plastic_stress(r::DruckerPrager; τ_pl = 0, kwargs...) = τ_pl*0
 # --------------------------------------------------------------------
 
 # DruckerPragerIncompressible ------------------------------------------------------

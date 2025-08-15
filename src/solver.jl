@@ -11,8 +11,11 @@ function solve(c::AbstractCompositeModel, x::SVector, vars, others; tol::Float64
     local α
     while er > tol
         it += 1
+
+        r1 = get_residual_Anton_wrapper(c, x, vars, others)
         r = compute_residual(c, x, vars, others)
         
+        error("stop")
         J = ForwardDiff.jacobian(y -> compute_residual(c, y, vars, others), x)
         Δx = J \ r
         #α = bt_line_search_armijo(Δx, J, x, r, c, vars, others, α_min = 1.0e-8, c=0.9)

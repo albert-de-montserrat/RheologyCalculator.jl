@@ -4,10 +4,16 @@
 using Test, LinearAlgebra
 using RheologyCalculator
 import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
+using GLMakie
+using StaticArrays
 
 include("RheologyDefinitions.jl")
 
-using GLMakie
+# for debugging:
+include("analytical_0D_new_loc_it_reg_debug_boris.jl")
+
+
+
 
 # DruckerPragerCap ------------------------------------------------------
 """
@@ -72,20 +78,22 @@ end
 @inline series_state_functions(::DruckerPragerCap) = (compute_strain_rate, compute_lambda, compute_volumetric_strain_rate)
 @inline parallel_state_functions(::DruckerPragerCap) = compute_stress, compute_pressure, compute_lambda, compute_plastic_strain_rate, compute_volumetric_plastic_strain_rate
 
-@inline function compute_strain_rate(r::DruckerPragerCap; τ = 0, λ = 0, P_pl = 0, kwargs...)
-    ε_pl = compute_plastic_strain_rate(r::DruckerPragerCap; τ_pl = τ, λ = λ, P_pl = P_pl, kwargs...)
-    return ε_pl
+@inline function compute_strain_rate(r::DruckerPragerCap; τ = 0, λ = 0, P = 0, kwargs...)
+    ε_pl = compute_plastic_strain_rate(r::DruckerPragerCap; τ_pl = τ, λ = λ, P_pl = P, kwargs...)
+    F = compute_F(r, τ, P)
+    return ε_pl/2* (F > -1e-8)
 end
 @inline function compute_volumetric_strain_rate(r::DruckerPragerCap; τ = 0, λ = 0, P = 0, kwargs...)
     θ_pl = compute_volumetric_plastic_strain_rate(r::DruckerPragerCap; τ_pl = τ, λ = λ, P_pl = P, θ = 0, kwargs...)
-    return θ_pl # perhaps this derivative needs to be hardcoded
+    F    = compute_F(r, τ, P)
+    return θ_pl* (F > -1e-8) # perhaps this derivative needs to be hardcoded
 end
 
 @inline function compute_lambda(r::DruckerPragerCap; τ = 0, λ = 0, P = 0, kwargs...)
     # F = compute_F(r, τ, P)
     #return F/r.η_vp             # Perzyna type regularisation
     F = compute_F(r, τ, P)
-    return F* (F > -1e-8)  - λ
+    return -F* (F > -1e-8)  + λ
     
 end
 
@@ -152,12 +160,117 @@ end
 end
 
 @inline function compute_volumetric_plastic_strain_rate(r::DruckerPragerCap; τ_pl = 0, λ = 0, P_pl = 0, θ = 0, kwargs...)
-    return λ * ForwardDiff.derivative(x -> compute_Q(r, τ_pl, x), P_pl) - θ # perhaps this derivative needs to be hardcoded
+    return -λ * ForwardDiff.derivative(x -> compute_Q(r, τ_pl, x), P_pl) - θ # perhaps this derivative needs to be hardcoded
 end
 
 #@inline compute_plastic_stress(r::DruckerPragerCap; τ_pl = 0, kwargs...) = τ_pl
 # --------------------------------------------------------------------
 
+
+function get_residual_Anton_wrapper(c, xx, vars, others)
+    # debugging function 
+    P_o = others.P0[1]
+    Tau_o_II = others.τ0[1]
+    dt = others.dt
+
+    # Mat, we are kind of hoping that we use the same parameters (check later!)
+    k  = c.leafs[end].k
+    kf = c.leafs[end].kq
+    cval  = c.leafs[end].c
+    a  = c.leafs[end].a
+    b  = c.leafs[end].b
+    pd = c.leafs[end].pd
+    py = c.leafs[end].py
+    pf = c.leafs[end].pq
+    R  = c.leafs[end].Ry
+    flag       = true
+    #flag    = others.flag
+    #plast      = others.plast
+    plast=1
+
+    # Material parameters:
+    G             =    c[1].G
+    Kb            =    c[1].K
+    eta           =   1e40        # linear viscosity
+    Bn            =   0;          # powerlaw prefactor
+    n             =   2;          # powerlaw exponent
+    fr            =   c.leafs[end].ϕ/180*pi;  # friction angle
+    dil           =   c.leafs[end].ψ*pi;   # dilation angle
+    ch            =   c.leafs[end].C #*1e10;    # cohesion
+    Pt            =    c.leafs[end].Pt       # tensile strength
+    eta_min       =   1e-20
+    eta_vp        =   c.leafs[end].η_vp
+    ty            =   "DP"
+
+    Mat     =   MatProp(eta,Bn,n,G,Kb,ch,fr,dil,Pt,eta_min,eta_vp,ty)
+
+
+
+    #Mat     =   MatProp(eta,Bn,n,G,Kb,ch,fr,dil,Pt,eta_min,eta_vp,ty)
+    #@show Mat.Pt
+
+    #flag = c.leafs[end].flag
+    #plast = c.leafs[end].plast
+
+    P = xx[end]
+    Tau_II = xx[1]
+    F,dFdτ,dFdP,dQdτ,dQdP,dQdτdτ,dQdτdP,dQdPdτ,dQdPdP,st,flag = getPlastParam(k, kf, cval, a, b, pd, py, pf, R, P, Tau_II,flag,plast)
+    #@show F, plast, P, Tau_II
+    if F>-1e-8
+    #    plast=1
+    #    flag=false
+    end
+
+    r1 = GetRes1(xx, vars.ε, vars.θ, P_o,Mat,dt,F,Tau_o_II,k, kf, cval, a, b, pd, py, pf, R, flag,plast)
+    r = -SA[r1[1], r1[2], r1[3]]
+
+  #  @show r 
+    return r
+end
+
+
+
+function solve_local(c::RheologyCalculator.AbstractCompositeModel, x, vars, others; tol::Float64 = 1.0e-9, itermax = 1.0e4, verbose::Bool = false)
+
+    it = 0
+    er = Inf
+    local α
+    #others = (others..., flag=true, plast=1)
+    while er > tol
+        it += 1
+
+        r1 = get_residual_Anton_wrapper(c, x, vars, others)
+        r = RheologyCalculator.compute_residual(c, x, vars, others)
+       
+
+       
+        J = ForwardDiff.jacobian(y -> RheologyCalculator.compute_residual(c, y, vars, others), x)
+        J1 = ForwardDiff.jacobian(y -> get_residual_Anton_wrapper(c, y, vars, others), x)
+       # @show J r x 
+        Δx = J \ r
+        
+        @show r r1 J J1
+        #if abs(r[2])>0
+        #    @show x vars others c J1 J r r1 
+        #    error("stop")
+        #end 
+        
+
+        #α = bt_line_search_armijo(Δx, J, x, r, c, vars, others, α_min = 1.0e-8, c=0.9)
+        #α = RheologyCalculator.bt_line_search(Δx, x, c, vars, others; α = 1.0, ρ = 0.5, lstol=0.9, α_min = 0.001) 
+        α  = 0.9
+        x -= α .* Δx
+        # check convergence
+        er = RheologyCalculator.mynorm(Δx, x .+ 1.0)        #need to add 1.0 to avoid numerical issues with small values
+
+        it > itermax && break
+    end
+    if verbose
+        println("Iterations: $it, Error: $er, α = $α")
+    end
+    #error("stop")
+    return x
+end
 
 
 
@@ -174,11 +287,14 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
     P_e     = (0.0e6,)
     P1[1]   = P_e[1]
     τ1[1]   = τ_e[1]
+    x       = SA[τ1[1],0, P1[1]]
     t       = 0.0
     for i in 2:ntime
         others = (; dt = dt, τ0 = τ_e, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
 
-        x = solve(c, x, vars, others, verbose = true, tol=1e-8, itermax=10_000)
+        #others = (others..., flag=false)
+        x = solve_local(c, x, vars, others, verbose = true, tol=1e-8, itermax=10_000)
+        #others = (others..., flag=true)
       
         t += others.dt
         
@@ -203,8 +319,8 @@ c, x, vars, args, others = let
     viscous = LinearViscosity(1e20)
     #elastic = IncompressibleElasticity(10e9)
     elastic = Elasticity(1e10, 2e11)
-    plastic = DruckerPrager(1e6, 30, 10)
-    #plastic = DruckerPragerCap(; C=1e6, ϕ=30.0, ψ=10.0, η_vp=1e30, Pt=-5e5) 
+    #plastic = DruckerPrager(1e6, 30, 10)
+    plastic = DruckerPragerCap(; C=1e6, ϕ=30.0, ψ=10.0, η_vp=1e-19, Pt=-5e5) 
 
     # Maxwell viscoelastic model
     # elastic --- viscous
@@ -228,8 +344,8 @@ end
 
 
 # Plot yield stress - this is reproducing Fig. 2 of the paper
-τII = 0:0.01e6:7e6
-P   = -3e6:0.01e6:5e6
+τII = 0:0.01e6:2e6
+P   = -0e6:0.01e6:2e6
 
 F = zeros(length(P), length(τII))
 Q = zeros(length(P), length(τII))
@@ -267,8 +383,8 @@ ax3 = Axis(fig[2,1], title="Yield function F",      xlabel="time [yr]", ylabel="
 ax4 = Axis(fig[2,2], title="",                      xlabel="P [MPa]",   ylabel=L"\tau_{II} [MPa]", xlabelsize=20, ylabelsize=20)
 
 SecYear = 3600 * 24 * 365.25
-t_v1, τ1, P1, F1, mode2_1 = stress_time(c, (; ε = 0*7.0e-14, θ =   7.0e-15), x; ntime = 11, dt = SecYear*2*3)
-t_v2, τ2, P2, mode2_2 = stress_time(c, (; ε =   7.0e-14, θ = 0*7.0e-15), x; ntime = 40, dt = 2e7)
+t_v1, τ1, P1, F1, mode2_1 = stress_time(c, (; ε = 0*7.0e-14, θ =   7.0e-15), x; ntime = 11, dt = SecYear*2)
+t_v2, τ2, P2, mode2_2 = stress_time(c, (; ε =   7.0e-14, θ = 0*7.0e-15), x; ntime = 80, dt = 1e7)
 t_v3, τ3, P3, mode2_3 = stress_time(c, (; ε =   7.0e-14, θ =   7.0e-15), x; ntime = 30, dt = 2e7)
 
 #t_v, τ, P = stress_time(c, vars, x; ntime = 20, dt = 4e5)
@@ -281,16 +397,18 @@ t_v3, τ3, P3, mode2_3 = stress_time(c, (; ε =   7.0e-14, θ =   7.0e-15), x; n
 lines!(ax1, t_v1 / SecYear , P1 / 1.0e6, color=:red, label = L"P")
 lines!(ax1, t_v1 / SecYear , τ1 / 1.0e6,  color=:blue, label =  L"\tau_{II}")
 
+
 lines!(ax2, t_v2 / SecYear , P2 / 1.0e6, color=:red, label = L"P")
 lines!(ax2, t_v2 / SecYear , τ2 / 1.0e6,  color=:blue, label =  L"\tau_{II}")
 
 lines!(ax3, t_v3 / SecYear , P3 / 1.0e6, color=:red, label = L"P")
 lines!(ax3, t_v3 / SecYear , τ3 / 1.0e6,  color=:blue, label =  L"\tau_{II}")
-
-contour!(ax4, P/1e6, τII/1e6, F, levels = [0.01], color = :black)
-scatter!(ax4, P1/1e6, τ1/1e6, color = :yellow)
-scatter!(ax4, P2/1e6, τ2/1e6, color = :red)
-scatter!(ax4, P3/1e6, τ3/1e6, color = :blue)
+#=
+=#
+GLMakie.contour!(ax4, P/1e6, τII/1e6, F, levels = [0.01], color = :black)
+GLMakie.scatter!(ax4, P1/1e6, τ1/1e6, color = :yellow)
+GLMakie.scatter!(ax4, P2/1e6, τ2/1e6, color = :red)
+GLMakie.scatter!(ax4, P3/1e6, τ3/1e6, color = :blue)
 
 
 #=
