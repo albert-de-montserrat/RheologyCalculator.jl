@@ -196,24 +196,24 @@ end
 DruckerPrager(args...) = DruckerPrager(promote(args...)...)
 @inline function compute_strain_rate(r::DruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)
     ε_pl = compute_plastic_strain_rate(r::DruckerPrager; τ_pl = τ, λ = λ, P_pl = P, kwargs...)
-    return ε_pl*0
+    return ε_pl*(F > 0)
 end
 @inline function compute_volumetric_strain_rate(r::DruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)
     #return -λ * ForwardDiff.derivative(x -> compute_Q(r, τ, x), P) # perhaps this derivative needs to be hardcoded
     θ_pl = compute_volumetric_plastic_strain_rate(r::DruckerPrager; τ_pl = τ, λ = λ, P_pl = P, kwargs...)
-    return θ_pl*0
+    return θ_pl*(F > 0)
 
 end
 
 @inline function compute_lambda(r::DruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)
     F = compute_F(r, τ, P)
-    return 0*F + λ # * (F > 0)
+    return F* (F > 0) + λ # * (F > 0)
 end
 
 # special plastic helper functions
 function compute_F(r::DruckerPrager, τ, P)
     F = (τ - P * sind(r.ϕ) - r.C * cosd(r.ϕ))
-    return F * (F > -1e-8)*0
+    return F * (F > -1e-8)
 end
 compute_Q(r::DruckerPrager, τ, P) = τ - P * sind(r.ψ)
 
