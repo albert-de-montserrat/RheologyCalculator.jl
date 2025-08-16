@@ -24,7 +24,7 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
     # P1 = zeros(ntime)
     # P2 = zeros(ntime)
     t_v = zeros(ntime)
-    τ_e = (0.0,)
+    τ_e = (0.0,0.0)
     P_e = (0.0,)
     t = 0.0
     for i in 2:ntime
