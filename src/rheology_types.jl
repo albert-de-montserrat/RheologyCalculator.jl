@@ -26,6 +26,15 @@ end
 
 ## METHODS FOR PARALLEL MODELS
 # table of methods needed per rheology
+@inline parallel_state_functions(::LinearViscosity) = (compute_stress,)
+@inline parallel_state_functions(::PowerLawViscosity) = (compute_stress,)
+@inline parallel_state_functions(::Elasticity) = compute_stress, compute_pressure
+@inline parallel_state_functions(::BulkElasticity) = (compute_pressure,)
+@inline parallel_state_functions(::BulkViscosity) = (compute_pressure,)
+@inline parallel_state_functions(::IncompressibleElasticity) = (compute_stress,)
+# @inline parallel_state_functions(::DruckerPrager) = compute_stress, compute_pressure, compute_lambda, compute_plastic_strain_rate, compute_volumetric_plastic_strain_rate
+@inline parallel_state_functions(::DruckerPrager) = compute_stress, compute_plastic_strain_rate, compute_lambda_parallel
+
 @inline parallel_state_functions(::AbstractRheology) = error("Rheology not defined")
 
 # handle tuples
