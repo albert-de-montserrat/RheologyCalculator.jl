@@ -23,7 +23,7 @@ end
         iparent = 0
         iself = 0
         isGlobal = Val(true)
-        el_num = global_eltype_numbering(c) # global element numbering (to be followed )
+        el_num = global_eltype_numbering(c) # global element numbering (to be followed)
         eqs = Base.@ntuple $N i -> begin
             ind_input = i
             eqs = generate_equations(c, fns[i], ind_input, isGlobal, isvolumetric(c), el_num; iparent = iparent, iself = iself)
@@ -51,9 +51,10 @@ function generate_equations(c::AbstractCompositeModel, fns_own_global::F, ind_in
     ilocal_childs = ntuple(i -> iself + nown + i, Val(nlocal))
     offsets_parallel = (0, ntuple(i -> i, Val(nbranches))...)
     # offsets_parallel = (0, length.(fns_branches_global)...)
-    iparallel_childs = ntuple(i -> iself + nlocal + offsets_parallel[i] + i + nown, Val(nbranches))
-    # ichildren = (ilocal_childs..., iparallel_childs...)
+    # iparallel_childs = ntuple(i -> iself + nlocal + offsets_parallel[i] + i + nown, Val(nbranches))
+    iparallel_childs = ntuple(i -> iself + nlocal + offsets_parallel[i] + 1 + nown, Val(nbranches))
 
+    # ichildren = (ilocal_childs..., iparallel_childs...)
     # add globals
     # iself_ref[] += 1
     # global_eqs   = CompositeEquation(iparent, iparallel_childs, iself_ref[], fns_own_global, leafs, Val(false))
@@ -73,7 +74,9 @@ end
     return quote
         @inline
         Base.@ntuple $N i -> begin
-            generate_equations(branches[i], fn, 0, Val(false), isvolumetric(branches[i]), el_num[2][i]; iparent = global_eqs.self, iself = iself_ref[])
+            eqs = generate_equations(branches[i], fn, 0, Val(false), isvolumetric(branches[i]), el_num[2][i]; iparent = global_eqs.self, iself = iself_ref[])
+            iself_ref[] += 1
+            eqs
         end
     end
 end
@@ -314,8 +317,16 @@ end
             name = keys(args_template[i])
             merge(NamedTuple{name}(x[i]), others)
         end
-        args_merged = merge(args...)
-        Base.@ntuple $N i -> args_merged
+        # args_merged = merge(args...)
+        # Base.@ntuple $N i -> args_merged
+
+        Base.@ntuple $N i -> begin
+            diffs = Base.@ntuple $N j -> begin
+                Base.structdiff(args[j], args[i])
+            end
+            merge(args[i], diffs...)
+        end
+
     end
 end
 
@@ -368,7 +379,6 @@ end
             keys_hist = history_kwargs(rheology[i])
             args_local = extract_local_kwargs(others, keys_hist, el_number[i])
             args_combined = merge(args, args_local)
-            # @show args_combined
             fn(rheology[i], args_combined)
         end
         sum(vals)
@@ -411,7 +421,6 @@ add_child(::SVector, ::NTuple{N, CompositeEquation}, ::Tuple{}) where N = 0.0e0
     return quote
         @inline
         Base.@ntuple $N i -> begin
-            # @show subtract_parent(x, eqs[i], vars)
             residual[i] - subtract_parent(x, eqs[i], vars)
         end 
     end
@@ -422,8 +431,6 @@ end
 # exception for lambda
 @inline subtract_parent(x::SVector, eq::CompositeEquation{false, T, typeof(compute_lambda)}, ::NamedTuple) where {T} = 0 # x[eq.self]
 @inline subtract_parent(x::SVector, eq::CompositeEquation{false, T, typeof(compute_lambda_parallel)}, ::NamedTuple) where {T} = 0 # x[eq.self]
-
-
 
 subtract_parent(residual::Number, x::SVector, eq::CompositeEquation, vars) = residual - subtract_parent(x, eq, vars)
 
