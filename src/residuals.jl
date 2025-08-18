@@ -93,5 +93,3 @@ end
 end
 
 subtract_parent(residual::Number, x::SVector, eq::CompositeEquation, vars) = residual - subtract_parent(x, eq, vars)
-
-

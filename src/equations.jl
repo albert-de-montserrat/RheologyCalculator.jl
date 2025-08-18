@@ -406,14 +406,14 @@ end
 end
 
 add_child(x, ::CompositeEquation, eq_ind) = x[eq_ind]
-add_child(::SVector{N, T}, ::CompositeEquation{A, B, typeof(compute_lambda)}, eq_ind) where {N,A,B,T} = zero(T)
-add_child(::SVector{N, T}, ::CompositeEquation{A, B, typeof(compute_lambda_parallel)}, eq_ind) where {N,A,B,T} = zero(T)
-add_child(::SVector{N, T}, ::CompositeEquation{A, B, typeof(compute_plastic_strain_rate)}, eq_ind) where {N,A,B,T} = zero(T)
+add_child(::SVector{N, T}, ::CompositeEquation{A, B, typeof(compute_lambda)}, eq_ind) where {N, A, B, T} = zero(T)
+add_child(::SVector{N, T}, ::CompositeEquation{A, B, typeof(compute_lambda_parallel)}, eq_ind) where {N, A, B, T} = zero(T)
+add_child(::SVector{N, T}, ::CompositeEquation{A, B, typeof(compute_plastic_strain_rate)}, eq_ind) where {N, A, B, T} = zero(T)
 # add_child(::SVector{Any, T}, ::CompositeEquation{Any, Any, typeof(compute_plastic_strain_rate)}, eq_ind) where T = zero(T)
 
 
 add_child(::SVector, ::Tuple{}) = 0.0e0
-add_child(::SVector, ::NTuple{N, CompositeEquation}, ::Tuple{}) where N = 0.0e0
+add_child(::SVector, ::NTuple{N, CompositeEquation}, ::Tuple{}) where {N} = 0.0e0
 
 
 # if global, subtract the variables
@@ -422,7 +422,7 @@ add_child(::SVector, ::NTuple{N, CompositeEquation}, ::Tuple{}) where N = 0.0e0
         @inline
         Base.@ntuple $N i -> begin
             residual[i] - subtract_parent(x, eqs[i], vars)
-        end 
+        end
     end
 end
 
