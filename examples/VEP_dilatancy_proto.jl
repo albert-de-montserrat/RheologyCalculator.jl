@@ -5,7 +5,7 @@ using GLMakie
 
 const SecYear = 3600 * 24 * 365.25
 
-cancel_plastic_strain_rate = false
+cancel_plastic_strain_rate = true
 
 @generated function mynorm(x::SVector{N, T}, y::SVector{N, T}) where {N, T}
     return quote
@@ -14,7 +14,7 @@ cancel_plastic_strain_rate = false
         Base.@nexprs $N i -> begin
             xi = @inbounds x[i]
             yi = @inbounds y[i]
-            v += !iszero(xi) * abs(xi / yi)
+            v += !iszero(yi) * abs(xi / yi)
         end
         return v
     end
@@ -27,7 +27,7 @@ function volumetric_plastic_strain_rate(λ, τ, P, C, ϕ, ψ, ηvp)
     F   = compute_F(τ, P, C, ϕ, ηvp, λ)
     θ_p = λ   * ForwardDiff.derivative(P -> compute_Q(τ, P, ψ), P) 
     if cancel_plastic_strain_rate
-        θ_p *= (F > 0) 
+        θ_p *= (F>-1e-8)
     end
     return θ_p
 end
@@ -36,7 +36,7 @@ function plastic_strain_rate(λ, τ, P, C, ϕ, ψ,   ηvp)
    F   = compute_F(τ, P, C, ϕ, ηvp, λ)
    ε_p = λ/2 * ForwardDiff.derivative(τ -> compute_Q(τ, P, ψ), τ)
    if cancel_plastic_strain_rate
-       ε_p *= (F > 0)
+       ε_p *= (F>-1e-8)
    end
    return ε_p
 end
@@ -47,7 +47,7 @@ function compute_F(τ, P, C, ϕ, ηvp, λ)
     η_mult = 1.0  # Lagarange multiplier, value doesn't matter
     f      = τ - P * sind(ϕ) - C * cosd(ϕ)
     f_vp   = τ - P * sind(ϕ) - C * cosd(ϕ) - ηvp*λ
-    F      = f_vp*(f_vp>0)
+    F      = f_vp
     return F
 end
 
@@ -67,7 +67,10 @@ function volumetric_strain_rate(τ, dt, λ, P, P0, K, C, ϕ, ψ, ηvp)
 end
 strain_rate_residual(ε, τ, τ0, dt, η, G, λ, P, C, ϕ, ψ, ηvp)         = strain_rate(τ, τ0, dt, η, G, λ, P, C, ϕ, ψ, ηvp) - ε
 volumetric_strain_rate_residual(θ, τ, dt, λ, P, P0, K, C, ϕ, ψ, ηvp) = volumetric_strain_rate(τ, dt, λ, P, P0, K,  C, ϕ, ψ, ηvp) - θ
-F_residual(τ, P, C, ϕ, ηvp, λ, G, dt, η)                             = compute_F(τ, P, C, ϕ, ηvp, λ) - λ
+function F_residual(τ, P, C, ϕ, ηvp, λ, G, dt, η)                            
+    F = compute_F(τ, P, C, ϕ, ηvp, λ) 
+    return F*(F>-1e-8) - λ
+end
 
 function residual_vector(x::SVector, ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, ηvp)
     τ   = x[1]
@@ -91,17 +94,28 @@ function solve(ε, τ, τ0, θ, dt, η, G, λ, P, P0, K, ψ, C, ϕ, ηvp; tol::F
         r = residual_vector(x,ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, ηvp)  
         J = ForwardDiff.jacobian(x -> residual_vector(x,ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, ηvp), x)
         
-        display(J)
-        error("stop")
+        #display(J)
+        #error("stop")
         Δx = J \ r
-        α = 0.99
+        α = 1.0
         x -= α .* Δx
         # check convergence
-        er = mynorm(Δx, x .+ eps())       # adding an ϵ here as workaround when some values are 0
+        er = mynorm(Δx, x)       # adding an ϵ here as workaround when some values are 0
             
         it > itermax && break
 
-        println("               Iterations: $it, Error: $er, α = $α")
+        #=
+        r1 = residual_vector(x,ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, ηvp)  
+
+        F = compute_F(x[1], x[3], C, ϕ, ηvp, x[2])
+
+        println("               Iterations: $it, Error: $er, α = $α, F = $F")
+        println("                   r1   = $r1")
+        println("                   x    = $x")
+        println("                   Δx   = $Δx")
+        println("                   Δx/x = $(Δx./x)")
+        println("                   r1/x = $(r1./x)")
+        =#
     end
     #error("stop")
     if verbose
@@ -170,7 +184,6 @@ function stress_time()
             divp = λ*sind(ψ)
             p_pc = p_pc + K*dt*divp
             f_c  = τ_pc - η_ve*λ - (C*cosd(ϕ) + p_pc*sind(ϕ) + λ*ηvp)   
-            @show f_c
             τ_pc = 2*η_ve * (ε + τ_pc0/(2*G*dt) - εp)
         end
         τv_pc[i]   = τ_pc
