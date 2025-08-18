@@ -47,17 +47,17 @@ end
 
 using StaticArrays
 
-# let
+let
     t_v_vevp, τ_vevp = t_v, τ = stress_time(c, vars, x, others; ntime = 1_500, dt = 1e8)
 
-    # SecYear = 3600 * 24 * 365.25
-    # fig = Figure(fontsize = 30, size = (800, 600) .* 2)
-    # ax  = Axis(fig[1, 1], title = "Visco-elasto-plastic model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
+    SecYear = 3600 * 24 * 365.25
+    fig = Figure(fontsize = 30, size = (800, 600) .* 2)
+    ax  = Axis(fig[1, 1], title = "Visco-elasto-plastic model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
 
-    # scatter!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6,  color=:red, label = "numerical")
+    scatter!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6,  color=:red, label = "numerical")
 
-    # ax.xlabel = L"t [kyr]"
-    # ax.ylabel = L"\tau [MPa]"
-    # display(fig)
-# end
+    ax.xlabel = L"t [kyr]"
+    ax.ylabel = L"\tau [MPa]"
+    display(fig)
+end
 
