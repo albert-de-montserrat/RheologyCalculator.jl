@@ -1,6 +1,5 @@
 using ForwardDiff, StaticArrays
-using GLMakie, MathTeXEngine
-Makie.update_theme!( fonts = (regular = texfont(), bold = texfont(:bold), italic = texfont(:italic)))
+using GLMakie
 
 const SecYear = 3600 * 24 * 365.25
 
@@ -23,11 +22,11 @@ plastic_strain_rate(λ, τ, P, ψ)   = λ / 2 * ForwardDiff.derivative(τ -> com
 
 compute_Q(τ, P, ψ) = τ - P * sind(ψ)
 
-function compute_F(τ, P, C, ϕ, λ)
-    η_mult = 1.0  # Lagarange multiplier, value doesn't matter
-    f      = τ - P * sind(ϕ) - C * cosd(ϕ) 
-    F      = f*(f>=0) + η_mult*λ*(f<0)
-    return F
+function compute_F(τ, P, C, ϕ, λ, ηve)
+    ηvp = 1e20
+    F = τ - P * sind(ϕ) - C * cosd(ϕ) - λ * ηvp
+    F *= (F > 0)
+    return F - λ * ηve
 end
 
 function strain_rate(τ, τ0, dt, η, G, λ, P, ψ)
@@ -39,13 +38,14 @@ function strain_rate(τ, τ0, dt, η, G, λ, P, ψ)
 end
 
 strain_rate_residual(ε, τ, τ0, dt, η, G, λ, P, ψ) = strain_rate(τ, τ0, dt, η, G, λ, P, ψ) - ε
-F_residual(τ, P, C, ϕ, λ, G, dt, η) = compute_F(τ, P, C, ϕ, λ)
+F_residual(τ, P, C, ϕ, λ, ηve) = compute_F(τ, P, C, ϕ, λ, ηve)
 
 function residual_vector(x::SVector, ε, τ0, dt, η, G, P, ψ, C, ϕ)
     τ   = x[1]
     λ   = x[2]
+    ηve = 1/(1/(η) + 1/(G*dt))
     r_τ = strain_rate_residual(ε, τ, τ0, dt, η, G, λ, P, ψ)
-    r_F = F_residual(τ, P, C, ϕ, λ, G, dt, η)
+    r_F = F_residual(τ, P, C, ϕ, λ, ηve)
     return SA[r_τ, r_F]
 end
 
@@ -55,18 +55,16 @@ function solver(ε, τ, τ0, dt, η, G, λ, P, ψ, C, ϕ; tol::Float64 = 1.0e-9,
     er = Inf
     x  = SA[τ, λ]  # Initial guess
     α  = 1e0
-    while er > tol #&& it<=1
+    while er > tol
         it += 1
 
-        r = residual_vector(x, ε, τ0, dt, η, G, P, ψ, C, ϕ)  
+        r = residual_vector(x, ε, τ0, dt, η, G, P, ψ, C, ϕ)
         J = ForwardDiff.jacobian(x -> residual_vector(x, ε, τ0, dt, η, G, P, ψ, C, ϕ), x)
         Δx = J \ r
-        α = 1 # bt_line_search(Δx, J, x, r, c, vars, others)
+        α  = 1 # bt_line_search(Δx, J, x, r, c, vars, others)
         x -= α .* Δx
         # check convergence
         er = mynorm(Δx, x)
-
-        # @show r, x
 
         it > itermax && break
     end
@@ -76,26 +74,22 @@ function solver(ε, τ, τ0, dt, η, G, λ, P, ψ, C, ϕ; tol::Float64 = 1.0e-9,
     return x
 end
 
-@inline function analytical_solution(ε, t, G, η, P, C, ϕ) 
-    τ_ve = 2 * ε * η * (1 - exp(-G * t / η))
-    τ_p  = P * sind(ϕ) + C * cosd(ϕ)
-    return (τ_ve < τ_p) * τ_ve + (τ_ve >= τ_p) * τ_p
-end
+@inline analytical_solution(ε, t, G, η) = 2 * ε * η * (1 - exp(-G * t / η))
 
 function stress_time()
 
-    ntime = 2_000
-    dt = 1e8
-    ε  = 1e-14
-    τ  = 0e6
-    τ0 = 0
-    η  = 1e22
-    G  = 10e9
-    λ  = 0
-    P  = 1e6
-    C  = 10e6
-    ϕ  = 30
-    ψ  = 0
+    ntime = 20_000
+    dt    = 1e7
+    ε     = 1e-14
+    τ     = 1e3
+    τ0    = 0
+    η     = 1e22
+    G     = 10e9
+    λ     = 0
+    P     = 1e6
+    C     = 10e6
+    ϕ     = 30
+    ψ     = 0
 
     # Extract elastic stresses/pressure from solutio vector
     τv    = zeros(ntime)
@@ -110,26 +104,24 @@ function stress_time()
         τ            = sol[1] # this is just a guess for the next iteration
         λ            = sol[2] # this is just a guess for the next iteration
         t           += dt
-        τv_an[i]     = analytical_solution(ε, t, G, η, P, C, ϕ)
+        τv_an[i]     = analytical_solution(ε, t, G, η)
         tv[i]       = t
     end
 
     return tv, τv, τv_an
 end
 
+tv, τv, τv_an = stress_time()
 
-# let
-    # tv, τv, τv_an = stress_time()
+fig = Figure(fontsize = 30, size = (800, 600) .* 2)
+ax  = Axis(fig[1, 1], xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
+# ax2 = Axis(fig[2, 1], xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
 
-#     fig = Figure(fontsize = 30, size = (800, 600) .* 2)
-#     ax1 = Axis(fig[1, 1], xlabel = L"$t$ [kyr]", ylabel = L"$\tau$ [MPa]", title=L"$$Stress - time")
-#     ax2 = Axis(fig[2, 1], xlabel = L"$t$ [kyr]", ylabel = L"$\tau$ [MPa]", title=L"$$Error")
+lines!(  ax, tv / SecYear / 1.0e3, τv_an / 1.0e6, color=:black, label = "analytical")
+scatter!(ax, tv / SecYear / 1.0e3, τv / 1.0e6,    color=:green,   label = "numerical")
 
-#     lines!(ax1, tv / SecYear / 1.0e3, τv_an / 1.0e6, color=:black, label = "analytical")
-#     scatter!(ax1, tv / SecYear / 1.0e3, τv / 1.0e6,  color=:red, label = "numerical")
+axislegend(ax, position = :rb)
+ax.xlabel = L"t [kyr]"
+ax.ylabel = L"\tau [MPa]"
 
-#     lines!(ax2, tv / SecYear / 1.0e3, (abs.(τv_an.-τv) ), color=:black)
-
-#     axislegend(ax1, position = :rb)
-#     display(fig)
-# end
+display(fig)

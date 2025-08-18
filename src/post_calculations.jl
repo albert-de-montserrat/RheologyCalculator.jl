@@ -12,7 +12,7 @@ Returns stress of the elastic elements
 compute_stress_elastic(c::AbstractCompositeModel, xnew, others) = compute_stress_elastic(generate_equations(c), xnew, others)
 
 @generated function compute_stress_elastic(eqs::NTuple{N, CompositeEquation}, xnew, others) where {N}
-    quote
+    return quote
         @inline
         args_all = generate_args_template(eqs, xnew, others)
         τ_elastic = Base.@ntuple $N i_eq -> begin
