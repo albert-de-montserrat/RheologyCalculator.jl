@@ -5,7 +5,7 @@ using RheologyCalculator, ForwardDiff
 # These functions need to be imported, as we use multiple dispatch to extend them here
 import RheologyCalculator: series_state_functions, parallel_state_functions
 import RheologyCalculator: compute_strain_rate, compute_stress, compute_pressure, compute_volumetric_strain_rate, compute_volumetric_plastic_strain_rate
-import RheologyCalculator: compute_plastic_strain_rate, compute_plastic_stress, compute_lambda, _isvolumetric
+import RheologyCalculator: compute_plastic_strain_rate, compute_plastic_stress, compute_lambda, compute_lambda_parallel, _isvolumetric
 
 # Linear Viscosity ---------------------------------------------------
 """
@@ -189,7 +189,7 @@ struct DruckerPrager{T} <: AbstractPlasticity
     ψ::T # in degrees for now
 end
 @inline series_state_functions(::DruckerPrager) = (compute_strain_rate, compute_lambda)
-@inline parallel_state_functions(::DruckerPrager) = compute_stress, compute_pressure, compute_lambda, compute_plastic_strain_rate, compute_volumetric_plastic_strain_rate
+@inline parallel_state_functions(::DruckerPrager) = compute_stress, compute_plastic_strain_rate, compute_lambda_parallel
 
 DruckerPrager(args...) = DruckerPrager(promote(args...)...)
 @inline function compute_strain_rate(r::DruckerPrager; τ = 0, λ = 0, P_pl = 0, kwargs...)
@@ -202,7 +202,14 @@ end
 
 @inline function compute_lambda(r::DruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)
     F = compute_F(r, τ, P)
-    return F - λ # * (F > 0)
+    η_χ = 1.0  # Lagrange multiplier, value doesn't matter
+    return F - λ * η_χ * (F < 0)
+end
+
+@inline function compute_lambda_parallel(r::DruckerPrager; τ_pl = 0, λ = 0, P = 0, kwargs...)
+    F = compute_F(r, τ_pl, P)
+    η_χ = 1.0  # Lagrange multiplier, value doesn't matter
+    return F - λ * η_χ * (F < 0)
 end
 
 # special plastic helper functions
