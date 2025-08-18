@@ -9,9 +9,6 @@ using StaticArrays
 
 include("RheologyDefinitions.jl")
 
-# for debugging:
-#include("analytical_0D_new_loc_it_reg_debug_boris.jl")
-
 # DruckerPragerCap ------------------------------------------------------
 """
     DruckerPragerCap{T} <: AbstractPlasticity
@@ -90,7 +87,7 @@ end
     # F = compute_F(r, τ, P)
     #return F/r.η_vp             # Perzyna type regularisation
     F = compute_F(r, τ, P)
-    return -F* (F > -1e-8)  + λ
+    return -F* (F > -1e-8)  + λ*r.η_vp
 end
 
 # special plastic helper functions
@@ -176,16 +173,14 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
     for i in 2:ntime
         others = (; dt = dt, τ0 = τ_e, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
         
-        #x = RheologyCalculator.solve(c, x, vars, others, verbose = true, tol=1e-8, itermax=10_000)
-
         if 1==0
             #perhaps we should have a jacobian routine in RC that returns the jacobian 
             r = RheologyCalculator.compute_residual(c, x, vars, others)
             J = ForwardDiff.jacobian(y -> RheologyCalculator.compute_residual(c, y, vars, others), x)
             display(J)
-            error("top")
+            error("stop")
         end
-        x = RheologyCalculator.solve(c, x, vars, others, verbose = true, tol=1e-8, itermax=10_000)
+        x = RheologyCalculator.solve(c, x, vars, others, verbose = true)
         
         t += others.dt
         
@@ -211,7 +206,7 @@ c, x, vars, args, others = let
     #elastic = IncompressibleElasticity(10e9)
     elastic = Elasticity(1e10, 2e11)
     plastic = DruckerPrager(1e6, 30, 10)
-    plastic = DruckerPragerCap(; C=1e6, ϕ=30.0, ψ=10.0, η_vp=1e-19, Pt=-5e5) 
+    plastic = DruckerPragerCap(; C=1e6, ϕ=30.0, ψ=10.0, η_vp=1e17, Pt=-5e5) 
 
     # Maxwell viscoelastic model
     # elastic --- viscous
