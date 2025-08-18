@@ -10,10 +10,7 @@ using StaticArrays
 include("RheologyDefinitions.jl")
 
 # for debugging:
-include("analytical_0D_new_loc_it_reg_debug_boris.jl")
-
-
-
+#include("analytical_0D_new_loc_it_reg_debug_boris.jl")
 
 # DruckerPragerCap ------------------------------------------------------
 """
@@ -94,7 +91,6 @@ end
     #return F/r.η_vp             # Perzyna type regularisation
     F = compute_F(r, τ, P)
     return -F* (F > -1e-8)  + λ
-    
 end
 
 # special plastic helper functions
@@ -153,125 +149,13 @@ end
 #@inline compute_pressure(r::DruckerPragerCap; P_pl = 0, kwargs...) = P_pl
 
 @inline function compute_plastic_strain_rate(r::DruckerPragerCap; τ_pl = 0, λ = 0, P_pl = 0, ε = 0, kwargs...)
-    #return λ * ForwardDiff.derivative(x -> compute_Q(r, x, P_pl), τ_pl) - ε # perhaps this derivative needs to be hardcoded
-
-    return λ*ForwardDiff.derivative(x -> compute_Q(r, x, P_pl), τ_pl) - ε # perhaps this derivative needs to be hardcoded
-    
+    return λ*ForwardDiff.derivative(x -> compute_Q(r, x, P_pl), τ_pl) - ε # perhaps this derivative needs to be hardcoded 
 end
 
 @inline function compute_volumetric_plastic_strain_rate(r::DruckerPragerCap; τ_pl = 0, λ = 0, P_pl = 0, θ = 0, kwargs...)
     return -λ * ForwardDiff.derivative(x -> compute_Q(r, τ_pl, x), P_pl) - θ # perhaps this derivative needs to be hardcoded
 end
-
-#@inline compute_plastic_stress(r::DruckerPragerCap; τ_pl = 0, kwargs...) = τ_pl
 # --------------------------------------------------------------------
-
-
-function get_residual_Anton_wrapper(c, xx, vars, others)
-    # debugging function 
-    P_o = others.P0[1]
-    Tau_o_II = others.τ0[1]
-    dt = others.dt
-
-    # Mat, we are kind of hoping that we use the same parameters (check later!)
-    k  = c.leafs[end].k
-    kf = c.leafs[end].kq
-    cval  = c.leafs[end].c
-    a  = c.leafs[end].a
-    b  = c.leafs[end].b
-    pd = c.leafs[end].pd
-    py = c.leafs[end].py
-    pf = c.leafs[end].pq
-    R  = c.leafs[end].Ry
-    flag       = true
-    #flag    = others.flag
-    #plast      = others.plast
-    plast=1
-
-    # Material parameters:
-    G             =    c[1].G
-    Kb            =    c[1].K
-    eta           =   1e40        # linear viscosity
-    Bn            =   0;          # powerlaw prefactor
-    n             =   2;          # powerlaw exponent
-    fr            =   c.leafs[end].ϕ/180*pi;  # friction angle
-    dil           =   c.leafs[end].ψ*pi;   # dilation angle
-    ch            =   c.leafs[end].C #*1e10;    # cohesion
-    Pt            =    c.leafs[end].Pt       # tensile strength
-    eta_min       =   1e-20
-    eta_vp        =   c.leafs[end].η_vp
-    ty            =   "DP"
-
-    Mat     =   MatProp(eta,Bn,n,G,Kb,ch,fr,dil,Pt,eta_min,eta_vp,ty)
-
-
-
-    #Mat     =   MatProp(eta,Bn,n,G,Kb,ch,fr,dil,Pt,eta_min,eta_vp,ty)
-    #@show Mat.Pt
-
-    #flag = c.leafs[end].flag
-    #plast = c.leafs[end].plast
-
-    P = xx[end]
-    Tau_II = xx[1]
-    F,dFdτ,dFdP,dQdτ,dQdP,dQdτdτ,dQdτdP,dQdPdτ,dQdPdP,st,flag = getPlastParam(k, kf, cval, a, b, pd, py, pf, R, P, Tau_II,flag,plast)
-    #@show F, plast, P, Tau_II
-    if F>-1e-8
-    #    plast=1
-    #    flag=false
-    end
-
-    r1 = GetRes1(xx, vars.ε, vars.θ, P_o,Mat,dt,F,Tau_o_II,k, kf, cval, a, b, pd, py, pf, R, flag,plast)
-    r = -SA[r1[1], r1[2], r1[3]]
-
-  #  @show r 
-    return r
-end
-
-
-
-function solve_local(c::RheologyCalculator.AbstractCompositeModel, x, vars, others; tol::Float64 = 1.0e-9, itermax = 1.0e4, verbose::Bool = false)
-
-    it = 0
-    er = Inf
-    local α
-    #others = (others..., flag=true, plast=1)
-    while er > tol
-        it += 1
-
-        r1 = get_residual_Anton_wrapper(c, x, vars, others)
-        r = RheologyCalculator.compute_residual(c, x, vars, others)
-       
-
-       
-        J = ForwardDiff.jacobian(y -> RheologyCalculator.compute_residual(c, y, vars, others), x)
-        J1 = ForwardDiff.jacobian(y -> get_residual_Anton_wrapper(c, y, vars, others), x)
-       # @show J r x 
-        Δx = J \ r
-        
-        @show r r1 J J1
-        #if abs(r[2])>0
-        #    @show x vars others c J1 J r r1 
-        #    error("stop")
-        #end 
-        
-
-        #α = bt_line_search_armijo(Δx, J, x, r, c, vars, others, α_min = 1.0e-8, c=0.9)
-        #α = RheologyCalculator.bt_line_search(Δx, x, c, vars, others; α = 1.0, ρ = 0.5, lstol=0.9, α_min = 0.001) 
-        α  = 0.9
-        x -= α .* Δx
-        # check convergence
-        er = RheologyCalculator.mynorm(Δx, x .+ 1.0)        #need to add 1.0 to avoid numerical issues with small values
-
-        it > itermax && break
-    end
-    if verbose
-        println("Iterations: $it, Error: $er, α = $α")
-    end
-    #error("stop")
-    return x
-end
-
 
 
 function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
@@ -292,8 +176,17 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
     for i in 2:ntime
         others = (; dt = dt, τ0 = τ_e, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
         
+        #x = RheologyCalculator.solve(c, x, vars, others, verbose = true, tol=1e-8, itermax=10_000)
+
+        if 1==0
+            #perhaps we should have a jacobian routine in RC that returns the jacobian 
+            r = RheologyCalculator.compute_residual(c, x, vars, others)
+            J = ForwardDiff.jacobian(y -> RheologyCalculator.compute_residual(c, y, vars, others), x)
+            display(J)
+            error("top")
+        end
         x = RheologyCalculator.solve(c, x, vars, others, verbose = true, tol=1e-8, itermax=10_000)
-       
+        
         t += others.dt
         
         τ_e = compute_stress_elastic(c, x, others)
@@ -318,7 +211,7 @@ c, x, vars, args, others = let
     #elastic = IncompressibleElasticity(10e9)
     elastic = Elasticity(1e10, 2e11)
     plastic = DruckerPrager(1e6, 30, 10)
-    #plastic = DruckerPragerCap(; C=1e6, ϕ=30.0, ψ=10.0, η_vp=1e-19, Pt=-5e5) 
+    plastic = DruckerPragerCap(; C=1e6, ϕ=30.0, ψ=10.0, η_vp=1e-19, Pt=-5e5) 
 
     # Maxwell viscoelastic model
     # elastic --- viscous
