@@ -5,7 +5,7 @@ include("RheologyDefinitions.jl")
 
 using GLMakie
 
-function analytical_solution(ϵ, t, G, η, c, ϕ, P) 
+function analytical_solution(ϵ, t, G, η, c, ϕ, P)
     τ =  2 * ϵ * η * (1 - exp(-G * t / η))
     τy = c*cosd(ϕ) + P*sind(ϕ)
     if τy < τ
@@ -33,7 +33,7 @@ function stress_time(c, vars, x, others; ntime = 200, dt = 1.0e8)
         x        = solve(c, x, vars, others, verbose = true)
         τ1[i]    = x[1]
         t       += others.dt
-        τ_an[i]  = analytical_solution(vars.ε, t, c.leafs[2].G, c.leafs[1].η)
+        τ_an[i]  = analytical_solution(vars.ε, t, c.leafs[2].G, c.leafs[1].η, c.leafs[3].C, c.leafs[3].ϕ, others.P)
         τ_e      = compute_stress_elastic(c, x, others)
         t_v[i]   = t
     end
