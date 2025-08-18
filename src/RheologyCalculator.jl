@@ -5,7 +5,8 @@ using ForwardDiff, StaticArrays, LinearAlgebra
 import Base.IteratorsMD.flatten
 
 include("rheology_types.jl")
-export LinearViscosity, Elasticity, LinearViscosityStress, PowerLawViscosity, DiffusionCreep, DislocationCreep, LTPViscosity, IncompressibleElasticity, BulkViscosity, BulkElasticity, DruckerPrager
+#export LinearViscosity, Elasticity, LinearViscosityStress, PowerLawViscosity, DiffusionCreep, DislocationCreep, LTPViscosity, IncompressibleElasticity, BulkViscosity, BulkElasticity, DruckerPrager
+export AbstractViscosity, AbstractPlasticity, AbstractElasticity
 
 include("state_functions.jl")
 
@@ -22,6 +23,7 @@ export generate_equations
 # include("residuals.jl")
 
 include("others.jl")
+export isvolumetric
 
 include("post_calculations.jl")
 

@@ -1,9 +1,19 @@
 using RheologyCalculator
 import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 
+include("RheologyDefinitions.jl")
+
 using GLMakie
 
-analytical_solution(ϵ, t, G, η) = 2 * ϵ * η * (1 - exp(-G * t / η))
+function analytical_solution(ϵ, t, G, η, c, ϕ, P) 
+    τ =  2 * ϵ * η * (1 - exp(-G * t / η))
+    τy = c*cosd(ϕ) + P*sind(ϕ)
+    if τy < τ
+        return τy
+    else
+        return τ
+    end
+end
 
 function stress_time(c, vars, x, others; ntime = 200, dt = 1.0e8)
     # Extract elastic stresses/pressure from solutio vector

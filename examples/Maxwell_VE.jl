@@ -1,6 +1,8 @@
 using RheologyCalculator
 import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 
+include("RheologyDefinitions.jl")
+
 using GLMakie
 
 analytical_solution(ϵ, t, G, η) = 2 * ϵ * η * (1 - exp(-G * t / η))
@@ -54,8 +56,8 @@ t_v, τ, τ_an = stress_time(c, vars, x; ntime = 10_000, dt = 1e9)
 
 SecYear = 3600 * 24 * 365.25
 fig = Figure(fontsize = 30, size = (800, 600) .* 2)
-ax  = Axis(fig[1, 1], title = "Burgers model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
-ax2 = Axis(fig[2, 1], title = "Burgers model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
+ax  = Axis(fig[1, 1], title = "Maxwell VE model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
+ax2 = Axis(fig[2, 1], title = "Maxwell VE model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
 
 lines!(ax, t_v / SecYear / 1.0e3, τ_an / 1.0e6, color=:black, label = "analytical")
 scatter!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6,  color=:red, label = "numerical")

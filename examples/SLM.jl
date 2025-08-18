@@ -2,6 +2,7 @@ using RheologyCalculator
 import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 
 using GLMakie
+include("RheologyDefinitions.jl")
 
 function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
     # Extract elastic stresses/pressure from solutio vector
@@ -11,7 +12,7 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
     # P2 = zeros(ntime)
     t_v = zeros(ntime)
     τ_e = (0.0, 0.0)
-    # P_e = (0.0, 0.0)
+    P_e = (0.0, 0.0)
     t = 0.0
     for i in 2:ntime
         #global τ_e, P_e, x, vars, others, t
