@@ -15,15 +15,10 @@ export CompositeModel, SeriesModel, ParallelModel
 
 include("kwargs.jl")
 
-# include("recursion.jl")
-
 include("equations.jl")
 export generate_equations
 
-# include("residuals.jl")
-
 include("others.jl")
-export isvolumetric
 
 include("post_calculations.jl")
 

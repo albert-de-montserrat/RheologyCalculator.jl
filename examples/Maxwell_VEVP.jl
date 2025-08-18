@@ -52,7 +52,7 @@ let
     t_v, τ = stress_time(c, vars, x, others; ntime = 1_500, dt = 1e8)
 
     SecYear = 3600 * 24 * 365.25
-    fig = Figure(fontsize = 30, size = (800, 600) .* 2)
+    fig = Figure(fontsize = 30, size = (400, 400) .* 2)
     ax  = Axis(fig[1, 1], title = "Visco-elasto-plastic model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
 
     scatter!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6,  color=:red, label = "numerical")
