@@ -21,7 +21,7 @@ function stress_time(c, vars, x, others; ntime = 200, dt = 1.0e8)
     
         t_v[i] = t
     end
-    return t_v, τ1, τ_an
+    return t_v, τ1
 end
 
 c, x, vars, args, others = let
@@ -49,7 +49,7 @@ end
 using StaticArrays
 
 let
-    t_v_vevp, τ_vevp = t_v, τ = stress_time(c, vars, x, others; ntime = 1_500, dt = 1e8)
+    t_v, τ = stress_time(c, vars, x, others; ntime = 1_500, dt = 1e8)
 
     SecYear = 3600 * 24 * 365.25
     fig = Figure(fontsize = 30, size = (800, 600) .* 2)

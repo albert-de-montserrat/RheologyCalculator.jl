@@ -188,6 +188,7 @@ struct DruckerPrager{T} <: AbstractPlasticity
     ϕ::T # in degrees for now
     ψ::T # in degrees for now
 end
+@inline _isvolumetric(::BulkViscosity) = false
 @inline series_state_functions(::DruckerPrager) = (compute_strain_rate, compute_lambda)
 @inline parallel_state_functions(::DruckerPrager) = compute_stress, compute_plastic_strain_rate, compute_lambda_parallel
 
@@ -223,11 +224,11 @@ compute_Q(r::DruckerPrager, τ, P) = τ - P * sind(r.ψ)
 @inline compute_pressure(r::DruckerPrager; P_pl = 0, kwargs...) = P_pl
 
 @inline function compute_plastic_strain_rate(r::DruckerPrager; τ_pl = 0, λ = 0, P_pl = 0, ε = 0, kwargs...)
-    return λ * ForwardDiff.derivative(x -> compute_Q(r, x, P_pl), τ_pl) - ε # perhaps this derivative needs to be hardcoded
+    return λ / 2 * ForwardDiff.derivative(x -> compute_Q(r, x, P_pl), τ_pl) # perhaps this derivative needs to be hardcoded
 end
 
 @inline function compute_volumetric_plastic_strain_rate(r::DruckerPrager; τ_pl = 0, λ = 0, P_pl = 0, θ = 0, kwargs...)
-    return λ * ForwardDiff.derivative(x -> compute_Q(r, τ_pl, x), P_pl) - θ # perhaps this derivative needs to be hardcoded
+    return λ * ForwardDiff.derivative(x -> compute_Q(r, τ_pl, x), P_pl) # perhaps this derivative needs to be hardcoded
 end
 
 @inline compute_plastic_stress(r::DruckerPrager; τ_pl = 0, kwargs...) = τ_pl
