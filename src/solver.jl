@@ -21,7 +21,7 @@ function solve(c::AbstractCompositeModel, x::SVector, vars, others; tol::Float64
         x -= α .* Δx
 
         # check convergence
-        er = mynorm(Δx, x .+ 1.0)
+        er = mynorm(Δx, x)
 
         it > itermax && break
     end
