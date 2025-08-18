@@ -5,6 +5,8 @@ Makie.update_theme!( fonts = (regular = texfont(), bold = texfont(:bold), italic
 
 const SecYear = 3600 * 24 * 365.25
 
+cancel_plastic_strain_rate = true
+
 @generated function mynorm(x::SVector{N, T}, y::SVector{N, T}) where {N, T}
     return quote
         @inline
@@ -30,36 +32,48 @@ function compute_F(τ, P, C, ϕ, ηvp, λ)
     η_mult = 1.0  # Lagarange multiplier, value doesn't matter
     f      = τ - P * sind(ϕ) - C * cosd(ϕ)
     f_vp   = τ - P * sind(ϕ) - C * cosd(ϕ) - ηvp*λ
-    F      = f_vp*(f>=0) + η_mult*λ*(f<0)
+    if cancel_plastic_strain_rate
+        F      = f_vp*(f>=0) 
+    else
+        F      = f_vp*(f>=0) + η_mult*λ*(f<0)
+    end
     return F
 end
 
-function strain_rate(τ, τ0, dt, η, G, λ, P, ψ, ηvp)
+function strain_rate(τ, τ0, dt, η, G, λ, P, ψ, ηvp, r_F)
     ε_v = viscous_strain_rate(η, τ)
     ε_e = elastic_strain_rate(G, τ, τ0, dt)
     ε_p = plastic_strain_rate(λ, τ, P, ψ)
-    ε = ε_v + ε_e + ε_p
+    if cancel_plastic_strain_rate
+        ε = ε_v + ε_e + ε_p * (r_F>=0)
+    else
+        ε = ε_v + ε_e + ε_p
+    end
     return ε
 end
 
-function volumetric_strain_rate(τ, dt, λ, P, P0, K, ψ)
+function volumetric_strain_rate(τ, dt, λ, P, P0, K, ψ, r_F)
     θ_e = volumetric_elastic_strain_rate(P, P0, K, dt)
     θ_p = volumetric_plastic_strain_rate(λ, τ, P, ψ)
-    θ   = θ_e + θ_p
+    if cancel_plastic_strain_rate
+        θ   = θ_e + θ_p * (r_F>=0)
+    else
+        θ   = θ_e + θ_p
+    end
     return θ
 end
 
-strain_rate_residual(ε, τ, τ0, dt, η, G, λ, P, ψ, ηvp)    = strain_rate(τ, τ0, dt, η, G, λ, P, ψ, ηvp) - ε
-volumetric_strain_rate_residual(θ, τ, dt, λ, P, P0, K, ψ) = volumetric_strain_rate(τ, dt, λ, P, P0, K, ψ) - θ
-F_residual(τ, P, C, ϕ, ηvp, λ, G, dt, η)                  = compute_F(τ, P, C, ϕ, ηvp, λ)
+strain_rate_residual(ε, τ, τ0, dt, η, G, λ, P, ψ, ηvp, r_F)    = strain_rate(τ, τ0, dt, η, G, λ, P, ψ, ηvp, r_F) - ε
+volumetric_strain_rate_residual(θ, τ, dt, λ, P, P0, K, ψ, r_F) = volumetric_strain_rate(τ, dt, λ, P, P0, K, ψ, r_F) - θ
+F_residual(τ, P, C, ϕ, ηvp, λ, G, dt, η)                       = compute_F(τ, P, C, ϕ, ηvp, λ)
 
 function residual_vector(x::SVector, ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, ηvp)
     τ   = x[1]
     λ   = x[2]
     P   = x[3]
-    r_τ = strain_rate_residual(ε, τ, τ0, dt, η, G, λ, P, ψ, ηvp)
-    r_θ = volumetric_strain_rate_residual(θ, τ, dt, λ, P, P0, K, ψ)
     r_F = F_residual(τ, P, C, ϕ, ηvp, λ, G, dt, η)
+    r_τ = strain_rate_residual(ε, τ, τ0, dt, η, G, λ, P, ψ, ηvp, r_F)
+    r_θ = volumetric_strain_rate_residual(θ, τ, dt, λ, P, P0, K, ψ, r_F)
     return SA[r_τ, r_F, r_θ]
 end
 
@@ -74,14 +88,14 @@ function solve(ε, τ, τ0, θ, dt, η, G, λ, P, P0, K, ψ, C, ϕ, ηvp; tol::F
 
         r = residual_vector(x,ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, ηvp)  
         J = ForwardDiff.jacobian(x -> residual_vector(x,ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, ηvp), x)
+        
+        # display(J)
         Δx = J \ r
         α = 1
         x -= α .* Δx
         # check convergence
         er = mynorm(Δx, x)
-
         # @show r, x
-
         it > itermax && break
     end
     if verbose
