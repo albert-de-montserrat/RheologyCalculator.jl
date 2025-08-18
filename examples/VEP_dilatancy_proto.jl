@@ -1,4 +1,4 @@
-using ForwardDiff, StaticArrays
+using ForwardDiff, StaticArrays, LinearAlgebra
 using GLMakie
 #using MathTeXEngine
 #Makie.update_theme!( fonts = (regular = texfont(), bold = texfont(:bold), italic = texfont(:italic)))
@@ -82,16 +82,20 @@ function residual_vector(x::SVector, ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, �
     return SA[r_τ, r_F, r_θ]
 end
 
-function solve(ε, τ, τ0, θ, dt, η, G, λ, P, P0, K, ψ, C, ϕ, ηvp; tol::Float64 = 1.0e-9, itermax = 1.0e1, verbose::Bool = false)
+function solve(ε, τ, τ0, θ, dt, η, G, λ, P, P0, K, ψ, C, ϕ, ηvp; atol::Float64 = 1.0e-9, rtol::Float64 = 1.0e-9, itermax = 1.0e1, verbose::Bool = false)
 
     it = 0  
     er = Inf
     x  = SA[τ, λ, P]  # Initial guess
     α  = 1e0
-    while er > tol #&& it<=1
-        it += 1
+    r   = residual_vector(x,ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, ηvp) 
 
-        r = residual_vector(x,ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, ηvp)  
+    normalize_vec = SA[1.0, 1e3, 1.0]
+    er0 = mynorm(r, normalize_vec)
+
+    while er > atol && er/er0 > rtol #&& it<=1
+        it += 1 
+
         J = ForwardDiff.jacobian(x -> residual_vector(x,ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, ηvp), x)
         
         #display(J)
@@ -99,22 +103,22 @@ function solve(ε, τ, τ0, θ, dt, η, G, λ, P, P0, K, ψ, C, ϕ, ηvp; tol::F
         Δx = J \ r
         α = 1.0
         x -= α .* Δx
+       
         # check convergence
-        er = mynorm(Δx, x)       # adding an ϵ here as workaround when some values are 0
-            
+        r   = residual_vector(x,ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, ηvp)  
+        er  = mynorm(r, normalize_vec)
+
         it > itermax && break
-
+      
         #=
-        r1 = residual_vector(x,ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, ηvp)  
-
         F = compute_F(x[1], x[3], C, ϕ, ηvp, x[2])
 
-        println("               Iterations: $it, Error: $er, α = $α, F = $F")
-        println("                   r1   = $r1")
-        println("                   x    = $x")
-        println("                   Δx   = $Δx")
-        println("                   Δx/x = $(Δx./x)")
-        println("                   r1/x = $(r1./x)")
+        println("               Iterations: $it, Error: $er, Error0: $er0, α = $α, F = $F, Error/Error0=$(er/er0)")
+        println("                   r        = $r")
+        println("                   x        = $x")
+        println("                   Δx       = $Δx")
+        println("                   Δx/(x+1) = $(Δx./ (x .+ 1.0))")
+        println("                   r/(x+1)  = $(r./ (x .+ 1.0))")
         =#
     end
     #error("stop")
