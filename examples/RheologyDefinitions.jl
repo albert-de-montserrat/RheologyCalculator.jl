@@ -19,7 +19,6 @@ Represents a linear viscosity model following Newton's law of viscosity.
 struct LinearViscosity{T} <: AbstractViscosity
     η::T
 end
-
 @inline series_state_functions(::LinearViscosity) = (compute_strain_rate,)
 @inline parallel_state_functions(::LinearViscosity) = (compute_stress,)
 
@@ -39,7 +38,6 @@ Represents a linear viscosity model that operates on stress rather than strain r
 struct LinearViscosityStress{T} <: AbstractViscosity
     η::T
 end
-@inline series_state_functions(::LinearViscosityStress) = (compute_stress,)
 @inline compute_stress(r::LinearViscosityStress; ε = 0, kwargs...) = ε * 2 * r.η
 # --------------------------------------------------------------------
 
@@ -59,6 +57,7 @@ struct PowerLawViscosity{T, I} <: AbstractViscosity
 end
 @inline series_state_functions(::PowerLawViscosity) = (compute_strain_rate,)
 @inline parallel_state_functions(::PowerLawViscosity) = (compute_stress,)
+
 @inline compute_strain_rate(r::PowerLawViscosity; τ = 0, kwargs...) = τ^r.n / (2 * r.η)
 @inline compute_stress(r::PowerLawViscosity; ε = 0, kwargs...) = ε^(1 / r.n) * (2 * r.η)^(1 / r.n)
 # --------------------------------------------------------------------
@@ -79,7 +78,8 @@ struct Elasticity{T} <: AbstractElasticity
 end
 @inline _isvolumetric(::Elasticity) = true
 @inline series_state_functions(::Elasticity) = (compute_strain_rate, compute_volumetric_strain_rate)
-@inline parallel_state_functions(::Elasticity) = compute_stress, compute_pressure
+@inline parallel_state_functions(::Elasticity) = (compute_stress, compute_pressure)
+
 
 @inline compute_strain_rate(r::Elasticity; τ = 0, τ0 = 0, dt = 0, kwargs...) = (τ - τ0) / (2 * r.G * dt)
 @inline compute_volumetric_strain_rate(r::Elasticity; P = 0, P0 = 0, dt = 0, kwargs...) = -(P - P0) / (r.K * dt)
@@ -100,7 +100,6 @@ struct BulkElasticity{T} <: AbstractElasticity
     K::T
 end
 @inline _isvolumetric(::BulkElasticity) = true
-
 @inline series_state_functions(::BulkElasticity) = (compute_volumetric_strain_rate,)
 @inline parallel_state_functions(::BulkElasticity) = (compute_pressure,)
 @inline compute_volumetric_strain_rate(r::BulkElasticity; P = 0, P0 = 0, dt = 0, kwargs...) = -(P - P0) / (r.K * dt)
@@ -120,11 +119,11 @@ struct BulkViscosity{T} <: AbstractViscosity
     χ::T
 end
 @inline _isvolumetric(::BulkViscosity) = true
+@inline series_state_functions(::BulkViscosity) = (compute_volumetric_strain_rate,)
+@inline parallel_state_functions(::BulkViscosity) = (compute_pressure,)
 
 @inline compute_volumetric_strain_rate(r::BulkViscosity; P = 0, kwargs...) = P / r.χ
-@inline parallel_state_functions(::BulkViscosity) = (compute_pressure,)
 @inline compute_pressure(r::BulkViscosity; θ = 0, kwargs...) = θ * r.χ
-@inline series_state_functions(::BulkViscosity) = (compute_volumetric_strain_rate,)
 # --------------------------------------------------------------------
 
 # IncompressibleElasticity -------------------------------------------
@@ -141,6 +140,7 @@ struct IncompressibleElasticity{T} <: AbstractElasticity
 end
 @inline series_state_functions(::IncompressibleElasticity) = (compute_strain_rate,)
 @inline parallel_state_functions(::IncompressibleElasticity) = (compute_stress,)
+
 @inline compute_strain_rate(r::IncompressibleElasticity; τ = 0, τ0 = 0, dt = 0, kwargs...) = (τ - τ0) / (2 * r.G * dt)
 @inline compute_stress(r::IncompressibleElasticity; ε = 0, τ0 = 0, dt = 0, kwargs...) = τ0 + 2 * r.G * dt * ε
 # --------------------------------------------------------------------
@@ -188,22 +188,28 @@ struct DruckerPrager{T} <: AbstractPlasticity
     ϕ::T # in degrees for now
     ψ::T # in degrees for now
 end
-@inline _isvolumetric(::DruckerPrager) = true
-# @inline series_state_functions(::DruckerPrager) = (compute_strain_rate, compute_lambda, compute_volumetric_strain_rate)
-# @inline parallel_state_functions(::DruckerPrager) = compute_stress, compute_pressure, compute_lambda_parallel, compute_plastic_strain_rate, compute_volumetric_plastic_strain_rate
-@inline series_state_functions(::DruckerPrager) = compute_strain_rate, compute_lambda
-@inline parallel_state_functions(::DruckerPrager) = compute_stress, compute_pressure, compute_lambda_parallel, compute_plastic_strain_rate
-
 DruckerPrager(args...) = DruckerPrager(promote(args...)...)
-@inline function compute_strain_rate(r::DruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)
-    ε_pl = compute_plastic_strain_rate(r::DruckerPrager; τ_pl = τ, λ = λ, P_pl = P, kwargs...)
-    return ε_pl #*(F > 0)
+
+@inline _isvolumetric(::DruckerPrager) = false
+# @inline series_state_functions(::DruckerPrager) = (compute_strain_rate, compute_volumetric_strain_rate, compute_lambda)
+# @inline parallel_state_functions(::DruckerPrager) = (compute_stress, compute_pressure, compute_lambda, compute_plastic_strain_rate, compute_volumetric_plastic_strain_rate)
+@inline series_state_functions(::DruckerPrager) = (compute_strain_rate, compute_lambda)
+@inline parallel_state_functions(::DruckerPrager) = (compute_stress, compute_plastic_strain_rate, compute_lambda_parallel)
+
+@inline function compute_strain_rate(r::DruckerPrager; τ = 0, λ = 0, P_pl = 0, kwargs...)
+    ε_pl = compute_plastic_strain_rate(r::DruckerPrager; τ_pl = τ, λ = λ, P_pl = P_pl, kwargs...)
+    return ε_pl
 end
+
+@inline compute_stress(r::DruckerPrager; τ_pl = 0, kwargs...) = τ_pl
+
 @inline function compute_volumetric_strain_rate(r::DruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)
     #return -λ * ForwardDiff.derivative(x -> compute_Q(r, τ, x), P) # perhaps this derivative needs to be hardcoded
     θ_pl = compute_volumetric_plastic_strain_rate(r::DruckerPrager; τ_pl = τ, λ = λ, P_pl = P, kwargs...)
     return θ_pl#*(F > 0)
 end
+
+@inline compute_pressure(r::DruckerPrager; P_pl = 0, kwargs...) = P_pl
 
 @inline function compute_lambda(r::DruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)
     F = compute_F(r, τ, P)
@@ -228,68 +234,14 @@ compute_Q(r::DruckerPrager, τ, P) = τ - P * sind(r.ψ)
 @inline compute_pressure(r::DruckerPrager; P_pl = 0, kwargs...) = P_pl*0
 
 @inline function compute_plastic_strain_rate(r::DruckerPrager; τ_pl = 0, λ = 0, P_pl = 0, ε = 0, kwargs...)
-    return λ * ForwardDiff.derivative(x -> compute_Q(r, x, P_pl), τ_pl) - ε # perhaps this derivative needs to be hardcoded
+    return λ / 2 * ForwardDiff.derivative(x -> compute_Q(r, x, P_pl), τ_pl) # perhaps this derivative needs to be hardcoded
 end
 
 @inline function compute_volumetric_plastic_strain_rate(r::DruckerPrager; τ_pl = 0, λ = 0, P_pl = 0, θ = 0, kwargs...)
-    return -λ * ForwardDiff.derivative(x -> compute_Q(r, τ_pl, x), P_pl) - θ # perhaps this derivative needs to be hardcoded
-end
-
-@inline compute_plastic_stress(r::DruckerPrager; τ_pl = 0, kwargs...) = τ_pl*0
-# --------------------------------------------------------------------
-
-# DruckerPragerIncompressible ------------------------------------------------------
-"""
-    DruckerPragerIncompressible{T} <: AbstractPlasticity
-
-Represents the incompressible Drucker-Prager plasticity model for pressure-dependent yielding.
-
-# Fields
-- `C::T`: The cohesion parameter.
-- `ϕ::T`: The friction angle (in degrees).
-"""
-struct DruckerPragerIncompressible{T} <: AbstractPlasticity
-    C::T
-    ϕ::T # in degrees for now
-end
-@inline _isvolumetric(::DruckerPragerIncompressible) = false
-@inline series_state_functions(::DruckerPragerIncompressible) = (compute_strain_rate, compute_lambda)
-
-@inline parallel_state_functions(::DruckerPragerIncompressible) = compute_stress, compute_pressure, compute_lambda, compute_plastic_strain_rate
-
-DruckerPragerIncompressible(args...) = DruckerPragerIncompressible(promote(args...)...)
-@inline function compute_strain_rate(r::DruckerPragerIncompressible; τ = 0, λ = 0, P_pl = 0, kwargs...)
-    ε_pl = compute_plastic_strain_rate(r::DruckerPragerIncompressible; τ_pl = τ, λ = λ, P_pl = P_pl, kwargs...)
-    return ε_pl
-end
-@inline function compute_volumetric_strain_rate(r::DruckerPragerIncompressible; τ = 0, λ = 0, P = 0, kwargs...)
-    return λ * ForwardDiff.derivative(x -> compute_Q(r, τ, x), P) # perhaps this derivative needs to be hardcoded
-end
-
-@inline function compute_lambda(r::DruckerPragerIncompressible; τ = 0, λ = 0, P = 0, kwargs...)
-    F = compute_F(r, τ, P)
-    return F - λ # * (F > 0)
-end
-
-# special plastic helper functions
-function compute_F(r::DruckerPragerIncompressible, τ, P)
-    F = (τ - P * sind(r.ϕ) - r.C * cosd(r.ϕ))
-    return F * (F > -1e-8)
-end
-compute_Q(::DruckerPragerIncompressible, τ, P) = τ 
-
-@inline compute_stress(r::DruckerPragerIncompressible; τ_pl = 0, kwargs...) = τ_pl
-@inline compute_pressure(r::DruckerPragerIncompressible; P_pl = 0, kwargs...) = P_pl
-
-@inline function compute_plastic_strain_rate(r::DruckerPragerIncompressible; τ_pl = 0, λ = 0, P_pl = 0, ε = 0, kwargs...)
-    return λ * ForwardDiff.derivative(x -> compute_Q(r, x, P_pl), τ_pl) - ε # perhaps this derivative needs to be hardcoded
-end
-
-@inline function compute_volumetric_plastic_strain_rate(r::DruckerPragerIncompressible; τ_pl = 0, λ = 0, P_pl = 0, θ = 0, kwargs...)
     return λ * ForwardDiff.derivative(x -> compute_Q(r, τ_pl, x), P_pl) - θ # perhaps this derivative needs to be hardcoded
 end
 
-@inline compute_plastic_stress(r::DruckerPragerIncompressible; τ_pl = 0, kwargs...) = τ_pl
+@inline compute_plastic_stress(r::DruckerPrager; τ_pl = 0, kwargs...) = τ_pl
 # --------------------------------------------------------------------
 
 # DiffusionCreep -----------------------------------------------------
@@ -317,6 +269,9 @@ struct DiffusionCreep{I, T} <: AbstractViscosity
     R::T
 end
 DiffusionCreep(args...) = DiffusionCreep(args[1], promote(args[2:end]...)...)
+@inline series_state_functions(::DiffusionCreep) = (compute_strain_rate,)
+@inline parallel_state_functions(::DiffusionCreep) = (compute_stress,)
+
 @inline function compute_strain_rate(r::DiffusionCreep; τ = 0, T = 0, P = 0, f = 0, args...)
     (; n, r, p, A, E, V, R) = r
 
@@ -325,7 +280,6 @@ DiffusionCreep(args...) = DiffusionCreep(args[1], promote(args[2:end]...)...)
     # ε = A * TauII ^n * exp(-(E + P * V) / (R * T))
     return ε
 end
-@inline series_state_functions(::DiffusionCreep) = (compute_strain_rate,)
 # --------------------------------------------------------------------
 
 
@@ -353,6 +307,7 @@ struct DislocationCreep{I, T} <: AbstractViscosity
 end
 DislocationCreep(args...) = DislocationCreep(args[1], promote(args[2:end]...)...)
 @inline series_state_functions(::DislocationCreep) = (compute_strain_rate,)
+@inline parallel_state_functions(::DislocationCreep) = (compute_stress,)
 
 @inline function compute_strain_rate(r::DislocationCreep; τ = 0, T = 0, P = 0, f = 0, args...)
     (; n, r, A, E, V, R) = r
