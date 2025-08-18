@@ -5,7 +5,7 @@ Makie.update_theme!( fonts = (regular = texfont(), bold = texfont(:bold), italic
 
 const SecYear = 3600 * 24 * 365.25
 
-cancel_plastic_strain_rate = true
+cancel_plastic_strain_rate = false
 
 @generated function mynorm(x::SVector{N, T}, y::SVector{N, T}) where {N, T}
     return quote
