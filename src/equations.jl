@@ -53,7 +53,8 @@ function generate_equations(c::AbstractCompositeModel, fns_own_global::F, ind_in
     ilocal_childs = ntuple(i -> iself + nown + i, Val(nlocal))
     offsets_parallel = (0, ntuple(i -> i, Val(nbranches))...)
     # offsets_parallel = (0, length.(fns_branches_global)...)
-    iparallel_childs = ntuple(i -> iself + nlocal + offsets_parallel[i] + i + nown, Val(nbranches))
+    # iparallel_childs = ntuple(i -> iself + nlocal + offsets_parallel[i] + i + nown, Val(nbranches))
+    iparallel_childs = ntuple(i -> iself + nlocal + offsets_parallel[i] + 1 + nown, Val(nbranches))
     # ichildren = (ilocal_childs..., iparallel_childs...)
 
     # add globals
@@ -75,7 +76,9 @@ end
     return quote
         @inline
         Base.@ntuple $N i -> begin
-            generate_equations(branches[i], fn, 0, Val(false), isvolumetric(branches[i]), el_num[2][i]; iparent = global_eqs.self, iself = iself_ref[])
+            eqs = generate_equations(branches[i], fn, 0, Val(false), isvolumetric(branches[i]), el_num[2][i]; iparent = global_eqs.self, iself = iself_ref[])
+            iself_ref[] += 1
+            eqs
         end
     end
 end
@@ -317,8 +320,15 @@ end
             name = keys(args_template[i])
             merge(NamedTuple{name}(x[i]), others)
         end
-        args_merged = merge(args...)
-        Base.@ntuple $N i -> args_merged
+        # args_merged = merge(args...)
+        # Base.@ntuple $N i -> args_merged
+
+        Base.@ntuple $N i -> begin
+            diffs = Base.@ntuple $N j -> begin
+                Base.structdiff(args[j], args[i])
+            end
+            merge(args[i], diffs...)
+        end
     end
 end
 
