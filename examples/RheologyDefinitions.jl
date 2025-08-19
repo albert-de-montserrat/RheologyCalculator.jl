@@ -196,9 +196,10 @@ DruckerPrager(args...) = DruckerPrager(promote(args...)...)
 @inline series_state_functions(::DruckerPrager) = (compute_strain_rate, compute_lambda)
 @inline parallel_state_functions(::DruckerPrager) = (compute_stress, compute_plastic_strain_rate, compute_lambda_parallel)
 
-@inline function compute_strain_rate(r::DruckerPrager; τ = 0, λ = 0, P_pl = 0, kwargs...)
-    ε_pl = compute_plastic_strain_rate(r::DruckerPrager; τ_pl = τ, λ = λ, P_pl = P_pl, kwargs...)
-    return ε_pl
+@inline function compute_strain_rate(r::DruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)
+    ε_pl = compute_plastic_strain_rate(r::DruckerPrager; τ_pl = τ, λ = λ, P_pl = P, kwargs...)
+    F = compute_F(r, τ, P)
+    return ε_pl*(F > -1e-8)
 end
 
 @inline compute_stress(r::DruckerPrager; τ_pl = 0, kwargs...) = τ_pl
@@ -206,7 +207,8 @@ end
 @inline function compute_volumetric_strain_rate(r::DruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)
     #return -λ * ForwardDiff.derivative(x -> compute_Q(r, τ, x), P) # perhaps this derivative needs to be hardcoded
     θ_pl = compute_volumetric_plastic_strain_rate(r::DruckerPrager; τ_pl = τ, λ = λ, P_pl = P, kwargs...)
-    return θ_pl#*(F > 0)
+    F = compute_F(r, τ, P)
+    return θ_pl*(F > -1e-8)
 end
 
 @inline compute_pressure(r::DruckerPrager; P_pl = 0, kwargs...) = P_pl
@@ -214,19 +216,19 @@ end
 @inline function compute_lambda(r::DruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)
     F = compute_F(r, τ, P)
     η_χ = 1.0  # Lagrange multiplier, value doesn't matter
-    return F - λ * η_χ * (F < 0)
+    return F - λ * η_χ #* (F < 0)
 end
 
 @inline function compute_lambda_parallel(r::DruckerPrager; τ_pl = 0, λ = 0, P = 0, kwargs...)
     F = compute_F(r, τ_pl, P)
     η_χ = 1.0  # Lagrange multiplier, value doesn't matter
-    return F - λ * η_χ * (F < 0)
+    return F - λ * η_χ #* (F < 0)
 end
 
 # special plastic helper functions
 function compute_F(r::DruckerPrager, τ, P)
     F = (τ - P * sind(r.ϕ) - r.C * cosd(r.ϕ))
-    return F * (F > -1e-8)
+    return F
 end
 compute_Q(r::DruckerPrager, τ, P) = τ - P * sind(r.ψ)
 

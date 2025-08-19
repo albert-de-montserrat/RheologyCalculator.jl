@@ -115,7 +115,7 @@ function compute_F(r::DruckerPragerCap, τII, P)
     end
 
     # Note that viscoplastic regularisation is taken into account in the residual function
-    return F #* (F > -1e-8)
+    return F 
 end
 
 function compute_Q(r::DruckerPragerCap, τ, P) 
