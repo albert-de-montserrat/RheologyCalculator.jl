@@ -1,23 +1,22 @@
-using RheologyCalculator
+using RheologyCalculator, LinearAlgebra, Test
 import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 
 include("../examples/RheologyDefinitions.jl")
 
 function stress_time(c, vars, x, others; ntime = 200, dt = 1.0e8)
     # Extract elastic stresses/pressure from solutio vector
-    τ1   = zeros(ntime)
+    τ1  = zeros(ntime)
     t_v = zeros(ntime)
     τ_e = (0.0,)
     P_e = (0.0,)
-    t = 0.0
+    t   = 0.0
     for i in 2:ntime
         others   = (; dt = dt, τ0 = τ_e, P=others.P, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
         x        = solve(c, x, vars, others, verbose = false)
         τ1[i]    = x[1]
         t       += others.dt
         τ_e      = x[1] 
-    
-        t_v[i] = t
+        t_v[i]   = t
     end
     return t_v, τ1
 end
@@ -44,19 +43,6 @@ c, x, vars, args, others = let
     c, x, vars, args, others
 end
 
-using StaticArrays
-
-let
-    t_v, τ = stress_time(c, vars, x, others; ntime = 1_500, dt = 1e8)
-
-    SecYear = 3600 * 24 * 365.25
-    fig = Figure(fontsize = 30, size = (400, 400) .* 2)
-    ax  = Axis(fig[1, 1], title = "Visco-elasto-viscoplastic model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
-
-    scatter!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6,  color=:red, label = "numerical")
-
-    ax.xlabel = L"t [kyr]"
-    ax.ylabel = L"\tau [MPa]"
-    display(fig)
-end
-
+_, τ = stress_time(c, vars, x, others; ntime = 1_500, dt = 1e8)
+@test maximum(τ) == 1.1049696158037923e7
+@test any(!isnan, τ)
