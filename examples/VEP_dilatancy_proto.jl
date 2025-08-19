@@ -44,8 +44,6 @@ end
 compute_Q(τ, P, ψ) = τ - P * sind(ψ)
 
 function compute_F(τ, P, C, ϕ, ηvp, λ)
-    η_mult = 1.0  # Lagarange multiplier, value doesn't matter
-    f      = τ - P * sind(ϕ) - C * cosd(ϕ)
     f_vp   = τ - P * sind(ϕ) - C * cosd(ϕ) - ηvp*λ
     F      = f_vp
     return F
@@ -68,8 +66,9 @@ end
 strain_rate_residual(ε, τ, τ0, dt, η, G, λ, P, C, ϕ, ψ, ηvp)         = strain_rate(τ, τ0, dt, η, G, λ, P, C, ϕ, ψ, ηvp) - ε
 volumetric_strain_rate_residual(θ, τ, dt, λ, P, P0, K, C, ϕ, ψ, ηvp) = volumetric_strain_rate(τ, dt, λ, P, P0, K,  C, ϕ, ψ, ηvp) - θ
 function F_residual(τ, P, C, ϕ, ηvp, λ, G, dt, η)                            
-    F = compute_F(τ, P, C, ϕ, ηvp, λ) 
-    return F*(F>-1e-8) - λ
+    F   = compute_F(τ, P, C, ϕ, ηvp, λ) 
+    η_m = 1.0  # multiplier, value doesn't matter
+    return F*(F>-1e-8) + η_m*λ
 end
 
 function residual_vector(x::SVector, ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, ηvp)
@@ -101,7 +100,7 @@ function solve(ε, τ, τ0, θ, dt, η, G, λ, P, P0, K, ψ, C, ϕ, ηvp; atol::
         #display(J)
         #error("stop")
         Δx = J \ r
-        α = 1.0
+        α  = 1.0
         x -= α .* Δx
        
         # check convergence
