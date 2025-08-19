@@ -23,6 +23,7 @@ end
 viscous_strain_rate(η, τ)                    = τ / (2 * η)
 elastic_strain_rate(G, τ, τ0, dt)            = (τ - τ0) / (2 * G * dt)
 volumetric_elastic_strain_rate(P, P0, K, dt) = (P - P0) / (K * dt)
+
 function volumetric_plastic_strain_rate(λ, τ, P, C, ϕ, ψ, ηvp)   
     F   = compute_F(τ, P, C, ϕ, ηvp, λ)
     θ_p = λ   * ForwardDiff.derivative(P -> compute_Q(τ, P, ψ), P) 
@@ -44,8 +45,7 @@ end
 compute_Q(τ, P, ψ) = τ - P * sind(ψ)
 
 function compute_F(τ, P, C, ϕ, ηvp, λ)
-    f_vp   = τ - P * sind(ϕ) - C * cosd(ϕ) - ηvp*λ
-    F      = f_vp
+    F      = τ - P * sind(ϕ) - C * cosd(ϕ) - ηvp*λ
     return F
 end
 
@@ -63,12 +63,14 @@ function volumetric_strain_rate(τ, dt, λ, P, P0, K, C, ϕ, ψ, ηvp)
     θ   = θ_e + θ_p
     return θ
 end
+
 strain_rate_residual(ε, τ, τ0, dt, η, G, λ, P, C, ϕ, ψ, ηvp)         = strain_rate(τ, τ0, dt, η, G, λ, P, C, ϕ, ψ, ηvp) - ε
 volumetric_strain_rate_residual(θ, τ, dt, λ, P, P0, K, C, ϕ, ψ, ηvp) = volumetric_strain_rate(τ, dt, λ, P, P0, K,  C, ϕ, ψ, ηvp) - θ
+
 function F_residual(τ, P, C, ϕ, ηvp, λ, G, dt, η)                            
     F   = compute_F(τ, P, C, ϕ, ηvp, λ) 
-    η_m = 1.0  # multiplier, value doesn't matter
-    return F*(F>-1e-8) + η_m*λ
+    η_m = 1.0  #  multiplier, value doesn't matter
+    return F*(F>-1e-8) - η_m*λ
 end
 
 function residual_vector(x::SVector, ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, ηvp)
@@ -150,7 +152,7 @@ function stress_time()
     P0    = P
     C     = 10e6
     ϕ     = 30
-    ψ     = 30
+    ψ     = 0*30
 
     # Extract elastic stresses/pressure from solutio vector
     τv    = zeros(ntime)
