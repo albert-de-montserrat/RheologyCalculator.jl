@@ -1,7 +1,5 @@
 using LinearAlgebra
 
-include("../examples/RheologyDefinitions.jl")
-
 function stress_time(c, vars, x, others; ntime = 200, dt = 1.0e8)
     # Extract elastic stresses/pressure from solutio vector
     τ1  = zeros(ntime)
