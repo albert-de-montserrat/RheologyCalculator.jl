@@ -1,6 +1,4 @@
-using Test, RheologyCalculator, ForwardDiff, StaticArrays
-import RheologyCalculator: compute_residual
-
+using ForwardDiff, StaticArrays
 
 viscous1    = LinearViscosity(5.0e19)
 viscous2    = LinearViscosity(1.0e20)

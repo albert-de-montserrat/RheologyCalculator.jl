@@ -1,3 +1,9 @@
+using RheologyCalculator, Test
+import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
+import RheologyCalculator: compute_residual
+
+include("../examples/RheologyDefinitions.jl")
+
 function runtests()
     files = readdir(@__DIR__)
     test_files = filter(startswith("test_"), files)

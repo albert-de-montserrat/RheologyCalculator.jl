@@ -1,7 +1,4 @@
-using RheologyCalculator, LinearAlgebra, Test
-import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
-
-include("../examples/RheologyDefinitions.jl")
+using LinearAlgebra
 
 function analytical_solution(ϵ, t, G, η, c, ϕ, P)
     τ  = 2 * ϵ * η * (1 - exp(-G * t / η))

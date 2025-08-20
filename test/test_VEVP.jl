@@ -1,5 +1,4 @@
-using RheologyCalculator, LinearAlgebra, Test
-import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
+using LinearAlgebra
 
 include("../examples/RheologyDefinitions.jl")
 
