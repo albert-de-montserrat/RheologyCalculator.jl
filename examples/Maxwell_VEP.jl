@@ -13,6 +13,8 @@ function analytical_solution(ϵ, t, G, η, c, ϕ, P)
     else
         return τ
     end
+
+    # return τy < τ ? τy : τ
 end
 
 function stress_time(c, vars, x, others; ntime = 200, dt = 1.0e8)
@@ -73,7 +75,7 @@ let
     ax  = Axis(fig[1, 1], title = "Visco-elasto-plastic model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
 
     lines!(ax, t_v / SecYear / 1.0e3, τ_an / 1.0e6, color=:black, label = "viscoelastic analytical")
-    scatter!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6,  color=:red, label = "numerical")
+    # scatter!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6,  color=:red, label = "numerical")
 
     axislegend(ax, position = :rb)
     ax.xlabel = L"t [kyr]"
