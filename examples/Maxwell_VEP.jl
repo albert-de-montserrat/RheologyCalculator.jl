@@ -65,18 +65,16 @@ c, x, vars, args, others = let
     c, x, vars, args, others
 end
 
-let
-    t_v, τ, τ_an = stress_time(c, vars, x, others; ntime = 1_500, dt = 1e8)
+t_v, τ, τ_an = stress_time(c, vars, x, others; ntime = 1_500, dt = 1e8)
 
-    SecYear = 3600 * 24 * 365.25
-    fig = Figure(fontsize = 30, size = (800, 600) .* 2)
-    ax  = Axis(fig[1, 1], title = "Visco-elasto-plastic model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
+SecYear = 3600 * 24 * 365.25
+fig = Figure(fontsize = 30, size = (800, 600) .* 2)
+ax  = Axis(fig[1, 1], title = "Visco-elasto-plastic model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
 
-    lines!(ax, t_v / SecYear / 1.0e3, τ_an / 1.0e6, color=:black, label = "viscoelastic analytical")
-    scatter!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6,  color=:red, label = "numerical")
+lines!(ax, t_v / SecYear / 1.0e3, τ_an / 1.0e6, color=:black, label = "viscoelastic analytical")
+scatter!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6,  color=:red, label = "numerical")
 
-    axislegend(ax, position = :rb)
-    ax.xlabel = L"t [kyr]"
-    ax.ylabel = L"\tau [MPa]"
-    display(fig)
-end
+axislegend(ax, position = :rb)
+ax.xlabel = L"t [kyr]"
+ax.ylabel = L"\tau [MPa]"
+display(fig)

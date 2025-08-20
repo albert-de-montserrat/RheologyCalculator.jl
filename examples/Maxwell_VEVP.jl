@@ -1,6 +1,6 @@
 using RheologyCalculator
 import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
-
+using StaticArrays
 using GLMakie
 
 include("RheologyDefinitions.jl")
@@ -46,19 +46,17 @@ c, x, vars, args, others = let
     c, x, vars, args, others
 end
 
-using StaticArrays
 
-let
-    t_v, τ = stress_time(c, vars, x, others; ntime = 1_500, dt = 1e8)
+t_v, τ = stress_time(c, vars, x, others; ntime = 1_500, dt = 1e8)
 
-    SecYear = 3600 * 24 * 365.25
-    fig = Figure(fontsize = 30, size = (400, 400) .* 2)
-    ax  = Axis(fig[1, 1], title = "Visco-elasto-viscoplastic model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
+SecYear = 3600 * 24 * 365.25
+fig = Figure(fontsize = 30, size = (400, 400) .* 2)
+ax  = Axis(fig[1, 1], title = "Visco-elasto-viscoplastic model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
 
-    scatter!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6,  color=:red, label = "numerical")
+scatter!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6,  color=:red, label = "numerical")
 
-    ax.xlabel = L"t [kyr]"
-    ax.ylabel = L"\tau [MPa]"
-    display(fig)
-end
+ax.xlabel = L"t [kyr]"
+ax.ylabel = L"\tau [MPa]"
+display(fig)
+
 

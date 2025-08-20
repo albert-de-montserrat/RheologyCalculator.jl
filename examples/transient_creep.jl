@@ -21,13 +21,13 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
 
         x = solve(c, x, vars, others)
         τ_e = compute_stress_elastic(c, x, others)
-        P_e = compute_pressure_elastic(c, x, others)
+       # P_e = compute_pressure_elastic(c, x, others)
 
         @inbounds τ1[i] = τ_e[1]
-        @inbounds P1[i] = P_e[1]
+#        @inbounds P1[i] = P_e[1]
         # if length(τ_e) > 1
             @inbounds τ2[i] = τ_e[2]
-            @inbounds P2[i] = P_e[2]
+       #     @inbounds P2[i] = P_e[2]
         # end
         t += others.dt
         t_v[i] = t
