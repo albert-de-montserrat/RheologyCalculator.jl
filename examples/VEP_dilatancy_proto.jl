@@ -45,7 +45,13 @@ end
 compute_Q(τ, P, ψ) = τ - P * sind(ψ)
 
 function compute_F(τ, P, C, ϕ, ηvp, λ)
-    F      = τ - P * sind(ϕ) - C * cosd(ϕ) - ηvp*λ
+    Δσ        = ηvp*1e-14
+    ε0        = 1e-14
+    n_vp      = 4.0
+    ηvp_eff0  = Δσ*ε0^(-1/n_vp)
+    ηvp_eff   = ηvp_eff0*abs(λ)^(1/n_vp-1)
+    # ηvp_eff = ηvp
+    F       = τ - P * sind(ϕ) - C * cosd(ϕ) - ηvp_eff*λ
     return F
 end
 
@@ -69,7 +75,7 @@ volumetric_strain_rate_residual(θ, τ, dt, λ, P, P0, K, C, ϕ, ψ, ηvp) = vol
 
 function F_residual(τ, P, C, ϕ, ηvp, λ, G, dt, η)                            
     F   = compute_F(τ, P, C, ϕ, ηvp, λ) 
-    η_m = 1.0  #  multiplier, value doesn't matter
+    η_m = 1e20  #  multiplier, value doesn't matter
     return F*(F>-1e-8) - η_m*λ
 end
 
@@ -83,7 +89,7 @@ function residual_vector(x::SVector, ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, �
     return SA[r_τ, r_F, r_θ]
 end
 
-function solve(ε, τ, τ0, θ, dt, η, G, λ, P, P0, K, ψ, C, ϕ, ηvp; atol::Float64 = 1.0e-9, rtol::Float64 = 1.0e-9, itermax = 1.0e1, verbose::Bool = false)
+function solve(ε, τ, τ0, θ, dt, η, G, λ, P, P0, K, ψ, C, ϕ, ηvp; atol::Float64 = 1.0e-13, rtol::Float64 = 1.0e-13, itermax = 1.0e1, verbose::Bool = false)
 
     it = 0  
     er = Inf
@@ -108,6 +114,7 @@ function solve(ε, τ, τ0, θ, dt, η, G, λ, P, P0, K, ψ, C, ϕ, ηvp; atol::
         # check convergence
         r   = residual_vector(x,ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, ηvp)  
         er  = mynorm(r, normalize_vec)
+        @show er
 
         it > itermax && break
       
@@ -140,11 +147,11 @@ function stress_time()
     ntime = 2_000
     dt    = 1e8
     ε     = 1e-14
-    θ     = 1e-18
+    θ     = 0*1e-18
     τ     = 1e3
     τ0    = 0
     η     = 1e22
-    ηvp   = 1e20
+    ηvp   = 1e21
     G     = 10e9
     K     = 30e9
     λ     = 0
@@ -152,7 +159,7 @@ function stress_time()
     P0    = P
     C     = 10e6
     ϕ     = 30
-    ψ     = 0*30
+    ψ     = 10
 
     # Extract elastic stresses/pressure from solutio vector
     τv    = zeros(ntime)
@@ -204,8 +211,8 @@ let
 
     fig = Figure(fontsize = 30, size = (800, 600) .* 1)
     ax1 = Axis(fig[1, 1], xlabel = L"$t$ [kyr]", ylabel = L"$\tau$ [MPa]", title=L"$$Stress - time")
-    ax2 = Axis(fig[2, 1], xlabel = L"$t$ [kyr]", ylabel = L"$\tau$ [MPa]", title=L"$$Error")
-    ax3 = Axis(fig[3, 1], xlabel = L"$t$ [kyr]", ylabel = L"$\tau$ [MPa]", title=L"$$Pressure")
+    ax2 = Axis(fig[2, 1], xlabel = L"$t$ [kyr]", ylabel = L"$\Delta\tau$ [MPa]", title=L"$$Error")
+    ax3 = Axis(fig[3, 1], xlabel = L"$t$ [kyr]", ylabel = L"$P$ [MPa]", title=L"$$Pressure")
 
     step1 = 10
     step2 = 100
