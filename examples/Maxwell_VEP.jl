@@ -15,7 +15,7 @@ function analytical_solution(ϵ, t, G, η, c, ϕ, P)
     end
 end
 
-function stress_time(c, vars, x, others; ntime = 200, dt = 1.0e8)
+function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1.0e8)
     # Extract elastic stresses/pressure from solutio vector
     τ1   = zeros(ntime)
     λ    = zeros(ntime)
@@ -30,7 +30,9 @@ function stress_time(c, vars, x, others; ntime = 200, dt = 1.0e8)
     for i in 2:ntime
         others = (; dt = dt, τ0 = τ_e, P = others.P, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
 
-        x        = solve(c, x, vars, others, verbose = true)
+        #x        = solve(c, x, vars, others, verbose = true, xnorm=xnorm)
+        x        = solve(c, x, vars, others, verbose = true, xnorm=xnorm)
+        
         τ1[i]    = x[1]
         t       += others.dt
         τ_an[i]  = analytical_solution(vars.ε, t, c.leafs[2].G, c.leafs[1].η, c.leafs[3].C, c.leafs[3].ϕ, others.P)
@@ -41,7 +43,7 @@ function stress_time(c, vars, x, others; ntime = 200, dt = 1.0e8)
     return t_v, τ1, τ_an
 end
 
-c, x, vars, args, others = let
+c, x, xnorm, vars, args, others = let
 
     viscous = LinearViscosity(1e22)
     elastic = IncompressibleElasticity(10e9)
@@ -52,6 +54,7 @@ c, x, vars, args, others = let
     # elastic --- viscous --- plastic
 
     c  = SeriesModel(viscous, elastic, plastic)
+    #c  = SeriesModel(viscous, elastic)
     
     # input variables (constant)
     vars   = (; ε = 1.0e-14, θ = 1.0e-20)
@@ -60,12 +63,13 @@ c, x, vars, args, others = let
     # other non-differentiable variables needed to evaluate the state functions
     others = (; dt = 1.0e8, P = 1.0e6, τ0 = 0e0, P0 = 0.0)
 
-    x = initial_guess_x(c, vars, args, others)
+    x       = initial_guess_x(c, vars, args, others)
+    xnorm   = SA[vars.ε+vars.θ, plastic.C]
 
-    c, x, vars, args, others
+    c, x, xnorm, vars, args, others
 end
 
-t_v, τ, τ_an = stress_time(c, vars, x, others; ntime = 1_500, dt = 1e8)
+t_v, τ, τ_an = stress_time(c, vars, x, xnorm, others; ntime = 1500, dt = 1e8)
 
 SecYear = 3600 * 24 * 365.25
 fig = Figure(fontsize = 30, size = (800, 600) .* 2)

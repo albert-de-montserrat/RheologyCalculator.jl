@@ -6,25 +6,24 @@ include("Burgers.jl")
 @test  mean(τ2) ≈ 77593.22577542417
 @test  mean(P1) ≈ -2.057142856796177
 
-
 include("Maxwell_VE.jl")
-@test mean(abs.(τ-τ_an)) ≈ 10022.097942015174
+@test mean(abs.(τ-τ_an)) ≈ 9993.326538891743
 
 include("Maxwell_VEP.jl")
-@test mean(abs.(τ-τ_an)) ≈ 70.92833227623228
+@test mean(abs.(τ-τ_an)) ≈ 70.91382257194665
 
 include("Maxwell_VEVP.jl")
-@test mean(τ) ≈ 1.8481717756725273e6
+@test mean(τ) ≈ 9.413876094263624e6
 
 include("Mode1_Mode2_VEP.jl")
 @test mean(τ1) ≈ 0.0
-@test mean(P1) ≈ -348008.4518960728
+@test mean(P1) ≈ -348008.4518961142
 
-@test mean(τ2) ≈ 543634.3867782074
-@test mean(P2) ≈ 33645.52800041107
+@test mean(τ2) ≈ 543634.3867835554
+@test mean(P2) ≈  33645.5280111008
 
-@test mean(τ3) ≈ 397093.1039551422
-@test mean(P3) ≈ -243552.39197344126
+@test mean(τ3) ≈ 397093.10397308524
+@test mean(P3) ≈ -243552.39195758212
 
 #include("transient_creep.jl")
 ##@test mean(τ1) ≈ 136871.94383758004

@@ -115,7 +115,7 @@ function compute_F(r::DruckerPragerCap, τII, P)
     end
 
     # Note that viscoplastic regularisation is taken into account in the residual function
-    return F 
+    return F #*(F>-1e-8) 
 end
 
 function compute_Q(r::DruckerPragerCap, τ, P) 
@@ -142,20 +142,20 @@ function compute_Q(r::DruckerPragerCap, τ, P)
     return Q
 end 
 
-#@inline compute_stress(r::DruckerPragerCap; τ_pl = 0, kwargs...) = τ_pl
-#@inline compute_pressure(r::DruckerPragerCap; P_pl = 0, kwargs...) = P_pl
+@inline compute_stress(r::DruckerPragerCap; τ_pl = 0, kwargs...) = τ_pl
+@inline compute_pressure(r::DruckerPragerCap; P_pl = 0, kwargs...) = P_pl
 
 @inline function compute_plastic_strain_rate(r::DruckerPragerCap; τ_pl = 0, λ = 0, P_pl = 0, ε = 0, kwargs...)
-    return λ*ForwardDiff.derivative(x -> compute_Q(r, x, P_pl), τ_pl) - ε # perhaps this derivative needs to be hardcoded 
+    return λ*ForwardDiff.derivative(x -> compute_Q(r, x, P_pl), τ_pl) - 0*ε # perhaps this derivative needs to be hardcoded 
 end
 
 @inline function compute_volumetric_plastic_strain_rate(r::DruckerPragerCap; τ_pl = 0, λ = 0, P_pl = 0, θ = 0, kwargs...)
-    return -λ * ForwardDiff.derivative(x -> compute_Q(r, τ_pl, x), P_pl) - θ # perhaps this derivative needs to be hardcoded
+    return -λ * ForwardDiff.derivative(x -> compute_Q(r, τ_pl, x), P_pl) - 0*θ # perhaps this derivative needs to be hardcoded
 end
 # --------------------------------------------------------------------
 
 
-function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
+function stress_time(c, vars, x, xnorm; ntime = 200, dt = 1.0e8)
     # Extract elastic stresses/pressure from solution vector
     τ1      = zeros(ntime)
     λ       = zeros(ntime)
@@ -180,16 +180,16 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
             display(J)
             error("stop")
         end
-        x = RheologyCalculator.solve(c, x, vars, others, verbose = true)
+        x = RheologyCalculator.solve(c, x, vars, others, verbose = true, xnorm=xnorm)
         
         t += others.dt
         
         τ_e = compute_stress_elastic(c, x, others)
         P_e = compute_pressure_elastic(c, x, others)
-        #τ1[i] = τ_e[1]
-        #P1[i] = P_e[1]
-        τ1[i] = x[1]
-        P1[i] = x[end]
+        τ1[i] = τ_e[1]
+        P1[i] = P_e[1]
+        #τ1[i] = x[1]
+        #P1[i] = x[end]
         F1[i] = compute_F(c.leafs[end], τ1[i], P1[i])   
 
 #        mode2[i] = ismode2_yield(c.leafs[end], τ_e[1], P_e[1])
@@ -200,7 +200,7 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
     return t_v, τ1, P1, F1, mode2
 end
 
-c, x, vars, args, others = let
+c, x, xnorm, vars, args, others = let
 
     viscous = LinearViscosity(1e20)
     #elastic = IncompressibleElasticity(10e9)
@@ -223,8 +223,9 @@ c, x, vars, args, others = let
     others = (; dt = 1.0e5, τ0 = (0e0, ), P0 = (0.3e6, ))
 
     x = initial_guess_x(c, vars, args, others)
+    xnorm = SA[vars.ε+vars.θ, plastic.C, vars.ε+vars.θ]
 
-    c, x, vars, args, others
+    c, x, xnorm, vars, args, others
 end
 
 
@@ -269,9 +270,12 @@ ax3 = Axis(fig[2,1], title="Yield function F",      xlabel="time [yr]", ylabel="
 ax4 = Axis(fig[2,2], title="",                      xlabel="P [MPa]",   ylabel=L"\tau_{II} [MPa]", xlabelsize=20, ylabelsize=20)
 
 SecYear = 3600 * 24 * 365.25
-t_v1, τ1, P1, F1, mode2_1 = stress_time(c, (; ε = 0*7.0e-14, θ =   7.0e-15), x; ntime = 11, dt = SecYear*2)
-t_v2, τ2, P2, mode2_2 = stress_time(c, (; ε =   7.0e-14, θ = 0*7.0e-15), x; ntime = 80, dt = 1e7)
-t_v3, τ3, P3, mode2_3 = stress_time(c, (; ε =   7.0e-14, θ =   7.0e-15), x; ntime = 30, dt = 2e7)
+t_v1, τ1, P1, F1, mode2_1 = stress_time(c, (; ε = 0*7.0e-14, θ =   7.0e-15), x, xnorm; ntime = 11, dt = SecYear*2)
+println("-------")
+t_v2, τ2, P2, mode2_2 = stress_time(c, (; ε =   7.0e-14, θ = 0*7.0e-15), x, xnorm; ntime = 80, dt = 1e7)
+println("-------")
+t_v3, τ3, P3, mode2_3 = stress_time(c, (; ε =   7.0e-14, θ =   7.0e-15), x, xnorm; ntime = 30, dt = 2e7)
+println("-------")
 
 #t_v, τ, P = stress_time(c, vars, x; ntime = 20, dt = 4e5)
 
