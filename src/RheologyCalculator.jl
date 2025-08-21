@@ -26,7 +26,7 @@ include("initial_guess.jl")
 export initial_guess_x, x_keys
 
 include("normalize_x.jl")
-export normalize_x
+export normalisation_x
 
 include("solver.jl")
 export solve
