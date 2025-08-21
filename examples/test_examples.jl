@@ -15,7 +15,7 @@ include("Maxwell_VEP.jl")
 include("Maxwell_VEVP.jl")
 @test mean(τ) ≈ 9.413876094263624e6
 
-include("Mode1_Mode2_VEP.jl")
+include("Maxwell_VEPCap.jl")
 @test mean(τ1) ≈ 0.0
 @test mean(P1) ≈ -348008.4518961142
 
