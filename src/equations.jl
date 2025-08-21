@@ -25,8 +25,7 @@ end
         isGlobal = Val(true)
         el_num = global_eltype_numbering(c) # global element numbering (to be followed)
         eqs = Base.@ntuple $N i -> begin
-            ind_input = i
-            eqs = generate_equations(c, fns[i], ind_input, isGlobal, isvolumetric(c), el_num; iparent = iparent, iself = iself)
+            eqs = generate_equations(c, fns[i], i, isGlobal, isvolumetric(c), el_num; iparent = iparent, iself = iself)
             iself = eqs[end].self
             iparent = 0
             eqs
@@ -35,7 +34,7 @@ end
     end
 end
 
-function generate_equations(c::AbstractCompositeModel, fns_own_global::F, ind_input, ::Val{B}, ::Val, el_num = nothing; iparent::Int64 = 0, iself::Int64 = 0) where {F, B}
+function generate_equations(c::AbstractCompositeModel, fns_own_global::F, ind_input, ::Val{B}, ::Val, el_num; iparent::Int64 = 0, iself::Int64 = 0) where {F, B}
     iself_ref = Ref{Int64}(iself)
     (; branches, leafs) = c
     local_el = el_num[1]
@@ -48,11 +47,13 @@ function generate_equations(c::AbstractCompositeModel, fns_own_global::F, ind_in
     nbranches = length(branches)
 
     # iglobal          = ntuple(i -> iparent + i - 1, Val(nown))
-    ilocal_childs = ntuple(i -> iself + nown + i, Val(nlocal))
-    offsets_parallel = (0, ntuple(i -> i, Val(nbranches))...)
+    # ilocal_childs = ntuple(i -> iself + nown + i, Val(nlocal))
+    ilocal_childs = generate_ilocal_childs(iself, nown, fns_own_local)
+    offsets_parallel = generate_offsets_parallel(branches)
+    # offsets_parallel = (0, ntuple(i -> i, Val(nbranches))...)
     # offsets_parallel = (0, length.(fns_branches_global)...)
     # iparallel_childs = ntuple(i -> iself + nlocal + offsets_parallel[i] + i + nown, Val(nbranches))
-    iparallel_childs = ntuple(i -> iself + nlocal + offsets_parallel[i] + 1 + nown, Val(nbranches))
+    iparallel_childs = generate_iparallel_childs(iself, nlocal, nown, offsets_parallel, branches)
 
     # ichildren = (ilocal_childs..., iparallel_childs...)
     # add globals
@@ -70,16 +71,45 @@ function generate_equations(c::AbstractCompositeModel, fns_own_global::F, ind_in
     return (global_eqs, local_eqs..., parallel_eqs...) |> superflatten
 end
 
+@generated function generate_iparallel_childs(iself, nlocal, nown, offsets_parallel, ::NTuple{N, Any}) where {N}
+    quote
+        @inline
+        Base.@ntuple $N i -> iself + nlocal + offsets_parallel[i] + 1 + nown
+    end
+end
+
+@generated function generate_ilocal_childs(iself, nown, ::NTuple{N, Any}) where {N}
+    quote
+        @inline
+        Base.@ntuple $N i -> iself + nown + i
+    end
+end
+
+@generated function generate_offsets_parallel(::NTuple{N, Any}) where {N}
+    quote
+        @inline
+        n = Base.@ntuple $N i -> i
+        (0, n...)
+    end
+end
+
 @generated function generate_equations_unroller(branches::NTuple{N, Any}, fn::F, el_num, global_eqs, iself_ref) where {N, F}
     return quote
         @inline
         Base.@ntuple $N i -> begin
-            eqs = generate_equations(branches[i], fn, 0, Val(false), isvolumetric(branches[i]), el_num[2][i]; iparent = global_eqs.self, iself = iself_ref[])
+            b     = branches[i] 
+            # get_own_functions(b)
+            num   = el_num[2][i]
+            isvol = isvolumetric(b)
+            eqs   = generate_equations(b, fn, 0, Val(false), isvol, num; iparent = global_eqs.self, iself = iself_ref[])
+            # @show eqs
             iself_ref[] += 1
             eqs
         end
     end
 end
+
+generate_equations_unroller(::Tuple{}, ::F, el_num, global_eqs, iself_ref) where {F} = ()
 
 correct_children(eqs::CompositeEquation, ::NTuple{N, CompositeEquation}) where {N} = eqs
 
