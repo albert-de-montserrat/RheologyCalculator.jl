@@ -13,6 +13,8 @@ function analytical_solution(ϵ, t, G, η, c, ϕ, P)
     else
         return τ
     end
+
+    # return τy < τ ? τy : τ
 end
 
 function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1.0e8)

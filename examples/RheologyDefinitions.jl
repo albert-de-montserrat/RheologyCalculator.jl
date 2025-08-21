@@ -6,6 +6,7 @@ using RheologyCalculator, ForwardDiff
 import RheologyCalculator: series_state_functions, parallel_state_functions
 import RheologyCalculator: compute_strain_rate, compute_stress, compute_pressure, compute_volumetric_strain_rate, compute_volumetric_plastic_strain_rate
 import RheologyCalculator: compute_plastic_strain_rate, compute_plastic_stress, compute_lambda, compute_lambda_parallel, _isvolumetric
+import RheologyCalculator: _isvolumetric
 
 # Linear Viscosity ---------------------------------------------------
 """
