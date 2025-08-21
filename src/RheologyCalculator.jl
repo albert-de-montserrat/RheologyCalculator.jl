@@ -23,7 +23,10 @@ include("others.jl")
 include("post_calculations.jl")
 
 include("initial_guess.jl")
-export initial_guess_x
+export initial_guess_x, x_keys
+
+include("normalize_x.jl")
+export normalize_x
 
 include("solver.jl")
 export solve

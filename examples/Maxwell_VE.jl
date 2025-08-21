@@ -47,8 +47,10 @@ c, x, vars, args, others, xnorm = let
     args = (; τ = 2.0e3, P = 1.0e6)             # guess variables (we solve for these, differentiable)
     others = (; dt = 1.0e10, τ0 = (0e0, ), P0 = (0.0, ))       # other non-differentiable variables needed to evaluate the state functions
 
-    x = initial_guess_x(c, vars, args, others)
-    xnorm = SA[vars.ε+vars.θ]
+    x      = initial_guess_x(c, vars, args, others)
+    char_τ = 1e6
+    char_ε = vars.ε + vars.θ
+    xnorm  = normalisation_x(c, char_τ, char_ε)
 
     c, x, vars, args, others, xnorm
 end

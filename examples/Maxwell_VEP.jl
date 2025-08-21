@@ -64,7 +64,9 @@ c, x, xnorm, vars, args, others = let
     others = (; dt = 1.0e8, P = 1.0e6, τ0 = 0e0, P0 = 0.0)
 
     x       = initial_guess_x(c, vars, args, others)
-    xnorm   = SA[vars.ε+vars.θ, plastic.C]
+    char_τ  = plastic.C
+    char_ε  = vars.ε 
+    xnorm   = normalisation_x(c, char_τ, char_ε)
 
     c, x, xnorm, vars, args, others
 end

@@ -41,8 +41,10 @@ c, x, xnorm, vars, args, others = let
     # other non-differentiable variables needed to evaluate the state functions
     others = (; dt = 1.0e8, τ0 = (0e0, ), P = 1.0e6, P0 = (0.0, ))
 
-    x = initial_guess_x(c, vars, args, others)
-    xnorm = SA[vars.ε, plastic.C, 1.0, vars.ε]
+    x      = initial_guess_x(c, vars, args, others)
+    char_τ = 1e6
+    char_ε = vars.ε 
+    xnorm  = normalisation_x(c, char_τ, char_ε)
 
     c, x, xnorm, vars, args, others
 end
