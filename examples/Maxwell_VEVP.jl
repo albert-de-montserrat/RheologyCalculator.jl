@@ -44,8 +44,6 @@ c, x, vars, args, others = let
     c, x, vars, args, others
 end
 
-using StaticArrays
-
 let
     t_v, τ = stress_time(c, vars, x, others; ntime = 1_500, dt = 1e8)
 
