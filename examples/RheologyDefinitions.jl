@@ -269,12 +269,12 @@ DiffusionCreep(args...) = DiffusionCreep(args[1], promote(args[2:end]...)...)
 @inline series_state_functions(::DiffusionCreep) = (compute_strain_rate,)
 @inline parallel_state_functions(::DiffusionCreep) = (compute_stress,)
 
-@inline function compute_strain_rate(r::DiffusionCreep; τ = 0, T = 0, P = 0, f = 0, args...)
-    (; n, r, p, A, E, V, R) = r
+@inline function compute_strain_rate(c::DiffusionCreep; τ = 0, T = 0, P = 0, f = 0, args...)
+    (; n, r, p, A, E, V, R) = c
 
-    Q = 52
-    ε = A * τ^n * exp(-Q)
-    # ε = A * TauII ^n * exp(-(E + P * V) / (R * T))
+    # Q = 52
+    # ε = A * τ^n * exp(-Q)
+    ε = A * τ^n * exp(-(E + P * V) / (R * T))
     return ε
 end
 # --------------------------------------------------------------------
@@ -306,11 +306,11 @@ DislocationCreep(args...) = DislocationCreep(args[1], promote(args[2:end]...)...
 @inline series_state_functions(::DislocationCreep) = (compute_strain_rate,)
 @inline parallel_state_functions(::DislocationCreep) = (compute_stress,)
 
-@inline function compute_strain_rate(r::DislocationCreep; τ = 0, T = 0, P = 0, f = 0, args...)
-    (; n, r, A, E, V, R) = r
-    Q = 73
-    ε = A * τ^n * f^r * exp(-Q)
-    # ε = A * τ^n * f^r * exp(-(E + P * V) / (R * T))
+@inline function compute_strain_rate(c::DislocationCreep; τ = 0, T = 0, P = 0, f = 0, args...)
+    (; n, r, A, E, V, R) = c
+    # Q = 73
+    # ε = A * τ^n * f^r * exp(-Q)
+    ε = A * τ^n * f^r * exp(-(E + P * V) / (R * T))
     return ε
 end
 # --------------------------------------------------------------------
