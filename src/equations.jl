@@ -25,14 +25,13 @@ end
         isGlobal = Val(true)
         # global element numbering (to be followed)
         el_num = global_eltype_numbering(c) 
-        i = 1
-        # eqs = Base.@ntuple $N i -> begin
+        eqs = Base.@ntuple $N i -> begin
             eqs = generate_equations(c, fns[i], i, isGlobal, isvolumetric(c), el_num; iparent = iparent, iself = iself)
-        #     iself = eqs[end].self
-        #     iparent = 0
-        #     eqs
-        # end
-        # superflatten(eqs)
+            iself = eqs[end].self
+            iparent = 0
+            eqs
+        end
+        superflatten(eqs)
     end
 end
 
@@ -68,8 +67,8 @@ function generate_equations(c::AbstractCompositeModel, fns_own_global::F, ind_in
     fn = counterpart(fns_own_global)
     parallel_eqs = generate_equations_unroller(branches, fn, el_num, global_eqs, iself_ref)
 
-    return  global_eqs, parallel_eqs
-    # return (global_eqs, local_eqs..., parallel_eqs...) |> superflatten
+    # return  global_eqs, parallel_eqs
+    return (global_eqs, local_eqs..., parallel_eqs...) |> superflatten
 end
 
 @generated function generate_equations_unroller(branches::NTuple{N, Any}, fn::F, el_num, global_eqs, iself_ref) where {N, F}
