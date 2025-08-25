@@ -144,3 +144,7 @@ end
         end |> Base.IteratorsMD.flatten
     end
 end
+
+# simplify working with it
+Base.getindex(c::SeriesModel, i::Int) = c.leafs[i]
+Base.getindex(c::ParallelModel, i::Int) = c.leafs[i]

@@ -1,7 +1,7 @@
 using LinearAlgebra
 
 @testset "VEVP Model " begin
-    function stress_time(c, vars, x, others; ntime = 200, dt = 1.0e8)
+    function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1.0e8)
         # Extract elastic stresses/pressure from solutio vector
         τ1  = zeros(ntime)
         t_v = zeros(ntime)
@@ -10,7 +10,7 @@ using LinearAlgebra
         t   = 0.0
         for i in 2:ntime
             others   = (; dt = dt, τ0 = τ_e, P=others.P, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
-            x        = solve(c, x, vars, others, verbose = false)
+            x        = solve(c, x, vars, others, verbose = false, xnorm=xnorm)
             τ1[i]    = x[1]
             t       += others.dt
             τ_e      = x[1] 
@@ -19,7 +19,7 @@ using LinearAlgebra
         return t_v, τ1
     end
 
-    c, x, vars, args, others = let
+    c, x, xnorm, vars, args, others = let
         viscous     = LinearViscosity(1e22)
         viscous_reg = LinearViscosity(1e20)
         elastic     = IncompressibleElasticity(10e9)
@@ -37,11 +37,15 @@ using LinearAlgebra
         others = (; dt = 1.0e8, τ0 = (0e0, ), P = 1.0e6, P0 = (0.0, ))
 
         x = initial_guess_x(c, vars, args, others)
+        
+        char_τ = 1e6
+        char_ε = vars.ε 
+        xnorm  = normalisation_x(c, char_τ, char_ε)
 
-        c, x, vars, args, others
+        c, x, xnorm, vars, args, others
     end
 
-    _, τ = stress_time(c, vars, x, others; ntime = 1_500, dt = 1e8)
-    @test maximum(τ) == 1.1049696158037923e7
+    _, τ = stress_time(c, vars, x, xnorm, others; ntime = 1_500, dt = 1e8)
+    @test maximum(τ) == 1.1049696158565428e7
     @test any(!isnan, τ)
 end
