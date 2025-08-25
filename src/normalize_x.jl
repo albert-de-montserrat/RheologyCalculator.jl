@@ -28,12 +28,3 @@ _normalize_x_value(::typeof(compute_plastic_strain_rate), char_stress, char_stra
 
 
 
-#=
-_normalize_x_value(::Val{:λ}, char_stress, char_strainrate) = char_stress
-_normalize_x_value(::Val{:τ}, char_stress, char_strainrate) = char_strainrate
-_normalize_x_value(::Val{:τ_pl}, char_stress, char_strainrate) = char_strainrate
-_normalize_x_value(::Val{:P}, char_stress, char_strainrate) = char_strainrate
-_normalize_x_value(::Val{:P_pl}, char_stress, char_strainrate) = char_strainrate
-_normalize_x_value(::Val{:ε}, char_stress, char_strainrate) = char_stress
-_normalize_x_value(::Val{Any}, char_stress, char_strainrate) = error("Don't know how to normalize value for $(Val{Any})")
-=#
