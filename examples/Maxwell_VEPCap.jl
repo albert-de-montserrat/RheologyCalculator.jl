@@ -10,7 +10,7 @@ using StaticArrays
 include("RheologyDefinitions.jl")
 include("DruckerPragerCap.jl")
 
-function stress_time(c, vars, x, xnorm; ntime = 200, dt = 1.0e8)
+function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1.0e8)
     # Extract elastic stresses/pressure from solution vector
     τ1      = zeros(ntime)
     λ       = zeros(ntime)
@@ -57,17 +57,17 @@ end
 
 c, x, xnorm, vars, args, others = let
 
-    viscous = LinearViscosity(1e20)
+    viscous = LinearViscosity(1e23)
     #elastic = IncompressibleElasticity(10e9)
     elastic = Elasticity(1e10, 2e11)
     plastic = DruckerPrager(1e6, 30, 10)
-    plastic = DruckerPragerCap(; C=1e6, ϕ=30.0, ψ=10.0, η_vp=1e17, Pt=-5e5) 
+    plastic = DruckerPragerCap(; C=1e6, ϕ=30.0, ψ=10.0, η_vp=0.0, Pt=-5e5) 
 
     # Maxwell viscoelastic model
     # elastic --- viscous
 
-    #c  = SeriesModel(viscous, elastic, plastic)
-    c  = SeriesModel(elastic, plastic)
+    c  = SeriesModel(viscous, elastic, plastic)
+    #c  = SeriesModel(elastic, plastic)
     #c  = SeriesModel(elastic)
     
     # input variables (constant)
@@ -123,15 +123,15 @@ display(fig)
 fig = Figure(fontsize = 20, size = (800, 800) )
 ax1 = Axis(fig[1,1], title="Volumetric extension",  xlabel="time [yr]", ylabel="Stress [MPa]", xlabelsize=20, ylabelsize=20)
 ax2 = Axis(fig[1,2], title="Deviatoric shear",      xlabel="time [yr]", ylabel="Stress [MPa]", xlabelsize=20, ylabelsize=20)
-ax3 = Axis(fig[2,1], title="Yield function F",      xlabel="time [yr]", ylabel="Stress [MPa]", xlabelsize=20, ylabelsize=20)
+ax3 = Axis(fig[2,1], title="Vol + Dev shear",       xlabel="time [yr]", ylabel="Stress [MPa]", xlabelsize=20, ylabelsize=20)
 ax4 = Axis(fig[2,2], title="",                      xlabel="P [MPa]",   ylabel=L"\tau_{II} [MPa]", xlabelsize=20, ylabelsize=20)
 
 SecYear = 3600 * 24 * 365.25
-t_v1, τ1, P1, F1, mode2_1 = stress_time(c, (; ε = 0*7.0e-14, θ =   7.0e-15), x, xnorm; ntime = 11, dt = SecYear*2)
+t_v1, τ1, P1, F1, mode2_1 = stress_time(c, (; ε = 0*7.0e-14, θ =   7.0e-15), x, xnorm, others; ntime = 11, dt = SecYear*2)
 println("-------")
-t_v2, τ2, P2, mode2_2 = stress_time(c, (; ε =   7.0e-14, θ = 0*7.0e-15), x, xnorm; ntime = 80, dt = 1e7)
+t_v2, τ2, P2, F2, mode2_2 = stress_time(c, (; ε =   7.0e-14, θ = 0*7.0e-15), x, xnorm, others; ntime = 80, dt = 1e7)
 println("-------")
-t_v3, τ3, P3, mode2_3 = stress_time(c, (; ε =   7.0e-14, θ =   7.0e-15), x, xnorm; ntime = 30, dt = 2e7)
+t_v3, τ3, P3, F3, mode2_3 = stress_time(c, (; ε =   7.0e-14, θ =   7.0e-15), x, xnorm, others; ntime = 30, dt = 2e7)
 println("-------")
 
 #t_v, τ, P = stress_time(c, vars, x; ntime = 20, dt = 4e5)
@@ -153,7 +153,7 @@ lines!(ax3, t_v3 / SecYear , τ3 / 1.0e6,  color=:blue, label =  L"\tau_{II}")
 #=
 =#
 GLMakie.contour!(ax4, P/1e6, τII/1e6, F, levels = [0.01], color = :black)
-GLMakie.scatter!(ax4, P1/1e6, τ1/1e6, color = :yellow)
+GLMakie.scatter!(ax4, P1/1e6, τ1/1e6, color = :green)
 GLMakie.scatter!(ax4, P2/1e6, τ2/1e6, color = :red)
 GLMakie.scatter!(ax4, P3/1e6, τ3/1e6, color = :blue)
 

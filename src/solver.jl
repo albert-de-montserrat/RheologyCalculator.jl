@@ -22,7 +22,7 @@ function solve(c::AbstractCompositeModel, x::SVector, vars, others; xnorm=nothin
     er0 = mynorm(r, xnorm)
 
     local α
-    while er > atol && er > rtol * er0
+    while er > atol && er > rtol * er0 
         it += 1
         
         J = ForwardDiff.jacobian(y -> compute_residual(c, y, vars, others), x)
@@ -126,8 +126,6 @@ function bt_line_search(Δx, x, composite, vars, others, xnorm, r0; α = 1.0, ρ
     perturbed_x = @. x - α * Δx
     r       = compute_residual(composite, x, vars, others)
     rnorm   = mynorm(r, xnorm)
-
-    J_times_Δx = r
 
     c = 1.0e-4
     # Iterate unless step length becomes too small

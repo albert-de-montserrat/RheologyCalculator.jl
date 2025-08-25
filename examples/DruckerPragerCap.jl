@@ -82,7 +82,7 @@ end
     # F = compute_F(r, τ, P)
     #return F/r.η_vp             # Perzyna type regularisation
     F = compute_F(r, τ, P)
-    return -F* (F > -1e-8)  + λ*r.η_vp
+    return -F* (F > -1e-8)  + λ*r.η_vp + λ*1
 end
 
 # special plastic helper functions

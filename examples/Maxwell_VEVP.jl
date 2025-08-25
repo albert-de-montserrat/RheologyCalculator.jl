@@ -13,7 +13,7 @@ function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1.0e8)
     P_e = (0.0,)
     t = 0.0
     for i in 2:ntime
-        others   = (; dt = dt, τ0 = τ_e, P=others.P, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
+        others   = (; dt = dt, τ0 = τ_e, P=others.P, P0 = P_e)      
         x        = solve(c, x, vars, others, verbose = true, xnorm=xnorm)
         τ1[i]    = x[1]
         t       += others.dt
@@ -31,7 +31,7 @@ c, x, xnorm, vars, args, others = let
     plastic     = DruckerPrager(10e6, 0, 0)
 
     # Maxwell visco-elasto-(visco-plastic) model
-    p  = ParallelModel(viscous_reg, plastic)
+    p  = ParallelModel(plastic, viscous_reg)
     c  = SeriesModel(viscous, elastic, p)
 
     # input variables (constant)
