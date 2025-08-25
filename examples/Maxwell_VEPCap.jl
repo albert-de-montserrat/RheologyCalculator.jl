@@ -28,13 +28,6 @@ function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1.0e8)
     for i in 2:ntime
         others = (; dt = dt, τ0 = τ_e, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
         
-        if 1==0
-            #perhaps we should have a jacobian routine in RC that returns the jacobian 
-            r = RheologyCalculator.compute_residual(c, x, vars, others)
-            J = ForwardDiff.jacobian(y -> RheologyCalculator.compute_residual(c, y, vars, others), x)
-            display(J)
-            error("stop")
-        end
         x = RheologyCalculator.solve(c, x, vars, others, verbose = true, xnorm=xnorm)
         
         t += others.dt
