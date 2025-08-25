@@ -24,8 +24,11 @@ viscous_strain_rate(η, τ)                    = τ / (2 * η)
 elastic_strain_rate(G, τ, τ0, dt)            = (τ - τ0) / (2 * G * dt)
 volumetric_elastic_strain_rate(P, P0, K, dt) = (P - P0) / (K * dt)
 
-function volumetric_plastic_strain_rate(λ, τ, P, C, ϕ, ψ, ηvp)   
-    F   = compute_F(τ, P, C, ϕ, ηvp, λ)
+
+compute_Q(τ, P, ψ) = τ - P * sind(ψ)
+
+function volumetric_plastic_strain_rate(λ, τ, P, C, ϕ, ψ, σt, ηvp)   
+    F   = compute_F(τ, P, C, ϕ, σt,  ηvp, λ)
     θ_p = λ   * ForwardDiff.derivative(P -> compute_Q(τ, P, ψ), P) 
     if cancel_plastic_strain_rate
         θ_p *= (F>-1e-8)
@@ -33,8 +36,8 @@ function volumetric_plastic_strain_rate(λ, τ, P, C, ϕ, ψ, ηvp)
     return θ_p
 end
 
-function plastic_strain_rate(λ, τ, P, C, ϕ, ψ,   ηvp)               
-   F   = compute_F(τ, P, C, ϕ, ηvp, λ)
+function plastic_strain_rate(λ, τ, P, C, ϕ, ψ, σt, ηvp)               
+   F   = compute_F(τ, P, C, ϕ, σt,  ηvp, λ)
    ε_p = λ/2 * ForwardDiff.derivative(τ -> compute_Q(τ, P, ψ), τ)
    if cancel_plastic_strain_rate
        ε_p *= (F>-1e-8)
@@ -42,60 +45,58 @@ function plastic_strain_rate(λ, τ, P, C, ϕ, ψ,   ηvp)
    return ε_p
 end
 
-compute_Q(τ, P, ψ) = τ - P * sind(ψ)
-
-function compute_F(τ, P, C, ϕ, ηvp, λ)
+function compute_F(τ, P, C, ϕ, σt,  ηvp, λ)
     Δσ        = ηvp*1e-14
     ε0        = 1e-14
     n_vp      = 1.0
     ηvp_eff0  = Δσ*ε0^(-1/n_vp)
     ηvp_eff   = ηvp_eff0*abs(λ)^(1/n_vp-1)
-    # ηvp_eff = ηvp
-    F       = τ - P * sind(ϕ) - C * cosd(ϕ) - ηvp_eff*λ
+    F         = τ - P * sind(ϕ) - C * cosd(ϕ) - ηvp_eff*λ
+    # F         = sqrt(τ^2 + (C * cosd(ϕ) - σt*sind(ϕ))^2) - (P * sind(ϕ) + C * cosd(ϕ))
     return F
 end
 
-function strain_rate(τ, τ0, dt, η, G, λ, P, C, ϕ, ψ, ηvp)
+function strain_rate(τ, τ0, dt, η, G, λ, P, C, ϕ, ψ, σt, ηvp)
     ε_v = viscous_strain_rate(η, τ)
     ε_e = elastic_strain_rate(G, τ, τ0, dt)
-    ε_p = plastic_strain_rate(λ, τ, P, C, ϕ, ψ, ηvp)
+    ε_p = plastic_strain_rate(λ, τ, P, C, ϕ, ψ, σt, ηvp)
     ε = ε_v + ε_e + ε_p
     return ε
 end
 
-function volumetric_strain_rate(τ, dt, λ, P, P0, K, C, ϕ, ψ, ηvp)
+function volumetric_strain_rate(τ, dt, λ, P, P0, K, C, ϕ, ψ, σt, ηvp)
     θ_e = volumetric_elastic_strain_rate(P, P0, K, dt)
-    θ_p = volumetric_plastic_strain_rate(λ, τ, P, C, ϕ, ψ, ηvp)
+    θ_p = volumetric_plastic_strain_rate(λ, τ, P, C, ϕ, ψ, σt, ηvp)
     θ   = θ_e + θ_p
     return θ
 end
 
-strain_rate_residual(ε, τ, τ0, dt, η, G, λ, P, C, ϕ, ψ, ηvp)         = strain_rate(τ, τ0, dt, η, G, λ, P, C, ϕ, ψ, ηvp) - ε
-volumetric_strain_rate_residual(θ, τ, dt, λ, P, P0, K, C, ϕ, ψ, ηvp) = volumetric_strain_rate(τ, dt, λ, P, P0, K,  C, ϕ, ψ, ηvp) - θ
+strain_rate_residual(ε, τ, τ0, dt, η, G, λ, P, C, ϕ, ψ, σt, ηvp)         = strain_rate(τ, τ0, dt, η, G, λ, P, C, ϕ, ψ, σt, ηvp) - ε
+volumetric_strain_rate_residual(θ, τ, dt, λ, P, P0, K, C, ϕ, ψ, σt, ηvp) = volumetric_strain_rate(τ, dt, λ, P, P0, K,  C, ϕ, ψ, σt, ηvp) - θ
 
-function F_residual(τ, P, C, ϕ, ηvp, λ, G, dt, η)                            
-    F   = compute_F(τ, P, C, ϕ, ηvp, λ) 
-    η_m = 1e20  #  multiplier, value doesn't matter
-    return F*(F>-1e-8) - η_m*λ
+function F_residual(τ, P, C, ϕ, σt,  ηvp, λ, G, dt, η)                            
+    F   = compute_F(τ, P, C, ϕ, σt,  ηvp, λ) 
+    η_m = 1  #  multiplier, value doesn't matter
+    return F*(F>-1e-8) -η_m*λ
 end
 
-function residual_vector(x::SVector, ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, ηvp)
+function residual_vector(x::SVector, ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, σt, ηvp)
     τ   = x[1]
     λ   = x[2]
     P   = x[3]
-    r_F = F_residual(τ, P, C, ϕ, ηvp, λ, G, dt, η)
-    r_τ = strain_rate_residual(ε, τ, τ0, dt, η, G, λ, P, C, ϕ, ψ, ηvp)
-    r_θ = volumetric_strain_rate_residual(θ, τ, dt, λ, P, P0, K, C, ϕ, ψ, ηvp)
+    r_F = F_residual(τ, P, C, ϕ, σt,  ηvp, λ, G, dt, η)
+    r_τ = strain_rate_residual(ε, τ, τ0, dt, η, G, λ, P, C, ϕ, ψ, σt, ηvp)
+    r_θ = volumetric_strain_rate_residual(θ, τ, dt, λ, P, P0, K, C, ϕ, ψ, σt, ηvp)
     return SA[r_τ, r_F, r_θ]
 end
 
-function solve(ε, τ, τ0, θ, dt, η, G, λ, P, P0, K, ψ, C, ϕ, ηvp; atol::Float64 = 1.0e-13, rtol::Float64 = 1.0e-13, itermax = 1.0e1, verbose::Bool = false)
+function solve(ε, τ, τ0, θ, dt, η, G, λ, P, P0, K, ψ, C, ϕ, σt, ηvp; atol::Float64 = 1.0e-10, rtol::Float64 = 1.0e-10, itermax = 1.0e1, verbose::Bool = false)
 
     it = 0  
     er = Inf
     x  = SA[τ, λ, P]  # Initial guess
     α  = 1e0
-    r   = residual_vector(x,ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, ηvp) 
+    r   = residual_vector(x,ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, σt, ηvp) 
 
     normalize_vec = SA[1.0, 1e3, 1.0]
     er0 = mynorm(r, normalize_vec)
@@ -103,7 +104,7 @@ function solve(ε, τ, τ0, θ, dt, η, G, λ, P, P0, K, ψ, C, ϕ, ηvp; atol::
     while er > atol && er/er0 > rtol #&& it<=1
         it += 1 
 
-        J = ForwardDiff.jacobian(x -> residual_vector(x,ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, ηvp), x)
+        J = ForwardDiff.jacobian(x -> residual_vector(x,ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, σt, ηvp), x)
         
         #display(J)
         #error("stop")
@@ -112,14 +113,14 @@ function solve(ε, τ, τ0, θ, dt, η, G, λ, P, P0, K, ψ, C, ϕ, ηvp; atol::
         x -= α .* Δx
        
         # check convergence
-        r   = residual_vector(x,ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, ηvp)  
+        r   = residual_vector(x,ε, τ0, dt, η, G, θ, P0, K, ψ, C, ϕ, σt, ηvp)  
         er  = mynorm(r, normalize_vec)
         @show er
 
         it > itermax && break
       
         #=
-        F = compute_F(x[1], x[3], C, ϕ, ηvp, x[2])
+        F = compute_F(x[1], x[3], C, ϕ, σt,  ηvp, x[2])
 
         println("               Iterations: $it, Error: $er, Error0: $er0, α = $α, F = $F, Error/Error0=$(er/er0)")
         println("                   r        = $r")
@@ -160,6 +161,7 @@ function stress_time()
     C     = 10e6
     ϕ     = 30
     ψ     = 10
+    σt    = 1.0
 
     # Extract elastic stresses/pressure from solutio vector
     τv    = zeros(ntime)
@@ -173,7 +175,7 @@ function stress_time()
     τ_pc  = 0.0
     p_pc  = P
     for i in 2:ntime
-        sol                 = solve(ε, τ, τ0, θ, dt, η, G, λ, P, P0, K, ψ, C, ϕ, ηvp; verbose = true)
+        sol                 = solve(ε, τ, τ0, θ, dt, η, G, λ, P, P0, K, ψ, C, ϕ, σt, ηvp; verbose = true)
         τv[i], λv[i], Pv[i] = sol
         τ0                  = sol[1]
         τ                   = sol[1] # this is just a guess for the next iteration
