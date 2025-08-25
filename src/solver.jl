@@ -13,7 +13,7 @@ Optional parameters:
 function solve(c::AbstractCompositeModel, x::SVector, vars, others; xnorm=nothing, atol::Float64 = 1.0e-9, rtol::Float64 = 1.0e-9, itermax = 1.0e4, verbose::Bool = false)
 
     if isnothing(xnorm)
-        xnorm = x.*0 .+ 1     # set normalization vector to 1.0
+        xnorm = one(eltype(x)) # set normalization vector to 1.0
     end
     r  = compute_residual(c, x, vars, others)   # initial residual
 
