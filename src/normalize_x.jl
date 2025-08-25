@@ -8,7 +8,7 @@ Initial guess for the local solution vector `x` with given characteristic stress
 function normalisation_x(c::AbstractCompositeModel,  char_τ=1.0, char_ε=1.0)
     eqs = generate_equations(c)
     x0  = normalisation_x(eqs,  char_τ, char_ε)
-    return SVector{length(x0)}(x0)
+    return SVector{length(x0), eltype(x0)}(x0)
 end
 
 @generated function normalisation_x(eqs::NTuple{N,CompositeEquation}, char_τ, char_ε)  where {N}
