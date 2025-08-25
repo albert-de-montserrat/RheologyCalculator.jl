@@ -108,7 +108,7 @@ function bt_line_search(Δx, x, composite, vars, others, xnorm; α = 1.0, ρ = 0
         perturbed_rnorm = mynorm(perturbed_r, xnorm)  
 
         # Check whether residual is sufficiently reduced
-        if perturbed_rnorm <= lstol * rnorm 
+        if perturbed_rnorm ≤ lstol * rnorm 
             break
         end
        
