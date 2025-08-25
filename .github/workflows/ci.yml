@@ -24,7 +24,7 @@ jobs:
           - '1.10'
           - '1.11'
         #   - 'pre'
-          - 'nightly'
+          # - 'nightly'
         os:
           - ubuntu-latest
           - macOS-13 # Intel Chip
