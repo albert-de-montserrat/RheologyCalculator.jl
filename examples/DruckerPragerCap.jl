@@ -79,10 +79,8 @@ end
 end
 
 @inline function compute_lambda(r::DruckerPragerCap; τ = 0, λ = 0, P = 0, kwargs...)
-    # F = compute_F(r, τ, P)
-    #return F/r.η_vp             # Perzyna type regularisation
     F = compute_F(r, τ, P)
-    return -F* (F > -1e-8)  + λ*r.η_vp + λ*1
+    return -F* (F > -1e-8)  + λ*r.η_vp + λ*1        # last term is for regularisation below yield
 end
 
 # special plastic helper functions
@@ -99,11 +97,10 @@ function compute_F(r::DruckerPragerCap, τII, P)
     k, c, py, a, Ry = r.k, r.c, r.py, r.a, r.Ry
 
     if ismode2_yield(r, τII, P)
-    #    # Mode 2
+        # Mode 2
         F = τII - k * (P)  - c # with fluid pressure (set to zero by default)
     else
         # Mode 1
-        #Rf   = sqrt(τII^2 + (P - py)^2)
         Rf   = sqrt(τII^2 + (P - py)^2)
         
         F    = a*(Rf - Ry)  
@@ -115,7 +112,7 @@ end
 
 function compute_Q(r::DruckerPragerCap, τ, P) 
 
-    # these parameters are required to compute the constant in the plastic flow
+    # These parameters are required to compute the constant in the plastic flow
     # potential. Note that this constant does not matter apart when plotting,
     # as we only need derivates of Q in general 
     Rf      = r.pq - r.Pt
@@ -130,9 +127,7 @@ function compute_Q(r::DruckerPragerCap, τ, P)
     else 
         cons =  Rf 
         Rq   =  sqrt(τ^2 + (P - r.pq)^2)
-        
         Q    =  r.b*(Rq - cons)  
-      
     end
     return Q
 end 
