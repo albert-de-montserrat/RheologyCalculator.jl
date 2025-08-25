@@ -81,7 +81,7 @@ function bt_line_search_armijo(Δx, J, x, xnorm, composite, vars, others; α = 1
         perturbed_r     = compute_residual(composite, perturbed_x, vars, others)
         perturbed_rnorm = mynorm(perturbed_r, xnorm)  
 
-        armijo_condition = perturbed_rnorm^2 <= rnorm^2 + c * α * dot(J_times_Δx, Δx)
+        armijo_condition = perturbed_rnorm^2 ≤ rnorm^2 + c * α * (J_times_Δx ⋅ Δx)
         if armijo_condition
             break
         end
