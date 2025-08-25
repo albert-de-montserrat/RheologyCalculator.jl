@@ -4,6 +4,7 @@
 @inline superflatten(x) = (x,)
 
 isvolumetric(c::AbstractCompositeModel) = Val(_isvolumetric(c))
+isvolumetric(c::AbstractRheology) = Val(_isvolumetric(c))
 
 @generated function _isvolumetric(r::NTuple{N, AbstractRheology}) where {N}
     return quote
@@ -14,9 +15,9 @@ isvolumetric(c::AbstractCompositeModel) = Val(_isvolumetric(c))
 end
 
 @inline _isvolumetric(::AbstractRheology) = false
-@inline _isvolumetric(::Elasticity) = true
-@inline _isvolumetric(::BulkElasticity) = true
-@inline _isvolumetric(::BulkViscosity) = true
+# @inline _isvolumetric(::Elasticity) = true
+# @inline _isvolumetric(::BulkElasticity) = true
+# @inline _isvolumetric(::BulkViscosity) = true
 # @inline _isvolumetric(c::AbstractCompositeModel) = _isvolumetric(c.leafs)
 @inline _isvolumetric(::Tuple{}) = false
 

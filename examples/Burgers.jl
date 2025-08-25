@@ -1,6 +1,8 @@
 using ForwardDiff, RheologyCalculator
 import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 
+include("RheologyDefinitions.jl")
+
 using GLMakie
 
 function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
@@ -106,5 +108,5 @@ axislegend(ax, position = :rb)
 #title!(ax,"Burgers model")
 ax.xlabel = L"t [kyr]"
 ax.ylabel = L"\tau [MPa]"
-save("docs/assets/Burgers_model.png", fig)
+save("Burgers_model.png", fig)
 display(fig)

@@ -1,11 +1,13 @@
 using RheologyCalculator
 import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 
+include("RheologyDefinitions.jl")
+
 using GLMakie
 
 analytical_solution(ϵ, t, G, η) = 2 * ϵ * η * (1 - exp(-G * t / η))
 
-function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
+function stress_time(c, vars, x, xnorm; ntime = 200, dt = 1.0e8)
     # Extract elastic stresses/pressure from solutio vector
     τ1   = zeros(ntime)
     τ_an = zeros(ntime)
@@ -19,7 +21,7 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
     for i in 2:ntime
         others = (; dt = dt, τ0 = τ_e, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
 
-        x = solve(c, x, vars, others, verbose = false)
+        x = solve(c, x, vars, others, verbose = true, xnorm=xnorm)
         τ1[i] = x[1]
         t += others.dt
         τ_an[i] = analytical_solution(vars.ε, t, c.leafs[2].G, c.leafs[1].η)
@@ -31,7 +33,7 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
     return t_v, τ1, τ_an
 end
 
-c, x, vars, args, others = let
+c, x, vars, args, others, xnorm = let
 
     viscous = LinearViscosity(1e22)
     elastic = IncompressibleElasticity(10e9)
@@ -45,17 +47,20 @@ c, x, vars, args, others = let
     args = (; τ = 2.0e3, P = 1.0e6)             # guess variables (we solve for these, differentiable)
     others = (; dt = 1.0e10, τ0 = (0e0, ), P0 = (0.0, ))       # other non-differentiable variables needed to evaluate the state functions
 
-    x = initial_guess_x(c, vars, args, others)
+    x      = initial_guess_x(c, vars, args, others)
+    char_τ = 1e6
+    char_ε = vars.ε + vars.θ
+    xnorm  = normalisation_x(c, char_τ, char_ε)
 
-    c, x, vars, args, others
+    c, x, vars, args, others, xnorm
 end
 
-t_v, τ, τ_an = stress_time(c, vars, x; ntime = 10_000, dt = 1e9)
+t_v, τ, τ_an = stress_time(c, vars, x, xnorm; ntime = 10_000, dt = 1e9)
 
 SecYear = 3600 * 24 * 365.25
 fig = Figure(fontsize = 30, size = (800, 600) .* 2)
-ax  = Axis(fig[1, 1], title = "Burgers model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
-ax2 = Axis(fig[2, 1], title = "Burgers model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
+ax  = Axis(fig[1, 1], title = "Maxwell VE model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
+ax2 = Axis(fig[2, 1], title = "Maxwell VE model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
 
 lines!(ax, t_v / SecYear / 1.0e3, τ_an / 1.0e6, color=:black, label = "analytical")
 scatter!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6,  color=:red, label = "numerical")

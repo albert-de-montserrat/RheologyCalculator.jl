@@ -1,4 +1,4 @@
-using Aqua, Test, RheologyCalculator
+using Aqua
 
 @testset "Project extras" begin
     @test Aqua.test_project_extras(RheologyCalculator).value

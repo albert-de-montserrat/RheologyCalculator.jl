@@ -50,37 +50,31 @@ estimate_initial_value(eq::CompositeEquation, vars, args, others) = _estimate_in
 @generated function _estimate_initial_value_harm(fn, rheology::NTuple{N, AbstractRheology}, el_number, vars, args, others) where {N}
     return quote
         @inline
-        # extract values
-        vals = Base.@ntuple $N i -> begin
+        sum_vals = 0.0
+        Base.@nexprs $N i -> begin
             keys_hist = history_kwargs(rheology[i])
             args_local = extract_local_kwargs(others, keys_hist, el_number[i])
             args_combined = merge(args, args_local, vars)
             fn_c = counterpart(fn)
-            val_local = fn_c(rheology[i], args_combined)
-            inv(val_local)
+            val = fn_c(rheology[i], args_combined)
+            # harmonic mean
+            sum_vals += iszero(val) ? zero(val) : inv(val)
         end
-        # harmonic mean
-        sum_vals = 0.0
-        Base.@nexprs $N i -> begin
-            sum_vals += isinf(vals[i]) ? 0.0 : vals[i]
-        end
-        if iszero(sum_vals)
-            sum_vals = one(sum_vals)
-        end
-        return $N / inv(sum_vals)
+        return iszero(sum_vals) ? one(sum_vals) : inv(sum_vals)
     end
 end
 
 @generated function _estimate_initial_value_arith(fn, rheology::NTuple{N, AbstractRheology}, el_number, vars, args, others) where {N}
     return quote
         @inline
-        vals = Base.@ntuple $N i -> begin
+        sum_vals = 0.0
+        Base.@nexprs $N i -> begin
             keys_hist = history_kwargs(rheology[i])
             args_local = extract_local_kwargs(others, keys_hist, el_number[i])
             args_combined = merge(args, args_local, vars)
             fn_c = counterpart(fn)
-            fn_c(rheology[i], args_combined)
+            sum_vals += fn_c(rheology[i], args_combined)
         end
-        return sum(vals)
+        return sum_vals
     end
 end

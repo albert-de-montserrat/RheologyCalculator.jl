@@ -18,9 +18,9 @@ end
 end
 
 # Define history kwargs variables (which we can define as tuples )
-history_kwargs(a::AbstractElasticity) = (:τ0, :P0)
-history_kwargs(a::AbstractViscosity) = (:d,)
-history_kwargs(a::AbstractPlasticity) = ()
+history_kwargs(::AbstractElasticity) = (:τ0, :P0)
+history_kwargs(::AbstractViscosity) = (:d,)
+history_kwargs(::AbstractPlasticity) = ()
 
 # dummy NamedTuple allocators
 @inline residual_kwargs(::Type{T}, ::Function) where {T} = (; tmp = zero(T))
@@ -28,10 +28,6 @@ history_kwargs(a::AbstractPlasticity) = ()
 @inline residual_kwargs(::Type{T}, ::typeof(compute_volumetric_strain_rate)) where {T} = (; θ = zero(T))
 @inline residual_kwargs(::Type{T}, ::typeof(compute_stress)) where {T} = (; τ = zero(T))
 @inline residual_kwargs(::Type{T}, ::typeof(compute_pressure)) where {T} = (; P = zero(T))
-# @inline residual_kwargs(::Type{T}, ::typeof(compute_lambda))                         where T = (; λ = zero(T)) # τ = zero(T), P = zero(T))
-# @inline residual_kwargs(::Type{T}, ::typeof(compute_plastic_strain_rate))            where T = (; τ_pl = zero(T),)
-# @inline residual_kwargs(::Type{T}, ::typeof(compute_plastic_stress))                 where T = (; τ_pl = zero(T),)
-# @inline residual_kwargs(::Type{T}, ::typeof(compute_volumetric_plastic_strain_rate)) where T = (; τ_pl = zero(T), P_pl = zero(T))
 
 @inline residual_kwargs(funs::F) where {F <: Function} = residual_kwargs(Float64, funs)
 @inline residual_kwargs(funs::NTuple{N, Any}) where {N} = residual_kwargs.(Float64, funs)
@@ -40,12 +36,12 @@ history_kwargs(a::AbstractPlasticity) = ()
 @inline differentiable_kwargs(::Type{T}, ::typeof(compute_strain_rate)) where {T} = (; τ = zero(T))
 @inline differentiable_kwargs(::Type{T}, ::typeof(compute_volumetric_strain_rate)) where {T} = (; P = zero(T))
 @inline differentiable_kwargs(::Type{T}, ::typeof(compute_lambda)) where {T} = (; λ = zero(T)) # τ = zero(T), P = zero(T))
+@inline differentiable_kwargs(::Type{T}, ::typeof(compute_lambda_parallel)) where {T} = (; λ = zero(T)) # τ = zero(T), P = zero(T))
 @inline differentiable_kwargs(::Type{T}, ::typeof(compute_stress)) where {T} = (; ε = zero(T))
 @inline differentiable_kwargs(::Type{T}, ::typeof(compute_pressure)) where {T} = (; θ = zero(T))
 @inline differentiable_kwargs(::Type{T}, ::typeof(compute_plastic_strain_rate)) where {T} = (; τ_pl = zero(T))
 @inline differentiable_kwargs(::Type{T}, ::typeof(compute_plastic_stress)) where {T} = (; τ_pl = zero(T))
 @inline differentiable_kwargs(::Type{T}, ::typeof(compute_volumetric_plastic_strain_rate)) where {T} = (; τ_pl = zero(T), P_pl = zero(T))
-# @inline differentiable_kwargs(::Type{T}, ::typeof(state_var_reduction))                    where T = (; )
 @inline differentiable_kwargs(fun::F) where {F <: Function} = differentiable_kwargs(Float64, fun)
 
 @inline differentiable_kwargs(::Tuple{}) = (;)
