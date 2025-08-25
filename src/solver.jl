@@ -26,11 +26,10 @@ function solve(c::AbstractCompositeModel, x::SVector, vars, others; xnorm=nothin
         it += 1
         
         J = ForwardDiff.jacobian(y -> compute_residual(c, y, vars, others), x)
-        Δx = J \ r
-        #α = bt_line_search_armijo(Δx, J, x, r, c, vars, others, α_min = 1.0e-8, c=0.9)
-        α = bt_line_search(Δx, x, c, vars, others, xnorm, r; α = 1.0, ρ = 0.5, lstol=0.95, α_min = 0.1) 
-        #α = 0.5
-        x -= α .* Δx
+        Δx = J \ -r
+        #α = bt_line_search_armijo(Δx, J, x, xnorm, c, vars, others, α_min = 1.0e-8, c=0.9)
+        α = bt_line_search(Δx, x, c, vars, others, xnorm; α = 1.0, ρ = 0.5, lstol=0.95, α_min = 0.1) 
+        x += α .* Δx
 
         # check convergence
         r  = compute_residual(c, x, vars, others)
@@ -43,37 +42,6 @@ function solve(c::AbstractCompositeModel, x::SVector, vars, others; xnorm=nothin
     end
     return x
 end
-
-
-#=
-function solve(c::AbstractCompositeModel, x::SVector, vars, others; tol::Float64 = 1.0e-9, itermax = 1.0e4, verbose::Bool = false)
-
-    it = 0
-    er = Inf
-    local α
-    while er > tol
-        it += 1
-
-        r = compute_residual(c, x, vars, others)
-        
-        J = ForwardDiff.jacobian(y -> compute_residual(c, y, vars, others), x)
-        Δx = J \ r
-        #α = bt_line_search_armijo(Δx, J, x, r, c, vars, others, α_min = 1.0e-8, c=0.9)
-        #α = bt_line_search(Δx, x, c, vars, others; α = 1.0, ρ = 0.5, lstol=0.95, α_min = 0.1) 
-        #α = 1.0
-        x -= α .* Δx
-
-        # check convergence
-        er = mynorm(Δx, x)
-
-        it > itermax && break
-    end
-    if verbose
-        println("Iterations: $it, Error: $er, α = $α")
-    end
-    return x
-end
-=#
 
 function solve_timed(c::AbstractCompositeModel, x::SVector, vars, others; tol::Float64 = 1.0e-9, itermax = 1.0e4, verbose::Bool = false)
 
@@ -102,58 +70,48 @@ function solve_timed(c::AbstractCompositeModel, x::SVector, vars, others; tol::F
     return x
 end
 
-function bt_line_search_armijo(Δx, J, x, r, composite, vars, others; α = 1.0, ρ = 0.5, c = 1.0e-4, α_min = 1.0e-8)
+function bt_line_search_armijo(Δx, J, x, xnorm, composite, vars, others; α = 1.0, ρ = 0.5, c = 1.0e-4, α_min = 1.0e-8)
 
-    perturbed_x = @. x - α * Δx
-    perturbed_r = compute_residual(composite, perturbed_x, vars, others)
+    r           = compute_residual(composite, x, vars, others)
+    rnorm       = mynorm(r, xnorm)
+    J_times_Δx  = J * Δx
+    while α > α_min
+        perturbed_x = @. x + α * Δx
 
-    J_times_Δx = J * Δx
-    while sqrt(sum(perturbed_r .^ 2)) > sqrt(sum((r - (c * α * (J_times_Δx))) .^ 2))
-        α *= ρ
-        if α < α_min
-            α = α_min
+        perturbed_r     = compute_residual(composite, perturbed_x, vars, others)
+        perturbed_rnorm = mynorm(perturbed_r, xnorm)  
+
+        armijo_condition = perturbed_rnorm^2 <= rnorm^2 + c * α * dot(J_times_Δx, Δx)
+        if armijo_condition
             break
         end
-        perturbed_x = @. x - α * Δx
-        perturbed_r = compute_residual(composite, perturbed_x, vars, others)
+
+        α *= ρ
     end
     return α
 end
 
 
-function bt_line_search(Δx, x, composite, vars, others, xnorm, r0; α = 1.0, ρ = 0.5, lstol=0.9, α_min = 1.0e-8)
+function bt_line_search(Δx, x, composite, vars, others, xnorm; α = 1.0, ρ = 0.5, lstol=0.9, α_min = 1.0e-8)
     
-    perturbed_x = @. x - α * Δx
+    perturbed_x = @. x + α * Δx
     r       = compute_residual(composite, x, vars, others)
     rnorm   = mynorm(r, xnorm)
-
-    c = 1.0e-4
+    
     # Iterate unless step length becomes too small
     while α > α_min
         # Apply scaled update
-        perturbed_x = @. x - α * Δx
+        perturbed_x = @. x + α * Δx
         
         # Get updated residual
         perturbed_r     = compute_residual(composite, perturbed_x, vars, others)
         perturbed_rnorm = mynorm(perturbed_r, xnorm)  
 
-        #=
-        armijo_condition = perturbed_rnorm^2 <= rnorm^2 - c * α * dot(J_times_Δx, Δx)
-        #println("               α = $α, rnorm = $rnorm, perturbed_rnorm = $perturbed_rnorm, r0=$r0, armijo_condition=$armijo_condition, rnorm^2 - c * α * dot(J_times_Δx, Δx)=$(rnorm^2 - c * α * dot(J_times_Δx, Δx)), perturbed_rnorm^2=$(perturbed_rnorm^2)")
-        println("               α = $α, rnorm = $rnorm, perturbed_rnorm = $perturbed_rnorm, armijo_condition=$armijo_condition")
-        println("               r0              = $r0")
-        println("               r               = $r")
-        println("               perturbed_r     = $perturbed_r")
-        =#
-
         # Check whether residual is sufficiently reduced
         if perturbed_rnorm <= lstol * rnorm 
             break
         end
-        #if armijo_condition
-        #    break
-        #end
-
+       
         # Bisect step length
         α *= ρ
     end
