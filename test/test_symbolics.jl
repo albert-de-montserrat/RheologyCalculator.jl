@@ -26,7 +26,7 @@ p1 = ParallelModel(viscous1, elastic1)
          1 / (2η1) 1              0      0
         -1         2η1 + 2G1*dt   0      0
          0         0              0      1
-         0         0             -1      K1*dt
+         0         0             -1     -K1*dt
     ]
     @test J === J_sym
 end
@@ -46,8 +46,8 @@ end
        -1  2η1 + 2G1*dt             0  0      0      0
        -1             0  2η2 + 2G2*dt  0      0      0
         0             0             0  1      1      0
-        0             0            -1  0  K1*dt      0
-        0             0            -1  0      0  K2*dt
+        0             0            -1  0 -K1*dt      0
+        0             0            -1  0      0 -K2*dt
     ]
     @test J === J_sym
 end
@@ -65,8 +65,8 @@ end
     J_sym = SA[
     1 / (2η1) + 1 / (2G1*dt)             1             0        0
                           -1  2η2 + 2G2*dt             0        0
-                           0             0   1 / (K1*dt)        1
-                           0             0            -1    K2*dt
+                           0             0   1 / (-K1*dt)       1
+                           0             0            -1   -K2*dt
     ]
     @test J === J_sym
 end
