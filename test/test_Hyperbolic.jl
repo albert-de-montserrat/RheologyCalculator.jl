@@ -1,10 +1,8 @@
 using LinearAlgebra
 
-# using RheologyCalculator
-# include("../examples/RheologyDefinitions.jl") 
-# include("../examples/Hyperbolic.jl")
+include("../examples/Hyperbolic.jl")
 
-# @testset "VEVP Model " begin
+@testset "VEVP Model " begin
     function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1.0e8)
         # Extract elastic stresses/pressure from solutio vector
         τ1  = zeros(ntime)
@@ -51,6 +49,6 @@ using LinearAlgebra
 
     _, τ = stress_time(c, vars, x, xnorm, others; ntime = 1_500, dt = 1e8)
     @show maximum(τ)
-#     @test maximum(τ) == 1.1049696158565428e7
-#     @test any(!isnan, τ)
-# end
+    @test maximum(τ) == 1.1049696158565428e7
+    @test any(!isnan, τ)
+end

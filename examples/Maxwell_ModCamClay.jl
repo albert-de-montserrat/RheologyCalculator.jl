@@ -80,7 +80,6 @@ for i in CartesianIndices(F)
 end
 
 function figure()
-    # Reproduce Fig. 5 of Popov et al. (2025)
     fig = Figure(fontsize = 20, size = (800, 800) )
     ax1 = Axis(fig[2,1], title="Volumetric extension (3)",  xlabel=L"$t$ [yr]",  ylabel=L"$P$, $\tau_{II}$ [MPa]", xlabelsize=20, ylabelsize=20)
     ax2 = Axis(fig[1,1], title="Volumetric compaction (1)",      xlabel=L"$t$ [yr]",  ylabel=L"$P$, $\tau_{II}$ [MPa]", xlabelsize=20, ylabelsize=20)
