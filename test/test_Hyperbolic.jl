@@ -2,7 +2,7 @@ using LinearAlgebra
 
 include("../examples/Hyperbolic.jl")
 
-@testset "VEVP Model " begin
+@testset "Hyperbolic Model " begin
     function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1.0e8)
         # Extract elastic stresses/pressure from solutio vector
         τ1  = zeros(ntime)
