@@ -2,8 +2,9 @@
 using Test, LinearAlgebra
 using RheologyCalculator
 import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
-using GLMakie, MathTeXEngine
-Makie.update_theme!( fonts = (regular = texfont(), bold = texfont(:bold), italic = texfont(:italic)))
+using GLMakie 
+# using MathTeXEngine
+# Makie.update_theme!( fonts = (regular = texfont(), bold = texfont(:bold), italic = texfont(:italic)))
 using StaticArrays
 
 include("RheologyDefinitions.jl")
