@@ -11,22 +11,24 @@ import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 Represents a Modified Cam-Clay model, see de Souza Neto book (p. 404)
 
 # Fields
-- `M::T`    : The flattening factor (1: circle, < 1: ellipse) = 0.9
+- `M::T`    : The flattening factor for yield (1: circle, < 1: ellipse) = 0.9
+- `N::T`    : The flattening factor for potential (1: circle, < 1: ellipse), if N = M, then it's associated
 - `r::T`    : The radius along pressure axis = 2e8
 - `β::T`    : The asymmetry for compaction cap (1:symmetric, <1 asymmetric)  = 0.1
 - `Pt::T`   : The Tensile strength
 - `η_vp::T` : The regularisation viscosity
 """
 struct ModCamClay{T} <: AbstractPlasticity
-    M::T        # flattening factor (1: circle, < 1: ellipse) = 0.9
+    M::T        # flattening factor for yield (1: circle, < 1: ellipse) = 0.9
+    N::T        # flattening factor for potential (1: circle, < 1: ellipse)
     r::T        # radius along pressure axis = 2e8
     β::T        # asymmetry for compaction cap (1:symmetric, <1 asymmetric)  = 0.1
     Pt::T       # Tensile strength
     η_vp::T     # regularisation viscosity
 end
 
-function ModCamClay(; M=0.9, r=1e8, β=1.0, Pt=-1e7, η_vp=1e20) 
-    return ModCamClay(M, r, β, Pt, η_vp)
+function ModCamClay(; M=0.9, N=0.9, r=1e8, β=1.0, Pt=-1e7, η_vp=1e20) 
+    return ModCamClay(M, N, r, β, Pt, η_vp)
 end
 
 #ModCamClay(args...) = ModCamClay(promote(args...)...)
@@ -71,7 +73,7 @@ function compute_Q(r::ModCamClay, τII, P)
     # These parameters are required to compute the constant in the plastic flow
     # potential. Note that this constant does not matter apart when plotting,
     # as we only need derivates of Q in general 
-    M, r, β, Pt = r.M, r.r, r.β, r.Pt
+    N, r, β, Pt = r.N, r.r, r.β, r.Pt
 
     if P < Pt + r 
         b = 1
@@ -79,7 +81,7 @@ function compute_Q(r::ModCamClay, τII, P)
         b = β
     end 
 
-    Q  = 1/b *(P - Pt - r)^2  + (τII)^2 / M^2 - r^2 
+    Q  = 1/b *(P - Pt - r)^2  + (τII)^2 / N^2 - r^2 
 
     return Q
 end 

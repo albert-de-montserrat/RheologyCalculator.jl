@@ -47,7 +47,7 @@ c, x, xnorm, vars, args, others = let
 
     viscous = LinearViscosity(1e23)
     elastic = Elasticity(1e10, 2e11)
-    plastic = ModCamClay(; M=0.9, r=1e8, β=.1, Pt=-1e5, η_vp=1e20) 
+    plastic = ModCamClay(; M=0.9, N=0.5, r=1e8, β=.1, Pt=-1e5, η_vp=1e20) 
 
     # Maxwell viscoelastic model
     c  = SeriesModel(viscous, elastic, plastic)
@@ -60,8 +60,8 @@ c, x, xnorm, vars, args, others = let
     others = (; dt = 1.0e5, τ0 = (0e0, ), P0 = (0.3e6, ))
 
     x       = initial_guess_x(c, vars, args, others)
-    char_τ  = plastic.r
-    char_ε  = vars.ε+vars.θ
+    char_τ  = plastic.r*100
+    char_ε  = abs(vars.ε)+abs(vars.θ)
     xnorm   = normalisation_x(c, char_τ, char_ε)
 
     c, x, xnorm, vars, args, others
@@ -80,9 +80,9 @@ end
 
 # Reproduce Fig. 5 of Popov et al. (2025)
 fig = Figure(fontsize = 20, size = (800, 800) )
-ax1 = Axis(fig[1,1], title="Volumetric extension (1)",  xlabel=L"$t$ [yr]",  ylabel=L"$P$, $\tau_{II}$ [MPa]", xlabelsize=20, ylabelsize=20)
-ax2 = Axis(fig[1,2], title="Volumetric compaction (2)",      xlabel=L"$t$ [yr]",  ylabel=L"$P$, $\tau_{II}$ [MPa]", xlabelsize=20, ylabelsize=20)
-ax3 = Axis(fig[2,1], title="Vol. + Dev. shear (3)",       xlabel=L"$t$ [yr]",  ylabel=L"$P$, $\tau_{II}$ [MPa]", xlabelsize=20, ylabelsize=20)
+ax1 = Axis(fig[2,1], title="Volumetric extension (3)",  xlabel=L"$t$ [yr]",  ylabel=L"$P$, $\tau_{II}$ [MPa]", xlabelsize=20, ylabelsize=20)
+ax2 = Axis(fig[1,1], title="Volumetric compaction (1)",      xlabel=L"$t$ [yr]",  ylabel=L"$P$, $\tau_{II}$ [MPa]", xlabelsize=20, ylabelsize=20)
+ax3 = Axis(fig[1,2], title="Vol. + Dev. shear (2)",       xlabel=L"$t$ [yr]",  ylabel=L"$P$, $\tau_{II}$ [MPa]", xlabelsize=20, ylabelsize=20)
 ax4 = Axis(fig[2,2], title="Stress path",                      xlabel=L"$P$ [MPa]", ylabel=L"$\tau_{II}$ [MPa]", xlabelsize=20, ylabelsize=20)
 
 SecYear = 3600 * 24 * 365.25
@@ -102,7 +102,6 @@ lines!(ax2, t_v2 / SecYear , τ2 / 1.0e6,  color=:blue, label =  L"$\tau_{II}$")
 lines!(ax3, t_v3 / SecYear , P3 / 1.0e6, color=:red, label = L"$P$")
 lines!(ax3, t_v3 / SecYear , τ3 / 1.0e6,  color=:blue, label =  L"$\tau_{II}$")
 axislegend(ax3, position=:rb)
-
 
 GLMakie.contour!(ax4, P/1e6, τII/1e6, F, levels = [0.01], color = :black)
 GLMakie.scatter!(ax4, P2/1e6, τ2/1e6, color = :red, label=L"1")
