@@ -50,16 +50,23 @@ c, x, xnorm, vars, args, others = let
 end
 
 
-t_v, τ = stress_time(c, vars, x, xnorm, others; ntime = 1_500, dt = 1e8)
+let
+    t_v, τ = stress_time(c, vars, x, xnorm, others; ntime = 1_500, dt = 1e8)
 
-SecYear = 3600 * 24 * 365.25
-fig = Figure(fontsize = 30, size = (400, 400) .* 2)
-ax  = Axis(fig[1, 1], title = "Visco-elasto-viscoplastic model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
+    function figure()
+        SecYear = 3600 * 24 * 365.25
+        fig = Figure(fontsize = 30, size = (800, 600) .* 2)
+        ax  = Axis(fig[1, 1], title = "Visco-elasto-viscoplastic model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
 
-scatter!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6,  color=:red, label = "numerical")
+        lines!(ax, t_v / SecYear / 1.0e3, τ_an / 1.0e6, color=:black, label = "visco-elasto-plastic analytical")
+        scatter!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6,  color=:red, label = "numerical")
 
-ax.xlabel = L"t [kyr]"
-ax.ylabel = L"\tau [MPa]"
-display(fig)
+        axislegend(ax, position = :rb)
+        ax.xlabel = L"$t$ [kyr]"
+        ax.ylabel = L"$\tau$ [MPa]"
+        display(fig)
+    end
+    with_theme(figure, theme_latexfonts())
+end
 
 

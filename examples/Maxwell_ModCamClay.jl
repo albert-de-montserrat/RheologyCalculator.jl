@@ -3,8 +3,6 @@ using Test, LinearAlgebra
 using RheologyCalculator
 import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 using GLMakie 
-# using MathTeXEngine
-# Makie.update_theme!( fonts = (regular = texfont(), bold = texfont(:bold), italic = texfont(:italic)))
 using StaticArrays
 
 include("RheologyDefinitions.jl")
@@ -82,9 +80,9 @@ end
 function figure()
     fig = Figure(fontsize = 20, size = (800, 800) )
     ax1 = Axis(fig[2,1], title="Volumetric extension (3)",  xlabel=L"$t$ [yr]",  ylabel=L"$P$, $\tau_{II}$ [MPa]", xlabelsize=20, ylabelsize=20)
-    ax2 = Axis(fig[1,1], title="Volumetric compaction (1)",      xlabel=L"$t$ [yr]",  ylabel=L"$P$, $\tau_{II}$ [MPa]", xlabelsize=20, ylabelsize=20)
-    ax3 = Axis(fig[1,2], title="Vol. + Dev. shear (2)",       xlabel=L"$t$ [yr]",  ylabel=L"$P$, $\tau_{II}$ [MPa]", xlabelsize=20, ylabelsize=20)
-    ax4 = Axis(fig[2,2], title="Stress path",                      xlabel=L"$P$ [MPa]", ylabel=L"$\tau_{II}$ [MPa]", xlabelsize=20, ylabelsize=20)
+    ax2 = Axis(fig[1,1], title="Volumetric compaction (1)", xlabel=L"$t$ [yr]",  ylabel=L"$P$, $\tau_{II}$ [MPa]", xlabelsize=20, ylabelsize=20)
+    ax3 = Axis(fig[1,2], title="Vol. + Dev. shear (2)",     xlabel=L"$t$ [yr]",  ylabel=L"$P$, $\tau_{II}$ [MPa]", xlabelsize=20, ylabelsize=20)
+    ax4 = Axis(fig[2,2], title="Stress paths",               xlabel=L"$P$ [MPa]", ylabel=L"$\tau_{II}$ [MPa]",      xlabelsize=20, ylabelsize=20)
 
     SecYear = 3600 * 24 * 365.25
     t_v1, τ1, P1, F1, mode2_1 = stress_time(c, (; ε = 0*7.0e-14, θ =   7.0e-15), x, xnorm, others; ntime = 11, dt = SecYear*2)
@@ -112,7 +110,6 @@ function figure()
     # contourf!(ax4, P/1e6, τII/1e6, Q)
 
     display(fig)
-
 end
 
 with_theme(figure, theme_latexfonts())
