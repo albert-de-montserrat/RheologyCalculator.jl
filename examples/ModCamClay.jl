@@ -73,7 +73,7 @@ function compute_Q(r::ModCamClay, τII, P)
 
     b = P < Pt + r ? one(β) : β
 
-    Q  = 1/b *(P - Pt - r)^2  + (τII)^2 / N^2 - r^2 
+    Q  = 1/b *(P - Pt - r)^2  + (τII / N)^2 - r^2 
 
     return Q
 end 
