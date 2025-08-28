@@ -56,11 +56,7 @@ end
 function compute_F(r::ModCamClay, τII, P)
     (; M, r, β, Pt) = r
 
-    if P < Pt + r 
-        b = 1
-    else
-        b = β
-    end 
+    b = P < Pt + r ? one(β) : β
 
     F  = 1/b *(P - Pt - r)^2  + (τII)^2 / M^2 - r^2 
 
