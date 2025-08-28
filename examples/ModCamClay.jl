@@ -54,7 +54,7 @@ end
 end
 
 function compute_F(r::ModCamClay, τII, P)
-    M, r, β, Pt = r.M, r.r, r.β, r.Pt
+    (; M, r, β, Pt) = r
 
     if P < Pt + r 
         b = 1
