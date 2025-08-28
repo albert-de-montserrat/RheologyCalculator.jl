@@ -27,6 +27,5 @@ end
 @inline _normalize_x_value(::typeof(compute_plastic_strain_rate), char_stress, char_strainrate) = char_strainrate
 @inline _normalize_x_value(::typeof(compute_volumetric_plastic_strain_rate), char_stress, char_strainrate) = char_strainrate
 
-@inline correct_xnorm(::SVector{N,T}, xnorm) = xnorm
-@inline correct_xnorm(::SVector{N,T}, ::Nothing) = SVector{N,T}(1.0 for i in 1:N)
-
+@inline correct_xnorm(::SVector{N,T}, xnorm) where {N, T} = xnorm
+@inline correct_xnorm(::SVector{N,T}, ::Nothing) where {N, T} = @SVector ones(T, N)

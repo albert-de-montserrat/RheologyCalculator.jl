@@ -11,9 +11,8 @@ Optional parameters:
 - `verbose`: If true, print convergence information (default: false)
 """
 function solve(c::AbstractCompositeModel, x::SVector, vars, others; xnorm0=nothing, atol::Float64 = 1.0e-9, rtol::Float64 = 1.0e-9, itermax = 1.0e4, verbose::Bool = false)
-    # correct strain rate tensor
+   
     ε_correction = effective_strain_rate_correction(c, vars, others)
-    # @show ε_correction
     vars = merge(vars, (; ε = vars.ε + ε_correction))
 
     xnorm = correct_xnorm(x, xnorm0)
@@ -22,7 +21,7 @@ function solve(c::AbstractCompositeModel, x::SVector, vars, others; xnorm0=nothi
     it  = 0
     er  = Inf
     er0 = mynorm(r, xnorm)
-        
+
     local α
     while er > atol && er > rtol * er0 
         it += 1
