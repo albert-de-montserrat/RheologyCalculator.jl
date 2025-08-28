@@ -69,7 +69,7 @@ function compute_Q(r::ModCamClay, τII, P)
     # These parameters are required to compute the constant in the plastic flow
     # potential. Note that this constant does not matter apart when plotting,
     # as we only need derivates of Q in general 
-    N, r, β, Pt = r.N, r.r, r.β, r.Pt
+    (; N, r, β, Pt) = r
 
     if P < Pt + r 
         b = 1
