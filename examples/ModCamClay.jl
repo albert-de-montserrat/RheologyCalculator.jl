@@ -58,7 +58,7 @@ function compute_F(r::ModCamClay, τII, P)
 
     b = P < Pt + r ? one(β) : β
 
-    F  = 1/b *(P - Pt - r)^2  + (τII)^2 / M^2 - r^2 
+    F  = 1/b *(P - Pt - r)^2  + (τII / M)^2 - r^2 
 
     # Note that viscoplastic regularisation is taken into account in the residual function
     return F #*(F>-1e-8) 
