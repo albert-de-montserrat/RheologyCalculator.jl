@@ -78,34 +78,41 @@ end
 Q1 = copy(Q)
 Q1[F.<1e-8] .= NaN
 
-# Reproduce Fig. 5 of Popov et al. (2025)
-fig = Figure(fontsize = 20, size = (800, 800) )
-ax1 = Axis(fig[1,1], title="Volumetric extension",  xlabel=L"$t$ [yr]",  ylabel=L"$\tau_{II}$ [MPa]", xlabelsize=20, ylabelsize=20)
-ax2 = Axis(fig[1,2], title="Deviatoric shear",      xlabel=L"$t$ [yr]",  ylabel=L"$\tau_{II}$ [MPa]", xlabelsize=20, ylabelsize=20)
-ax3 = Axis(fig[2,1], title="Vol + Dev shear",       xlabel=L"$t$ [yr]",  ylabel=L"$\tau_{II}$ [MPa]", xlabelsize=20, ylabelsize=20)
-ax4 = Axis(fig[2,2], title="",                      xlabel=L"$P$ [MPa]", ylabel=L"$\tau_{II}$ [MPa]", xlabelsize=20, ylabelsize=20)
+function figure()
+    fig = Figure(fontsize = 20, size = (800, 800) )
+    fig = Figure(fontsize = 20, size = (800, 800) )
+    ax1 = Axis(fig[1,1], title="Volumetric extension (1)",  xlabel=L"$t$ [yr]",  ylabel=L"$P$, $\tau_{II}$ [MPa]", xlabelsize=20, ylabelsize=20)
+    ax2 = Axis(fig[1,2], title="Volumetric compaction (2)", xlabel=L"$t$ [yr]",  ylabel=L"$P$, $\tau_{II}$ [MPa]", xlabelsize=20, ylabelsize=20)
+    ax3 = Axis(fig[2,1], title="Vol. + Dev. shear (3)",     xlabel=L"$t$ [yr]",  ylabel=L"$P$, $\tau_{II}$ [MPa]", xlabelsize=20, ylabelsize=20)
+    ax4 = Axis(fig[2,2], title="Stress paths",               xlabel=L"$P$ [MPa]", ylabel=L"$\tau_{II}$ [MPa]",      xlabelsize=20, ylabelsize=20)
 
-SecYear = 3600 * 24 * 365.25
-t_v1, τ1, P1, F1, mode2_1 = stress_time(c, (; ε = 0*7.0e-14, θ =   7.0e-15), x, xnorm, others; ntime = 11, dt = SecYear*2)
-println("-------")
-t_v2, τ2, P2, F2, mode2_2 = stress_time(c, (; ε =   7.0e-14, θ = 0*7.0e-15), x, xnorm, others; ntime = 80, dt = 1e7)
-println("-------")
-t_v3, τ3, P3, F3, mode2_3 = stress_time(c, (; ε =   7.0e-14, θ =   7.0e-15), x, xnorm, others; ntime = 30, dt = 2e7)
-println("-------")
+    SecYear = 3600 * 24 * 365.25
+    t_v1, τ1, P1, F1, mode2_1 = stress_time(c, (; ε = 0*7.0e-14, θ =   7.0e-15), x, xnorm, others; ntime = 11, dt = SecYear*2)
+    println("-------")
+    t_v2, τ2, P2, F2, mode2_2 = stress_time(c, (; ε =   7.0e-14, θ = 0*7.0e-15), x, xnorm, others; ntime = 80, dt = 1e7)
+    println("-------")
+    t_v3, τ3, P3, F3, mode2_3 = stress_time(c, (; ε =   7.0e-14, θ =   7.0e-15), x, xnorm, others; ntime = 30, dt = 2e7)
+    println("-------")
 
-lines!(ax1, t_v1 / SecYear , P1 / 1.0e6, color=:red, label = L"P")
-lines!(ax1, t_v1 / SecYear , τ1 / 1.0e6,  color=:blue, label =  L"\tau_{II}")
+    lines!(ax1, t_v1 / SecYear , P1 / 1.0e6, color=:red, label = L"P")
+    lines!(ax1, t_v1 / SecYear , τ1 / 1.0e6,  color=:blue, label =  L"\tau_{II}")
+    axislegend(ax1, position=:lb)
 
-lines!(ax2, t_v2 / SecYear , P2 / 1.0e6, color=:red, label = L"P")
-lines!(ax2, t_v2 / SecYear , τ2 / 1.0e6,  color=:blue, label =  L"\tau_{II}")
+    lines!(ax2, t_v2 / SecYear , P2 / 1.0e6, color=:red, label = L"P")
+    lines!(ax2, t_v2 / SecYear , τ2 / 1.0e6,  color=:blue, label =  L"\tau_{II}")
 
-lines!(ax3, t_v3 / SecYear , P3 / 1.0e6, color=:red, label = L"P")
-lines!(ax3, t_v3 / SecYear , τ3 / 1.0e6,  color=:blue, label =  L"\tau_{II}")
+    lines!(ax3, t_v3 / SecYear , P3 / 1.0e6, color=:red, label = L"P")
+    lines!(ax3, t_v3 / SecYear , τ3 / 1.0e6,  color=:blue, label =  L"\tau_{II}")
 
-GLMakie.contour!(ax4, P/1e6, τII/1e6, F, levels = [0.01], color = :black)
-GLMakie.scatter!(ax4, P1/1e6, τ1/1e6, color = :green)
-GLMakie.scatter!(ax4, P2/1e6, τ2/1e6, color = :red)
-GLMakie.scatter!(ax4, P3/1e6, τ3/1e6, color = :blue)
+    GLMakie.contour!(ax4, P/1e6, τII/1e6, F, levels = [0.01], color = :black)
+    GLMakie.scatter!(ax4, P1/1e6, τ1/1e6, color = :green, label=L"1")
+    GLMakie.scatter!(ax4, P2/1e6, τ2/1e6, color = :red, label=L"2")
+    GLMakie.scatter!(ax4, P3/1e6, τ3/1e6, color = :blue, label=L"3")
+    axislegend(ax4, position=:lt)
+    # contourf!(ax4, P/1e6, τII/1e6, Q)
 
-display(fig)
+    display(fig)
+end
+
+with_theme(figure, theme_latexfonts())
 

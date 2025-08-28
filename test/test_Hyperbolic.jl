@@ -1,4 +1,3 @@
-using Test
 using LinearAlgebra, Statistics, StaticArrays
 
 include("../examples/Hyperbolic.jl")
