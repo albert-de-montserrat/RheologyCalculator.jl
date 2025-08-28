@@ -1,11 +1,3 @@
-# using LinearAlgebra
-# using StaticArrays
-# using ForwardDiff
-# using DifferentiationInterface
-
-# abstract type AbstractRheology end
-# abstract type AbstractPlasticity <: AbstractRheology end # in case we need spacilization at some point
-
 abstract type AbstractCompositeModel  end
 
 @inline series_state_functions(::AbstractCompositeModel) = ()
@@ -14,6 +6,10 @@ abstract type AbstractCompositeModel  end
 struct CompositeModel{Nstrain, Nstress, T} <: AbstractCompositeModel
     components::T
 end
+
+hasbranches(c::AbstractCompositeModel) = hasbranches(c.branches)
+hasbranches(::Tuple{}) = Val(false)
+hasbranches(::T) where T = Val(true)
 
 struct SeriesModel{L, B} <: AbstractCompositeModel # not 100% about the subtyping here, lets see
     leafs::L     # horizontal stacking
