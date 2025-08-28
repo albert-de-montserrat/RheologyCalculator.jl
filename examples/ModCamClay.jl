@@ -71,11 +71,7 @@ function compute_Q(r::ModCamClay, τII, P)
     # as we only need derivates of Q in general 
     (; N, r, β, Pt) = r
 
-    if P < Pt + r 
-        b = 1
-    else
-        b = β
-    end 
+    b = P < Pt + r ? one(β) : β
 
     Q  = 1/b *(P - Pt - r)^2  + (τII)^2 / N^2 - r^2 
 
