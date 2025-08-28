@@ -18,14 +18,15 @@ end
     end
 end
 
-_normalize_x_value(::typeof(compute_stress), char_stress, char_strainrate) = char_stress
-_normalize_x_value(::typeof(compute_pressure), char_stress, char_strainrate) = char_stress
-_normalize_x_value(::typeof(compute_strain_rate), char_stress, char_strainrate) = char_strainrate
-_normalize_x_value(::typeof(compute_volumetric_strain_rate), char_stress, char_strainrate) = char_strainrate
-_normalize_x_value(::typeof(compute_lambda), char_stress, char_strainrate) = char_stress
-_normalize_x_value(::typeof(compute_lambda_parallel), char_stress, char_strainrate) = char_stress
-_normalize_x_value(::typeof(compute_plastic_strain_rate), char_stress, char_strainrate) = char_strainrate
-_normalize_x_value(::typeof(compute_volumetric_plastic_strain_rate), char_stress, char_strainrate) = char_strainrate
+@inline _normalize_x_value(::typeof(compute_stress), char_stress, char_strainrate) = char_stress
+@inline _normalize_x_value(::typeof(compute_pressure), char_stress, char_strainrate) = char_stress
+@inline _normalize_x_value(::typeof(compute_strain_rate), char_stress, char_strainrate) = char_strainrate
+@inline _normalize_x_value(::typeof(compute_volumetric_strain_rate), char_stress, char_strainrate) = char_strainrate
+@inline _normalize_x_value(::typeof(compute_lambda), char_stress, char_strainrate) = char_stress
+@inline _normalize_x_value(::typeof(compute_lambda_parallel), char_stress, char_strainrate) = char_stress
+@inline _normalize_x_value(::typeof(compute_plastic_strain_rate), char_stress, char_strainrate) = char_strainrate
+@inline _normalize_x_value(::typeof(compute_volumetric_plastic_strain_rate), char_stress, char_strainrate) = char_strainrate
 
-
+@inline correct_xnorm(::SVector{N,T}, xnorm) = xnorm
+@inline correct_xnorm(::SVector{N,T}, ::Nothing) = SVector{N,T}(1.0 for i in 1:N)
 
