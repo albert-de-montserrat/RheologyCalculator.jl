@@ -1,9 +1,8 @@
-using Test
 using LinearAlgebra, Statistics, StaticArrays
 
-include("../examples/Hyperbolic.jl")
+include("../examples/ModCamClay.jl")
 
-@testset "Hyperbolic   " begin
+@testset "Mod. Cam-Clay" begin
     function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1.0e8)
         # Extract elastic stresses/pressure from solution vector
         τ1      = zeros(ntime)
@@ -37,7 +36,7 @@ include("../examples/Hyperbolic.jl")
 
         viscous = LinearViscosity(1e23)
         elastic = Elasticity(1e10, 2e11)
-        plastic = Hyperbolic(; C=1e6, ϕ=30.0, ψ=5.0, η_vp=0.0, Pt=-5e5) 
+        plastic = ModCamClay(; M=0.9, N=0.5, r=1e8, β=.1, Pt=-1e5, η_vp=1e20) 
 
         # Maxwell viscoelastic model
         c  = SeriesModel(viscous, elastic, plastic)
@@ -50,7 +49,7 @@ include("../examples/Hyperbolic.jl")
         others = (; dt = 1.0e5, τ0 = (0e0, ), P0 = (0.3e6, ))
 
         x       = initial_guess_x(c, vars, args, others)
-        char_τ  = plastic.C
+        char_τ  = plastic.r*100
         char_ε  = vars.ε+vars.θ
         xnorm   = normalisation_x(c, char_τ, char_ε)
 
@@ -60,19 +59,19 @@ include("../examples/Hyperbolic.jl")
     SecYear = 3600 * 24 * 365.25
     t_v, τ, P = stress_time(c, (; ε = 0*7.0e-14, θ =   7.0e-15), x, xnorm, others; ntime = 11, dt = SecYear*2)
     @test mean(τ) ≈ 0.0
-    @test mean(P) ≈ -347765.3818181818
+    @test mean(P) ≈ -89851.02545454343
     @test any(!isnan, τ)
     @test any(!isnan, P)
 
-    t_v, τ, P = stress_time(c, (; ε =   7.0e-14, θ = 0*7.0e-15), x, xnorm, others; ntime = 80, dt = 1e7)
-    @test mean(τ) ≈ 513986.8713129781
-    @test mean(P) ≈  112637.9845225598
+    t_v, τ, P = stress_time(c, (; ε =   0*7.0e-14, θ = -7.0e-15), x, xnorm, others; ntime = 1300, dt = 1e8)
+    @test mean(τ) ≈ 0.0
+    @test mean(P) ≈  8.39495381358509e7
     @test any(!isnan, τ)
     @test any(!isnan, P)
 
-    t_v, τ, P = stress_time(c, (; ε =   7.0e-14, θ =   7.0e-15), x, xnorm, others; ntime = 30, dt = 2e7)
-    @test mean(τ) ≈ 347578.6153458671
-    @test mean(P) ≈  -162895.43055187698
+    t_v, τ, P = stress_time(c, (; ε =   7.0e-14, θ =   -4.0e-15), x, xnorm, others; ntime = 700, dt = 1e8)
+    @test mean(τ) ≈ 4.786269881124213e7
+    @test mean(P) ≈ 3.0553535284802888e7
     @test any(!isnan, τ)
     @test any(!isnan, P)
 
