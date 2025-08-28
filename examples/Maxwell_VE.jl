@@ -4,6 +4,8 @@ import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 using GLMakie
 import Statistics: mean
 
+include("RheologyDefinitions.jl")
+
 analytical_solution(ϵ, t, G, η) = 2 * ϵ * η * (1 - exp(-G * t / η))
 
 function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
@@ -13,7 +15,7 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
     t_v  = zeros(ntime)
     τ_e  = (0.0,)
     P_e  = (0.0,)
-    t   = 0.0
+    t    = 0.0
     for i in 2:ntime
         others = (; dt = dt, τ0 = τ_e, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
 
@@ -67,7 +69,7 @@ let
             fig = Figure(fontsize = 30, size = (800, 600) .* 1)
 
             ax1 = Axis(fig[1, 1], title = L"$$Maxwell model", xlabel = L"$t$ [kyr]", ylabel = L"$\tau$ [MPa]")
-            # lines!(ax1, t_v / SecYear / 1.0e3, τ_an / 1.0e6, color=:black, label = "analytical")
+            lines!(ax1, t_v / SecYear / 1.0e3, τ_an / 1.0e6, color=:black, label = "analytical")
             scatter!(ax1, t_v[1:1000:end] / SecYear / 1.0e3, τ[1:1000:end] / 1.0e6,  color=:red, label = "numerical")
             axislegend(ax1, position = :rb, labelsize=18)
             
