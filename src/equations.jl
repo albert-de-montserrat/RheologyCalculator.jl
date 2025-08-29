@@ -12,7 +12,7 @@ struct CompositeEquation{IsGlobal, T, F, R, RT}
     function CompositeEquation(parent::Int64, child::T, self::Int64, fn::F, rheology::R, ind_input, ::Val{B}, el_number::RT) where {T, F, R, B, RT}
         @assert B isa Bool
         return new{B, T, F, R, RT}(parent, child, self, fn, rheology, ind_input, el_number)
-        
+
     end
 end
 
@@ -25,7 +25,7 @@ end
         iself = 0
         isGlobal = Val(true)
         # global element numbering (to be followed)
-        el_num = global_eltype_numbering(c) 
+        el_num = global_eltype_numbering(c)
         eqs = Base.@ntuple $N i -> begin
             eqs = generate_equations(c, fns[i], i, isGlobal, isvolumetric(c), el_num; iparent = iparent, iself = iself)
             iself = eqs[end].self
@@ -37,9 +37,9 @@ end
 end
 
 function generate_equations(c::AbstractCompositeModel, fns_own_global::F, ind_input, ::Val{B}, ::Val, el_num; iparent::Int64 = 0, iself::Int64 = 0) where {F, B}
-    
+
     @inline foo(::NTuple{N, Any}) where {N} = Val(N)
-    
+
     iself_ref = Ref{Int64}(iself)
     (; branches, leafs) = c
     local_el = el_num[1]
@@ -76,10 +76,10 @@ end
     return quote
         @inline
         Base.@ntuple $N i -> begin
-            b     = branches[i] 
-            num   = el_num[2][i]
+            b = branches[i]
+            num = el_num[2][i]
             isvol = isvolumetric(b)
-            eqs   = generate_equations(b, fn, 0, Val(false), isvol, num; iparent = global_eqs.self, iself = iself_ref[])
+            eqs = generate_equations(b, fn, 0, Val(false), isvol, num; iparent = global_eqs.self, iself = iself_ref[])
         end
     end
 end
@@ -87,21 +87,21 @@ end
 generate_equations_unroller(::Tuple{}, ::F, el_num, global_eqs, iself_ref) where {F} = ()
 
 @generated function generate_iparallel_childs(iself, nlocal, nown, offsets_parallel, ::NTuple{N, Any}) where {N}
-    quote
+    return quote
         @inline
         Base.@ntuple $N i -> iself + nlocal + offsets_parallel[i] + 1 + nown
     end
 end
 
 @generated function generate_ilocal_childs(iself, nown, ::NTuple{N, Any}) where {N}
-    quote
+    return quote
         @inline
         Base.@ntuple $N i -> iself + nown + i
     end
 end
 
 @generated function generate_offsets_parallel(::NTuple{N, Any}) where {N}
-    quote
+    return quote
         @inline
         n = Base.@ntuple $N i -> i
         (0, n...)
@@ -140,7 +140,7 @@ for pair in fn_pairs
 end
 
 @generated function get_own_functions(c::NTuple{N, AbstractCompositeModel}) where {N}
-    quote
+    return quote
         @inline
         Base.@ntuple $N i -> get_own_functions(c[i])
     end
