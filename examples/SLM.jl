@@ -2,7 +2,7 @@ using RheologyCalculator
 import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 
 using GLMakie
-include("RheologyDefinitions.jl")
+include("../rheologies/RheologyDefinitions.jl")
 
 function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
     # Extract elastic stresses/pressure from solutio vector

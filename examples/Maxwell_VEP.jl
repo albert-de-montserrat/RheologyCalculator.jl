@@ -1,7 +1,7 @@
 using RheologyCalculator
 import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 
-include("RheologyDefinitions.jl")
+include("../rheologies/RheologyDefinitions.jl")
 
 using GLMakie
 
