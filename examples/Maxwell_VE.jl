@@ -15,7 +15,7 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
     t_v  = zeros(ntime)
     τ_e  = (0.0,)
     P_e  = (0.0,)
-    t   = 0.0
+    t    = 0.0
     for i in 2:ntime
         others = (; dt = dt, τ0 = τ_e, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
 

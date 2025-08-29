@@ -10,12 +10,13 @@ Optional parameters:
 - `itermax`: Maximum number of iterations (default: 1e4)
 - `verbose`: If true, print convergence information (default: false)
 """
-function solve(c::AbstractCompositeModel, x::SVector, vars, others; xnorm = nothing, atol::Float64 = 1.0e-9, rtol::Float64 = 1.0e-9, itermax = 1.0e4, verbose::Bool = false)
+function solve(c::AbstractCompositeModel, x::SVector, vars, others; xnorm0=nothing, atol::Float64 = 1.0e-9, rtol::Float64 = 1.0e-9, itermax = 1.0e4, verbose::Bool = false)
+   
+    ε_correction = effective_strain_rate_correction(c, vars, others)
+    vars = merge(vars, (; ε = vars.ε + ε_correction))
 
-    if isnothing(xnorm)
-        xnorm = x .* 0 .+ 1.0 # set normalization vector to 1.0
-    end
-    r = compute_residual(c, x, vars, others)   # initial residual
+    xnorm = correct_xnorm(x, xnorm0)
+    r  = compute_residual(c, x, vars, others)   # initial residual
 
     it = 0
     er = Inf

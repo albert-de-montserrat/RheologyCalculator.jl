@@ -6,15 +6,10 @@ include("../rheologies/RheologyDefinitions.jl")
 using GLMakie
 
 function analytical_solution(ϵ, t, G, η, c, ϕ, P)
-    τ =  2 * ϵ * η * (1 - exp(-G * t / η))
+    τ = 2 * ϵ * η * (1 - exp(-G * t / η))
     τy = c*cosd(ϕ) + P*sind(ϕ)
-    if τy < τ
-        return τy
-    else
-        return τ
-    end
 
-    # return τy < τ ? τy : τ
+    return τy < τ ? τy : τ
 end
 
 function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1.0e8)
@@ -22,17 +17,13 @@ function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1.0e8)
     τ1   = zeros(ntime)
     λ    = zeros(ntime)
     τ_an = zeros(ntime)
-    # τ2 = zeros(ntime)
-    # P1 = zeros(ntime)
-    # P2 = zeros(ntime)
     t_v = zeros(ntime)
     τ_e = 0.0
     P_e = 0.0
     t = 0.0
     for i in 2:ntime
-        others = (; dt = dt, τ0 = τ_e, P = others.P, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
+        others   = (; dt = dt, τ0 = τ_e, P = others.P, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
 
-        #x        = solve(c, x, vars, others, verbose = true, xnorm=xnorm)
         x        = solve(c, x, vars, others, verbose = true, xnorm=xnorm)
         
         τ1[i]    = x[1]
