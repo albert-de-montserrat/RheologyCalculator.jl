@@ -7,8 +7,8 @@ import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 using GLMakie
 using StaticArrays
 
-include("RheologyDefinitions.jl")
-include("DruckerPragerCap.jl")
+include("../rheologies/RheologyDefinitions.jl")
+include("../rheologies/DruckerPragerCap.jl")
 
 function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1.0e8)
     # Extract elastic stresses/pressure from solution vector

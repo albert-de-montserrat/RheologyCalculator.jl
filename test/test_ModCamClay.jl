@@ -1,6 +1,6 @@
 using LinearAlgebra, Statistics, StaticArrays
 
-include("../examples/ModCamClay.jl")
+include("../rheologies/ModCamClay.jl")
 
 @testset "Mod. Cam-Clay" begin
     function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1.0e8)

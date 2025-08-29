@@ -1,6 +1,6 @@
 using LinearAlgebra, Statistics, StaticArrays
 
-include("../examples/Hyperbolic.jl")
+include("../rheologies/Hyperbolic.jl")
 
 @testset "Hyperbolic   " begin
     function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1.0e8)

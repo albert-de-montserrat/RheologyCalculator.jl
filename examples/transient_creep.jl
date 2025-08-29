@@ -1,7 +1,7 @@
 using ForwardDiff, RheologyCalculator
 import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 
-include("RheologyDefinitions.jl")
+include("../rheologies/RheologyDefinitions.jl")
 
 using GLMakie
 
@@ -34,7 +34,6 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
     end
     return t_v, τ1, τ2, P1, P2, x
 end
-
 
 viscous1 = LinearViscosity(5.0e19)
 viscous2 = LinearViscosity(1.0e20)
