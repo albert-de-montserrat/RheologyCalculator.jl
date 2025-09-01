@@ -28,7 +28,8 @@ function stress_time(c, ε, τ0, vars, x, xnorm, others; ntime = 200, dt = 1.0e8
 
         x      = solve(c, x, vars, others, verbose = false)
         τII    = x[1] 
-        τ0_vec = @. ε_eff * τII / εII
+        η_eff  = τII / (2 * second_invariant(ε...))
+        τ0_vec = @. 2 * η_eff * ε
         τ0     = (τ0_vec[1],), (τ0_vec[2],),(τ0_vec[3],)
 
         τ1[i]  = τII
