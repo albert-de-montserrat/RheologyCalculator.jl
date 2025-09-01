@@ -4,7 +4,7 @@ import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic, sec
 using GLMakie
 import Statistics: mean
 
-include("rheologies/RheologyDefinitions.jl")
+include("../rheologies/RheologyDefinitions.jl")
 
 analytical_solution(ϵ, t, G, η) = 2 * ϵ * η * (1 - exp(-G * t / η))
 
@@ -42,9 +42,6 @@ function stress_time(c, ε, τ0, vars, x, xnorm, others; ntime = 200, dt = 1.0e8
     return t_v, τ1, τ_an
 end
 
-# xnorm = RC.correct_xnorm(x, xnorm)
-# r     = RC.compute_residual(c, x, vars, others)   # initial residual
-
 c, x, xnorm, ε, τ0, vars, args, others = let
 
     viscous = LinearViscosity(1e22)
@@ -52,8 +49,7 @@ c, x, xnorm, ε, τ0, vars, args, others = let
     plastic = DruckerPrager(10e6, 30, 0)
 
     # Maxwell viscoelastic model
-    # elastic --- viscous
-
+    # elastic --- viscous --- plastic
     c      = SeriesModel(viscous, elastic, plastic)
 
     ε      = 1e-14, -1e-14, 0e0

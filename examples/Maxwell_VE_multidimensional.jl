@@ -4,7 +4,7 @@ import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic, sec
 using GLMakie
 import Statistics: mean
 
-include("rheologies/RheologyDefinitions.jl")
+include("../rheologies/RheologyDefinitions.jl")
 
 analytical_solution(ϵ, t, G, η) = 2 * ϵ * η * (1 - exp(-G * t / η))
 
@@ -96,7 +96,7 @@ let
             scatter!(ax2, log10.(1 ./ dt), log10.(ϵ), color=:black, label="numerics")
             axislegend(labelsize=18)
 
-            # save("docs/assets/Maxwell_VE_model.png", fig)
+            save("docs/assets/Maxwell_VE_model.png", fig)
             display(fig)
         end
     end
