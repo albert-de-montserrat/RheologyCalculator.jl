@@ -13,42 +13,23 @@ end
 
 @inline effective_strain_rate_correction(c::SeriesModel, ε::Number, τ0, others) = effective_strain_rate_correction(c.leafs, c.branches, ε, τ0, others)
 
-# @generated function effective_strain_rate_correction(leafs::NTuple{N, Any}, ::Tuple{}, ε, τ0, others) where {N}
-#     quote
-#         i = 0
-#         ε_elastic_cor = zero(eltype(ε))
-#         Base.@nexprs $N j -> begin
-#             if isa(leafs[j], AbstractElasticity)
-#                 i += 1
-#                 # compute local effect on strainrate tensor due to old elastic stresses
-#                 η = compute_viscosity_series(leafs[j], merge((; ε), others))
-#                 ε_elastic_cor += τ0[i] / (2 * η)
-#             end
-#         end
-    
-#         return ε_elastic_cor
-#     end
-# end
-
 @generated function effective_strain_rate_correction(leafs::NTuple{N, Any}, ::Tuple{}, ε, τ0, others) where {N}
     quote
         @inline
         i = 0
         ε_elastic_cor = zero(eltype(ε))
         Base.@nexprs $N j -> begin
-            r = leafs[j]
-            i = update_correction_index(r, i)
-            η = compute_viscosity(r, merge((; ε), others))
-            ε_elastic_cor += effective_strain_rate_correction(r, ε, τ0, others, i)
+            i = update_correction_index(leafs[j], i)
+            η = compute_viscosity(leafs[j], merge((; ε), others))
+            ε_elastic_cor += effective_strain_rate_correction(leafs[j], ε, τ0, others, i)
         end
     
         return ε_elastic_cor
     end
 end
 
-effective_strain_rate_correction(c::AbstractRheology, ε, τ0, others, I) = effective_strain_rate_correction(iselastic(c), c, ε, τ0, others, I)
-
-effective_strain_rate_correction(::Val{false}, c::AbstractRheology, ε, τ0, others, I) = 0
+@inline effective_strain_rate_correction(c::AbstractRheology, ε, τ0, others, I) = effective_strain_rate_correction(iselastic(c), c, ε, τ0, others, I)
+@inline effective_strain_rate_correction(::Val{false}, c::AbstractRheology, ε, τ0, others, I) = 0
 
 function effective_strain_rate_correction(::Val{true}, c::AbstractRheology, ε, τ0, others, I)
     η = compute_viscosity(c, merge((; ε), others))
