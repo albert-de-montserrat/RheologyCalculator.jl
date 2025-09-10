@@ -1,6 +1,6 @@
 using TimerOutputs
 """
-    x = solve(c::AbstractCompositeModel, x::SVector, vars, others; atol = 1.0e-9, rtol = 1.0e-9, itermax = 1e4, verbose=true)
+    x = solve(c::AbstractCompositeModel, x::SVector, vars, others; atol = 1.0e-9, rtol = 1.0e-9, itermax = 1e4, verbose=true,  elastic_correction=true)
 
 Solve the system of equations defined by the composite model `c` using a Newton-Raphson method.
 Optional parameters:
@@ -9,11 +9,14 @@ Optional parameters:
 - `rtol`: Relative tolerance for convergence (default: 1.0e-9)
 - `itermax`: Maximum number of iterations (default: 1e4)
 - `verbose`: If true, print convergence information (default: false)
+- `elastic_correction`: If true, apply elastic correction (default: true)
 """
-function solve(c::AbstractCompositeModel, x::SVector, vars, others; xnorm0=nothing, atol::Float64 = 1.0e-9, rtol::Float64 = 1.0e-9, itermax = 1.0e4, verbose::Bool = false)
+function solve(c::AbstractCompositeModel, x::SVector, vars, others; xnorm0=nothing, atol::Float64 = 1.0e-9, rtol::Float64 = 1.0e-9, itermax = 1.0e4, verbose::Bool = false, elastic_correction=true)
    
-    xnorm = correct_xnorm(x, xnorm0)
-    r     = compute_residual(c, x, vars, others)   # initial residual
+    if elastic_correction
+        ε_correction = effective_strain_rate_correction(c, vars, others)
+        vars = merge(vars, (; ε = vars.ε + ε_correction))
+    end
 
     it = 0
     er = Inf
