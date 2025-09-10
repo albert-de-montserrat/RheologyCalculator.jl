@@ -77,13 +77,13 @@ function stress_time_full_tensor(c, x, τ0, ε; ntime = 200, dt = 1.0e8)
     for i in 2:ntime
         others  = (; dt = dt, τ0 = τxx_e[1], P0 = P_e)              # other non-differentiable variables needed to evaluate the state functions
         vars    = (; ε = ε[1], θ = 0.0) 
-        x       = solve(c, x, vars, others, verbose = false)
+        x       = solve(c, x, vars, others, verbose = false, elastic_correction=false)
         τxx_e   = compute_stress_elastic(c, x, others)           # elastic stress components
         τxx[i]  = x[1]                                           # total stress    
 
         others  = (; dt = dt, τ0 = τxz_e[1], P0 = P_e)              # other non-differentiable variables needed to evaluate the state functions
         vars    = (; ε = ε[2], θ = 0.0) 
-        x       = solve(c, x, vars, others, verbose = false)
+        x       = solve(c, x, vars, others, verbose = false, elastic_correction=false)
         τxz_e   = compute_stress_elastic(c, x, others)           # elastic stress components
         τxz[i]  = x[1]                                           # total stress    
 
@@ -121,7 +121,7 @@ function stress_time_invariants(c, x, τ0, ε; ntime = 200, dt = 1.0e8)
 
         others  = (; dt = dt, τ0 = 0.0, P0 = P_e)              # other non-differentiable variables needed to evaluate the state functions
         vars    = (; ε = εeff_II, θ = 0.0) 
-        x       = solve(c, x, vars, others, verbose = false)
+        x       = solve(c, x, vars, others, verbose = false, elastic_correction=false)
       
         τII_e   = compute_stress_elastic(c, x, others)           # elastic stress components
         τxx_e   = nij[1]*x[1]

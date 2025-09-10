@@ -18,6 +18,8 @@ function solve(c::AbstractCompositeModel, x::SVector, vars, others; xnorm0=nothi
         vars = merge(vars, (; ε = vars.ε + ε_correction))
     end
 
+    xnorm = correct_xnorm(x, xnorm0)
+    r     = compute_residual(c, x, vars, others)   # initial residual
     it = 0
     er = Inf
     er0 = mynorm(r, xnorm)
