@@ -12,11 +12,47 @@ Optional parameters:
 """
 function solve(c::AbstractCompositeModel, x::SVector, vars, others; xnorm0=nothing, atol::Float64 = 1.0e-9, rtol::Float64 = 1.0e-9, itermax = 1.0e4, verbose::Bool = false)
    
-    ε_correction = effective_strain_rate_correction(c, vars, others)
-    vars = merge(vars, (; ε = vars.ε + ε_correction))
+    xnorm = correct_xnorm(x, xnorm0)
+    r     = compute_residual(c, x, vars, others)   # initial residual
+
+    it = 0
+    er = Inf
+    er0 = mynorm(r, xnorm)
+
+    local α
+    while er > atol && er > rtol * er0
+        it += 1
+
+        J = ForwardDiff.jacobian(y -> compute_residual(c, y, vars, others), x)
+        Δx = J \ -r
+        #α = bt_line_search_armijo(Δx, J, x, xnorm, c, vars, others, α_min = 1.0e-8, c=0.9)
+        α = bt_line_search(Δx, x, c, vars, others, xnorm; α = 1.0, ρ = 0.5, lstol = 0.95, α_min = 0.1)
+        x += α .* Δx
+
+        # check convergence
+        r = compute_residual(c, x, vars, others)
+        er = mynorm(r, xnorm)
+
+        it > itermax && break
+    end
+    if verbose
+        println("Iterations: $it, Error: $er, α = $α")
+    end
+    return x
+end
+
+# multidimensional solve with strain rate correction
+function solve(c::AbstractCompositeModel, x::SVector, ε_ij::NTuple{N}, τ0_ij::NTuple{N}, vars0, others; xnorm0=nothing, atol::Float64 = 1.0e-9, rtol::Float64 = 1.0e-9, itermax = 1.0e4, verbose::Bool = false) where N
+   
+    ε_corr = effective_strain_rate_correction(c, ε_ij, τ0_ij, others)
+    # @show ε_corr
+    ε_eff = ε_ij .+ ε_corr
+    εII   = second_invariant(ε_eff...)
+    
+    vars = merge(vars0, (; ε = εII))
 
     xnorm = correct_xnorm(x, xnorm0)
-    r  = compute_residual(c, x, vars, others)   # initial residual
+    r     = compute_residual(c, x, vars, others)   # initial residual
 
     it = 0
     er = Inf
@@ -118,8 +154,7 @@ function bt_line_search(Δx, x, composite, vars, others, xnorm; α = 1.0, ρ = 0
     return α
 end
 
-
-@generated function mynorm(x::SVector{N, T}, y::SVector{N, T}) where {N, T}
+@generated function mynorm(x::SVector{N, T}, y::SVector{N}) where {N, T}
     return quote
         @inline
         v = zero(T)

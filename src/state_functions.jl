@@ -8,6 +8,7 @@ fns_state = (
     :compute_plastic_strain_rate,
     :compute_volumetric_plastic_strain_rate,
     :compute_plastic_stress,
+    :compute_viscosity,
     :compute_viscosity_series,
     :compute_viscosity_parallel,
 )

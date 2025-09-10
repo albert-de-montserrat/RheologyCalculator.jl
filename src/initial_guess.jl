@@ -8,7 +8,7 @@ Initial guess for the local solution vector `x`
 function initial_guess_x(c, vars, args, others)
     eqs = generate_equations(c)
     x0 = initial_guess_x(eqs, vars, args, others)
-    return SVector{length(x0)}(x0)
+    return SVector{length(x0), eltype(x0)}(x0)
 end
 
 @generated function initial_guess_x(eqs::NTuple{N, CompositeEquation}, vars, args, others) where {N}
