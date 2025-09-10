@@ -26,5 +26,5 @@ for fn in (:compute_strain_rate, :compute_volumetric_strain_rate, :compute_plast
     @eval _normalize_x_value(::typeof($fn), char_stress, char_strainrate) = char_strainrate
 end
 
-@inline correct_xnorm(::SVector{N,T}, xnorm) where {N, T} = (@show T; xnorm)
+@inline correct_xnorm(::SVector{N,T}, xnorm) where {N, T} = (T; xnorm)
 @inline correct_xnorm(::SVector{N,T}, ::Nothing) where {N, T} = @SVector ones(T, N)
