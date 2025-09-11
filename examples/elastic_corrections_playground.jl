@@ -78,14 +78,14 @@ function stress_time_full_tensor(c, x, τ0, ε; ntime = 200, dt = 1.0e8)
         others  = (; dt = dt, τ0 = τxx_e[1], P0 = P_e)              # other non-differentiable variables needed to evaluate the state functions
         vars    = (; ε = ε[1], θ = 0.0) 
         x       = solve(c, x, vars, others, verbose = false, elastic_correction=false)
-        τxx_e   = compute_stress_elastic(c, x, others)           # elastic stress components
-        τxx[i]  = x[1]                                           # total stress    
+        τxx_e   = compute_stress_elastic(c, x, others)              # elastic stress components
+        τxx[i]  = x[1]                                              # total stress    
 
         others  = (; dt = dt, τ0 = τxz_e[1], P0 = P_e)              # other non-differentiable variables needed to evaluate the state functions
         vars    = (; ε = ε[2], θ = 0.0) 
         x       = solve(c, x, vars, others, verbose = false, elastic_correction=false)
-        τxz_e   = compute_stress_elastic(c, x, others)           # elastic stress components
-        τxz[i]  = x[1]                                           # total stress    
+        τxz_e   = compute_stress_elastic(c, x, others)              # elastic stress components
+        τxz[i]  = x[1]                                              # total stress    
 
 
         t += others.dt
@@ -96,7 +96,7 @@ function stress_time_full_tensor(c, x, τ0, ε; ntime = 200, dt = 1.0e8)
     return t_v, τxx, τxz
 end
 
-function stress_time_invariants(c, x, τ0, ε; ntime = 200, dt = 1.0e8)
+function stress_time_invariant_manual(c, x0, τ0, ε; ntime = 200, dt = 1.0e8)
     # This computes the stress with invariants
     # 
     τxx  = zeros(ntime) # note, we assume  τzz = -τxx
@@ -114,18 +114,19 @@ function stress_time_invariants(c, x, τ0, ε; ntime = 200, dt = 1.0e8)
     P_e  = (0.0,)
     t    = 0.0
     for i in 2:ntime
-        εeff_xx = ε[1] + τxx_e[1]/(2G*dt)
-        εeff_xz = ε[2] + τxz_e[1]/(2G*dt)
+        εeff_xx = ε[1] + τxx_e[1]/(2*G*dt)
+        εeff_xz = ε[2] + τxz_e[1]/(2*G*dt)
         εeff_II = second_invariant(εeff_xx, εeff_xz)
-        nij     = ε./εeff_II
+        nij     = [εeff_xx, εeff_xz]./εeff_II                  # normalized deviatoric direction tensor
 
         others  = (; dt = dt, τ0 = 0.0, P0 = P_e)              # other non-differentiable variables needed to evaluate the state functions
         vars    = (; ε = εeff_II, θ = 0.0) 
-        x       = solve(c, x, vars, others, verbose = false, elastic_correction=false)
-      
-        τII_e   = compute_stress_elastic(c, x, others)           # elastic stress components
-        τxx_e   = nij[1]*x[1]
-        τxz_e   = nij[2]*x[1]
+        x       = solve(c, x0, vars, others, verbose = false, elastic_correction=false)
+
+        τII_e   = compute_stress_elastic(c, x, others)          # elastic stress components
+        
+        τxx_e   = nij[1]*τII_e[1]                               # get deviatoric stresses from invariant
+        τxz_e   = nij[2]*τII_e[1]
         
         τII[i]  = x[1]                                           # total stress    
 
@@ -182,17 +183,17 @@ end
 
 SecYear = 3600*24*365.25
 dt = SecYear*10
-t_v, τxx, τxz = stress_time_full_tensor(c, x, τ0, ε; ntime = 200, dt = dt) 
-t_v, τII_invariants = stress_time_invariants(c, x, τ0, ε; ntime = 200, dt = dt)
+t_v, τxx, τxz = stress_time_full_tensor(c, x, τ0, ε; ntime = 20, dt = dt) 
+t_v, τII_invariants = stress_time_invariant_manual(c, x, τ0, ε; ntime = 20, dt = dt)
 τII_tot = second_invariant(τxx, τxz)
 #τII_ana = analytics_kelvin(t_v, c, others, τ0, ε, dt)
 τII_ana = analytics_maxwell(t_v, c, others, τ0, ε, dt)
 
+error  = norm(τII_tot[2:end] .- τII_ana[2:end])
+errorI = norm(τII_invariants[2:end] .- τII_ana[2:end])
 
-
-error = norm(τII_tot[2:end] .- τII_ana[2:end])
 @info "FullTensor - Analytical:" error/mean(τII_tot)
-
+@info "Invariant  - Analytical:" errorI/mean(τII_tot)
 
 fig, ax, li = scatter(t_v[1:end]/SecYear, τII_tot[1:end]/1e6, color=:blue, label="numerics, full tensor", linewidth=3)
 lines!(ax, t_v[1:end]/SecYear, τII_ana[1:end]/1e6, color=:red, label="analytics", linewidth=3)
