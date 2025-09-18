@@ -11,7 +11,6 @@ include("../rheologies/RheologyDefinitions.jl")
 
 # Define rheology
 
-
 c, x, τ0, ε, args, others = let
 
     viscous = LinearViscosity(1e21)
@@ -56,7 +55,6 @@ c, x, τ0, ε, args, others = let
     c, x, τ0, ε, args, others
 end
 =#
-
 
 second_invariant(a,b) = sqrt.(a.^2 .+ b.^2)
 
@@ -195,7 +193,7 @@ errorI = norm(τII_invariants[2:end] .- τII_ana[2:end])
 @info "FullTensor - Analytical:" error/mean(τII_tot)
 @info "Invariant  - Analytical:" errorI/mean(τII_tot)
 
-fig, ax, li = scatter(t_v[1:end]/SecYear, τII_tot[1:end]/1e6, color=:blue, label="numerics, full tensor", linewidth=3)
+fig, ax, li = scatter(t_v ./ SecYear, τII_tot ./ 1e6, color=:blue, label="numerics, full tensor", markersize=10)
 lines!(ax, t_v[1:end]/SecYear, τII_ana[1:end]/1e6, color=:red, label="analytics", linewidth=3)
 lines!(ax, t_v[1:end]/SecYear, τII_invariants[1:end]/1e6, color=:green, label="invariants", linewidth=3)
 
