@@ -18,6 +18,22 @@ c, x, τ0, ε, args, others = let
 
     # Maxwell viscoelastic model
     # elastic --- viscous
+    # εxx = εxx_vis + εxx_elastic
+    # εxz = εxz_vis + εxz_elastic
+    # 
+    # εxx = τxx/(2η) + (τxx-τxx_old)/(2GΔt)
+    # εxz = τxz/(2η) + (τxz-τxz_old)/(2GΔt)
+    #
+    # which can be rewritten as:
+    # εxx  + τxx_old/(2GΔt) = τxx/(2η) + τxx/(2GΔt)
+    # εxz  + τxz_old/(2GΔt) = τxz/(2η) + τxz/(2GΔt)
+    # 
+    # after introducing effective strainrate:
+    # εxx_eff = εxx + τxx_old/(2GΔt) = τxx(1/(2η) + 1/(2GΔt))
+    # εxz_eff = εxz + τxz_old/(2GΔt) = τxz(1/(2η) + 1/(2GΔt))
+    #
+    # in invariant form:
+    # εII_eff = τII(1/(2η) + 1/(2GΔt))
 
     c      = SeriesModel(viscous, elastic)
 
@@ -48,8 +64,11 @@ c, x, τ0, ε, args, others = let
     # 
     # τxx = 2η εxx + 2GΔt εxx  + τxx_old
     # τxz = 2η εxz + 2GΔt εxz  + τxz_old
-    
+    #
+    # which can be rewritten in invariant form as:
+    # τII = 2η εII + 2GΔt εII  + τII_old
 
+    
     c      = SeriesModel(ParallelModel(viscous, elastic))   # 1 elastic kelvin element
     #c      = SeriesModel(viscous,elastic)
     #c      = SeriesModel((ParallelModel(elastic),))   # 1 elastic kelvin element
