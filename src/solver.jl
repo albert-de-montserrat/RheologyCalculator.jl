@@ -1,10 +1,10 @@
 using TimerOutputs
 """
-    x = solve(c::AbstractCompositeModel, x::SVector, vars, others; atol = 1.0e-9, rtol = 1.0e-9, itermax = 1e4, verbose=true,  elastic_correction=true)
+    x = solve(c::AbstractCompositeModel, x::SVector, vars, others; xnorm0=nothing, atol = 1.0e-9, rtol = 1.0e-9, itermax = 1e4, verbose=true,  elastic_correction=true)
 
 Solve the system of equations defined by the composite model `c` using a Newton-Raphson method.
 Optional parameters:
-- `xnorm`: Normalization vector for the solution vector `x`.
+- `xnorm0`: Normalization vector for the solution vector `x`.
 - `atol`: Absolute tolerance for convergence (default: 1.0e-9)
 - `rtol`: Relative tolerance for convergence (default: 1.0e-9)
 - `itermax`: Maximum number of iterations (default: 1e4)
@@ -19,13 +19,16 @@ function solve(c::AbstractCompositeModel, x::SVector, vars, others; xnorm0=nothi
     end
 
     xnorm = correct_xnorm(x, xnorm0)
+    #xnorm = xnorm0 === nothing ? ones(size(x)) : xnorm0
+    
     r     = compute_residual(c, x, vars, others)   # initial residual
     it = 0
     er = Inf
+    @show xnorm, x, xnorm0
     er0 = mynorm(r, xnorm)
 
     local α
-    while er > atol && er > rtol * er0
+    while er > atol #|| (er > rtol * er0 && it>1)
         it += 1
 
         J = ForwardDiff.jacobian(y -> compute_residual(c, y, vars, others), x)
