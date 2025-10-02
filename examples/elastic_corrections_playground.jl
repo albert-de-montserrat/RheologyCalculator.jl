@@ -35,7 +35,7 @@ end
 
 c, x, τ0, ε, args, others = let
 
-    viscous = LinearViscosity(1e-20)
+    viscous = LinearViscosity(1e20)
     elastic = IncompressibleElasticity(5e10)
 
     # Kelvin viscoelastic model
@@ -198,7 +198,7 @@ function stress_time_invariant_manual_parallel(c, x, τ0, ε; ntime = 200, dt = 
     t_v  = zeros(ntime)
 
     τII_vec[1] = second_invariant(τ0[1][1],τ0[1][2])
-    τII_e =  τII_vec[1]*0
+    τII_e =  τII_vec[1]
     εII = second_invariant(ε[1],ε[2])
 
     #τxz[1] = τ0[1][2]
@@ -208,14 +208,16 @@ function stress_time_invariant_manual_parallel(c, x, τ0, ε; ntime = 200, dt = 
         others  = (; dt = dt, τ0 = τII_e[1], P0 = P_e)              # other non-differentiable variables needed to evaluate the state functions
         vars    = (; ε = εII, θ = 0.0) 
         #xnorm0 = SVector(1e6, 1e-15)
-        xnorm0 = SVector(1, 1)
+        #xnorm0 = SVector(1, 1)
         
         #x       = solve(c, x, vars, others, xnorm0=xnorm0, verbose = true, elastic_correction=false, atol=1e-10, rtol = 1e-11, itermax=10)
-        x       = solve(c, x, vars, others, verbose = true, elastic_correction=false, atol=1e-10, rtol = 1e-11, itermax=10)
+        x       = solve(c, x, vars, others, verbose = true, elastic_correction=false, atol=1e-15, rtol = 1e-15, itermax=10)
         
         τII_e   = compute_stress_elastic(c, x, others)              # elastic stress components
         @show x, τII_e
-        τII_vec[i]  = τII_e[1]                                              # total stress    
+        #τII_vec[i]  = τII_e[1]                                              # total stress   
+        τII_vec[i]  = x[1]                                              # total stress   
+         
 
         t += others.dt
 
@@ -305,9 +307,9 @@ errorII= norm(τII_invariants[2:end] .- τII_tot[2:end])
 @info "Invariant  - FullTensor:" errorII/mean(τII_tot)
 
 
-fig, ax, li = scatter(t_v[1:end]/SecYear, τII_tot[1:end]/1e6, color=:blue, label="numerics, full tensor", linewidth=3)
-lines!(ax, t_v[1:end]/SecYear, τII_ana[1:end]/1e6, color=:red, label="analytics", linewidth=3)
-lines!(ax, t_v[1:end]/SecYear, τII_invariants[1:end]/1e6, color=:green, label="invariants, manually", linewidth=3)
+fig, ax, li = scatter(t_v[2:end]/SecYear, τII_tot[2:end]/1e6, color=:blue, label="numerics, full tensor", linewidth=3)
+lines!(ax, t_v[2:end]/SecYear, τII_ana[2:end]/1e6, color=:red, label="analytics", linewidth=3)
+lines!(ax, t_v[2:end]/SecYear, τII_invariants[2:end]/1e6, color=:green, label="invariants, manually", linewidth=3)
 
 ax.xlabel= "Time (years)"
 ax.ylabel= "Second invariant (MPa)"
