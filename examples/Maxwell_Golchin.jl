@@ -86,6 +86,7 @@ function figure()
 
     SecYear = 3600 * 24 * 365.25
     t_v1, τ1, P1, F1, mode2_1 = stress_time(c, (; ε = 0*7.0e-14, θ =   7.0e-15), x, xnorm, others; ntime = 11, dt = SecYear*2)
+    @show F1
     println("-------")
     t_v2, τ2, P2, F2, mode2_2 = stress_time(c, (; ε =   0*7.0e-14, θ = -7.0e-15), x, xnorm, others; ntime = 1300, dt = 1e8)
     println("-------")
@@ -108,7 +109,6 @@ function figure()
     GLMakie.scatter!(ax4, P3/1e6, τ3/1e6, color = :blue, label=L"2")
     GLMakie.scatter!(ax4, P1/1e6, τ1/1e6, color = :green, label=L"3")
     axislegend(ax4, position=:lt)
-    # contourf!(ax4, P/1e6, τII/1e6, Q)
 
     display(fig)
 end

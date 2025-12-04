@@ -74,6 +74,7 @@ F = zeros(length(P), length(τII))
 Q = zeros(length(P), length(τII))
 for i in CartesianIndices(F)
     F[i] = compute_F(c.leafs[end], τII[i[2]], P[i[1]])
+    Q[i] = compute_Q(c.leafs[end], τII[i[2]], P[i[1]])
 end
 Q1 = copy(Q)
 Q1[F.<1e-8] .= NaN
@@ -105,6 +106,7 @@ function figure()
     lines!(ax3, t_v3 / SecYear , τ3 / 1.0e6,  color=:blue, label =  L"\tau_{II}")
 
     GLMakie.contour!(ax4, P/1e6, τII/1e6, F, levels = [0.01], color = :black)
+    GLMakie.contour!(ax4, P/1e6, τII/1e6, Q, levels = [0.001], color = :black, linestyle=:dash)
     GLMakie.scatter!(ax4, P1/1e6, τ1/1e6, color = :green, label=L"1")
     GLMakie.scatter!(ax4, P2/1e6, τ2/1e6, color = :red, label=L"2")
     GLMakie.scatter!(ax4, P3/1e6, τ3/1e6, color = :blue, label=L"3")

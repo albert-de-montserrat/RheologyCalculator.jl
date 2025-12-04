@@ -36,10 +36,7 @@ function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1.0e8)
         P_e = compute_pressure_elastic(c, x, others)
         τ1[i] = τ_e[1]
         P1[i] = P_e[1]
-        #τ1[i] = x[1]
-        #P1[i] = x[end]
         F1[i] = compute_F(c.leafs[end], τ1[i], P1[i])   
-
 #        mode2[i] = ismode2_yield(c.leafs[end], τ_e[1], P_e[1])
 
         t_v[i] = t
@@ -89,7 +86,7 @@ Q = zeros(length(P), length(τII))
 ismode2 = zeros(length(P), length(τII))
 for i in CartesianIndices(F)
     F[i] = compute_F(c.leafs[end], τII[i[2]], P[i[1]])
-#    Q[i] = compute_Q(c.leafs[end], τII[i[2]], P[i[1]])
+    Q[i] = compute_Q(c.leafs[end], τII[i[2]], P[i[1]])
 #    ismode2[i] = ismode2_yield(c.leafs[end], τII[i[2]], P[i[1]])
 end
 ismode2[F.>0] .= NaN
@@ -123,6 +120,7 @@ function figure()
     lines!(ax3, t_v3 / SecYear , τ3 / 1.0e6,  color=:blue, label =  L"$\tau_{II}$")
 
     GLMakie.contour!(ax4, P/1e6, τII/1e6, F, levels = [0.01], color = :black)
+    GLMakie.contour!(ax4, P/1e6, τII/1e6, Q, levels = [0.001], color = :black, linestyle=:dash)
     GLMakie.scatter!(ax4, P1/1e6, τ1/1e6, color = :green, label=L"1")
     GLMakie.scatter!(ax4, P2/1e6, τ2/1e6, color = :red, label=L"2")
     GLMakie.scatter!(ax4, P3/1e6, τ3/1e6, color = :blue, label=L"3")
