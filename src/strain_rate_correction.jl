@@ -31,7 +31,7 @@ end
 @inline effective_strain_rate_correction(c::AbstractRheology, ε, τ0, others, I) = effective_strain_rate_correction(iselastic(c), c, ε, τ0, others, I)
 @inline effective_strain_rate_correction(::Val{false}, c::AbstractRheology, ε, τ0, others, I) = 0
 
-function effective_strain_rate_correction(::Val{true}, c::AbstractRheology, ε, τ0, others, I)
+@inline function effective_strain_rate_correction(::Val{true}, c::AbstractRheology, ε, τ0, others, I)
     η = compute_viscosity(c, merge((; ε), others))
     correction = τ0[I] / (2 * η)
     return correction
