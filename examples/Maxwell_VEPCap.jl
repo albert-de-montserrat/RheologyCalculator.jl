@@ -125,6 +125,8 @@ function figure()
     GLMakie.scatter!(ax4, P2/1e6, τ2/1e6, color = :red, label=L"2")
     GLMakie.scatter!(ax4, P3/1e6, τ3/1e6, color = :blue, label=L"3")
 
+    GLMakie.save("./docs/assets/VEPCap.png", fig)
+
     display(fig)
 end
 

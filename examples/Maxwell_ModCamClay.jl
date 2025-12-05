@@ -107,8 +107,9 @@ function figure()
     GLMakie.scatter!(ax4, P3/1e6, τ3/1e6, color = :blue, label=L"2")
     GLMakie.scatter!(ax4, P1/1e6, τ1/1e6, color = :green, label=L"3")
     axislegend(ax4, position=:lt)
-    # contourf!(ax4, P/1e6, τII/1e6, Q)
 
+    GLMakie.save("./docs/assets/ModCamClay.png", fig)
+    
     display(fig)
 end
 

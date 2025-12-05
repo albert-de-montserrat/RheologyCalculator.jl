@@ -46,7 +46,7 @@ c, x, xnorm, vars, args, others = let
 
     viscous = LinearViscosity(1e23)
     elastic = Elasticity(1e10, 2e11)
-    plastic = Golchin(; M=0.9, N=0.5, γ=0.5, α=0.5, β=0.0, Pt=-1e5, Pc=1e8, η_vp=1e20) 
+    plastic = Golchin(; M=0.9, N=0.5, γ=0.5, α=0.5, β=0.0, Pt=-1e5, Pc=1.3e8, η_vp=1e20) 
 
     # Maxwell viscoelastic model
     c  = SeriesModel(viscous, elastic, plastic)
@@ -59,7 +59,7 @@ c, x, xnorm, vars, args, others = let
     others = (; dt = 1.0e5, τ0 = (0e0, ), P0 = (0.3e6, ))
 
     x       = initial_guess_x(c, vars, args, others)
-    char_τ  = plastic.Pc
+    char_τ  = 1e25 # Issue with scaling
     char_ε  = abs(vars.ε)+abs(vars.θ)
     xnorm   = normalisation_x(c, char_τ, char_ε)
 
@@ -103,14 +103,14 @@ function figure()
     lines!(ax3, t_v3 / SecYear , τ3 / 1.0e6,  color=:blue, label =  L"$\tau_{II}$")
     axislegend(ax3, position=:rb)
 
-    @show extrema(F)
-
     GLMakie.contour!(ax4, P/1e6, τII/1e6, F, levels = [0.001], color = :black)
     GLMakie.contour!(ax4, P/1e6, τII/1e6, Q, levels = [0.001], color = :black, linestyle=:dash)
     GLMakie.scatter!(ax4, P2/1e6, τ2/1e6, color = :red, label=L"1")
     GLMakie.scatter!(ax4, P3/1e6, τ3/1e6, color = :blue, label=L"2")
     GLMakie.scatter!(ax4, P1/1e6, τ1/1e6, color = :green, label=L"3")
     axislegend(ax4, position=:lt)
+
+    GLMakie.save("./docs/assets/Golchin.png", fig)
 
     display(fig)
 end

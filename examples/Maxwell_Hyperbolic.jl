@@ -111,7 +111,8 @@ function figure()
     GLMakie.scatter!(ax4, P2/1e6, τ2/1e6, color = :red, label=L"2")
     GLMakie.scatter!(ax4, P3/1e6, τ3/1e6, color = :blue, label=L"3")
     axislegend(ax4, position=:lt)
-    # contourf!(ax4, P/1e6, τII/1e6, Q)
+
+    GLMakie.save("./docs/assets/Hyperbolic.png", fig)
 
     display(fig)
 end
