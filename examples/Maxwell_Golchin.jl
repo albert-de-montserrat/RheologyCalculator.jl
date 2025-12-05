@@ -66,10 +66,9 @@ c, x, xnorm, vars, args, others = let
     c, x, xnorm, vars, args, others
 end
 
-# Plot yield stress - this is reproducing Fig. 2 of the paper
+# Comute yield and potentials
 τII = 0:1e6:1e8
 P   = -5e6:1e6:1.5e8
-
 F = zeros(length(P), length(τII))
 Q = zeros(length(P), length(τII))
 for i in CartesianIndices(F)
@@ -77,6 +76,7 @@ for i in CartesianIndices(F)
     Q[i] = compute_Q(c.leafs[end], τII[i[2]], P[i[1]])
 end
 
+# Visualise
 function figure()
     fig = Figure(fontsize = 20, size = (800, 800) )
     ax1 = Axis(fig[2,1], title="Volumetric extension (3)",  xlabel=L"$t$ [yr]",  ylabel=L"$P$, $\tau_{II}$ [MPa]", xlabelsize=20, ylabelsize=20)
