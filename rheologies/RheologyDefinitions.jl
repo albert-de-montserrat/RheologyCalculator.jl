@@ -246,9 +246,6 @@ function compute_F(r::DruckerPrager, τ, P)
 end
 compute_Q(r::DruckerPrager, τ, P) = τ - P * sind(r.ψ)
 
-@inline compute_stress(r::DruckerPrager; τ_pl = 0, kwargs...) = τ_pl
-@inline compute_pressure(r::DruckerPrager; P_pl = 0, kwargs...) = P_pl
-
 @inline function compute_plastic_strain_rate(r::DruckerPrager; τ_pl = 0, λ = 0, P_pl = 0, ε = 0, kwargs...)
     return λ  * ForwardDiff.derivative(x -> compute_Q(r, x, P_pl), τ_pl) - ε # perhaps this derivative needs to be hardcoded
 end
