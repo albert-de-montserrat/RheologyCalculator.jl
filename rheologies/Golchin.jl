@@ -67,8 +67,14 @@ function compute_F(r::Golchin, τII, P)
     C = Cf(Pc, Pt, γ)           
     B = Bf(P, Pc, Pt, M, C, α)
     A = Af(P, Pc, Pt, γ)    
+    # F  = (P - C)^2/A^2 + (τII - β*P)^2/B^2 - 1
+    # k  = 0
+    F  = B^2 * (P - C + A) * (P - C - A) + A^2*(τII - β*P)^2
 
-    F  = (P - C)^2/A^2 + (τII - β*P)^2/B^2 - 1
+
+    # r  = Pc/2
+    # b  = 1.0
+    # F  = 1/b *(P - Pt - r)^2  + (τII / M)^2 - r^2 
 
     # Note that viscoplastic regularisation is taken into account in the residual function
     return F #*(F>-1e-8) 
@@ -84,8 +90,14 @@ function compute_Q(r::Golchin, τII, P)
     C = Cf(Pc, Pt, γ)         
     B = Bf(P, Pc, Pt, N, C, α)
     A = Af(P, Pc, Pt, γ)      
+    # Q  = (P - C)^2/A^2 + (τII - β*P)^2/B^2 - 1
+    Q  = B^2 * (P - C + A) * (P - C - A) + A^2*(τII - β*P)^2
 
-    Q  = (P - C)^2/A^2 + (τII - β*P)^2/B^2 - 1
+
+    # r  = Pc/2
+    # b  = 1.0
+    # Q  = 1/b *(P - Pt - r)^2  + (τII / N)^2 - r^2 
+
 
     return Q
 end 

@@ -103,6 +103,8 @@ function figure()
     lines!(ax3, t_v3 / SecYear , τ3 / 1.0e6,  color=:blue, label =  L"$\tau_{II}$")
     axislegend(ax3, position=:rb)
 
+    @show extrema(F)
+
     GLMakie.contour!(ax4, P/1e6, τII/1e6, F, levels = [0.001], color = :black)
     GLMakie.contour!(ax4, P/1e6, τII/1e6, Q, levels = [0.001], color = :black, linestyle=:dash)
     GLMakie.scatter!(ax4, P2/1e6, τ2/1e6, color = :red, label=L"1")
