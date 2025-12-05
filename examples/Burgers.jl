@@ -6,7 +6,7 @@ include("RheologyDefinitions.jl")
 using GLMakie
 
 function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
-    # Extract elastic stresses/pressure from solutio vector
+    # Extract elastic stresses/pressure from solution vector
     τ1 = zeros(ntime)
     τ2 = zeros(ntime)
     P1 = zeros(ntime)

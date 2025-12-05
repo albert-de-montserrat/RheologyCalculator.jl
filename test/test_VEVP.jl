@@ -10,7 +10,7 @@ using LinearAlgebra
         t   = 0.0
         for i in 2:ntime
             others   = (; dt = dt, τ0 = τ_e, P=others.P, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
-            x        = solve(c, x, vars, others, verbose = false, xnorm=xnorm)
+            x        = solve(c, x, vars, others, verbose = false, xnorm0=xnorm,  elastic_correction=false)
             τ1[i]    = x[1]
             t       += others.dt
             τ_e      = x[1] 
