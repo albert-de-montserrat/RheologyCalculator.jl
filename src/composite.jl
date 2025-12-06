@@ -109,8 +109,15 @@ end
     end
 end
 
-@inline series_state_functions(c::NTuple{N, ParallelModel}) where {N} = series_state_functions(first(c))..., series_state_functions(Base.tail(c))...
-@inline series_state_functions(c::Tuple{}) = (compute_strain_rate,)
+# @inline series_state_functions(c::NTuple{N, ParallelModel}) where {N} = series_state_functions(first(c))..., series_state_functions(Base.tail(c))...
+@generated function series_state_functions(funs::NTuple{N, Any}) where {N}
+    return quote
+        @inline
+        f = Base.@ntuple $N i -> series_state_functions(@inbounds(funs[i]))
+        Base.IteratorsMD.flatten(f)
+    end
+end
+@inline series_state_functions(::Tuple{}) = (compute_strain_rate,)
 
 # @inline series_state_functions(c::ParallelModel)                      = flatten_repeated_functions(parallel_state_functions(c.leafs))
 @inline series_state_functions(c::ParallelModel) = flatten_repeated_functions(series_state_functions(c.leafs))

@@ -217,19 +217,19 @@ DruckerPrager(args...) = DruckerPrager(promote(args...)...)
 
 @inline function series_state_functions(r::DruckerPrager) 
     # we need to check whether this allocates
-    if r.ψ == 0
-        return (compute_strain_rate, compute_lambda)
-    else
+    # if r.ψ == 0
+        # return (compute_strain_rate, compute_lambda)
+    # else
         return (compute_strain_rate, compute_volumetric_strain_rate, compute_lambda)
-    end
+    # end
 end
 
 @inline function parallel_state_functions(r::DruckerPrager) 
-    if r.ψ == 0
-        return (compute_stress, compute_pressure, compute_lambda_parallel, compute_plastic_strain_rate)
-    else
+    # if r.ψ == 0
+        # return (compute_stress, compute_pressure, compute_lambda_parallel, compute_plastic_strain_rate)
+    # else
         return (compute_stress, compute_pressure, compute_lambda_parallel, compute_plastic_strain_rate, compute_volumetric_plastic_strain_rate)
-    end
+    # end
 end
 
 @inline function compute_strain_rate(r::DruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)

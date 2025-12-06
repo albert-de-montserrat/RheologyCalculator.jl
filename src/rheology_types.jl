@@ -19,7 +19,15 @@ function series_state_functions(r::NTuple{N, AbstractRheology}, num::MVector{N, 
 end
 
 # does not allocate:
-@inline series_state_functions(r::NTuple{N, AbstractRheology}) where {N} = series_state_functions(first(r))..., series_state_functions(Base.tail(r))...
+# @inline series_state_functions(r::NTuple{N, AbstractRheology}) where {N} = series_state_functions(first(r))..., series_state_functions(Base.tail(r))...
+@generated function series_state_functions(r::NTuple{N, AbstractRheology}) where {N} 
+    return quote
+        @inline
+        f = Base.@ntuple $N i -> series_state_functions(r[i]) 
+        Base.IteratorsMD.flatten(f)
+    end
+end
+
 # @inline series_state_functions(::Tuple{}) = ()
 
 # Fallbacks
@@ -27,7 +35,14 @@ end
 @inline parallel_state_functions(::AbstractRheology) = error("Rheology not defined")
 
 # handle tuples
-@inline parallel_state_functions(r::NTuple{N, AbstractRheology}) where {N} = parallel_state_functions(first(r))..., parallel_state_functions(Base.tail(r))...
+# @inline parallel_state_functions(r::NTuple{N, AbstractRheology}) where {N} = parallel_state_functions(first(r))..., parallel_state_functions(Base.tail(r))...
+@generated function parallel_state_functions(r::NTuple{N, AbstractRheology}) where {N} 
+    return quote
+        @inline
+        f = Base.@ntuple $N i -> parallel_state_functions(r[i]) 
+        Base.IteratorsMD.flatten(f)
+    end
+end
 @inline parallel_state_functions(::Tuple{}) = ()
 
 function parallel_state_functions(r::NTuple{N, AbstractRheology}, num::MVector{N, Int}) where {N}
