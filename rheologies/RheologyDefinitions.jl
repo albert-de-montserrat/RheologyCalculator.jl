@@ -210,25 +210,35 @@ struct DruckerPrager{T} <: AbstractPlasticity
     C::T
     ϕ::T # in degrees for now
     ψ::T # in degrees for now
+    sinϕ::T 
+    sinψ::T 
+    cosϕ::T 
+    cosψ::T 
+
+    function DruckerPrager(C::T, ϕ::T, ψ::T) where T
+        sinϕ, cosϕ = sincosd(ϕ)
+        sinψ, cosψ = sincosd(ψ)
+        new{T}(C, ϕ, ψ, sinϕ, sinψ, cosϕ, cosψ)
+    end
 end
-DruckerPrager(args...) = DruckerPrager(promote(args...)...)
+DruckerPrager(args::Vararg{Any, 3}) = DruckerPrager(promote(args...)...)
 
 @inline _isvolumetric(::DruckerPrager) = false
 
 @inline function series_state_functions(r::DruckerPrager) 
     # we need to check whether this allocates
     # if r.ψ == 0
-        # return (compute_strain_rate, compute_lambda)
+        return (compute_strain_rate, compute_lambda)
     # else
-        return (compute_strain_rate, compute_volumetric_strain_rate, compute_lambda)
+        # return (compute_strain_rate, compute_volumetric_strain_rate, compute_lambda)
     # end
 end
 
 @inline function parallel_state_functions(r::DruckerPrager) 
     # if r.ψ == 0
-        # return (compute_stress, compute_pressure, compute_lambda_parallel, compute_plastic_strain_rate)
+        return (compute_stress, compute_pressure, compute_lambda_parallel, compute_plastic_strain_rate)
     # else
-        return (compute_stress, compute_pressure, compute_lambda_parallel, compute_plastic_strain_rate, compute_volumetric_plastic_strain_rate)
+        # return (compute_stress, compute_pressure, compute_lambda_parallel, compute_plastic_strain_rate, compute_volumetric_plastic_strain_rate)
     # end
 end
 
@@ -258,10 +268,10 @@ end
 
 # special plastic helper functions
 function compute_F(r::DruckerPrager, τ, P)
-    F = (τ - P * sind(r.ϕ) - r.C * cosd(r.ϕ))
+    F = (τ - P * r.sinϕ - r.C * r.cosϕ)
     return F*(F>-1e-8)
 end
-compute_Q(r::DruckerPrager, τ, P) = τ - P * sind(r.ψ)
+compute_Q(r::DruckerPrager, τ, P) = τ - P * r.sinψ
 
 @inline compute_stress(r::DruckerPrager; τ_pl = 0, kwargs...) = τ_pl
 @inline compute_pressure(r::DruckerPrager; P_pl = 0, kwargs...) = P_pl
