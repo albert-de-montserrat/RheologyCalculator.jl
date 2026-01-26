@@ -233,7 +233,7 @@ function stress_time_invariant_manual_parallel(c, x, τ0, ε; ntime = 200, dt = 
         x       = solve(c, x, vars, others, verbose = true, elastic_correction=false, atol=1e-15, rtol = 1e-15, itermax=10)
         
         τII_e   = compute_stress_elastic(c, x, others)              # elastic stress components
-        @show x, τII_e
+        @show x, τII_e, εII
         #τII_vec[i]  = τII_e[1]                                              # total stress   
         τII_vec[i]  = x[1]                                              # total stress   
          

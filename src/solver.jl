@@ -24,7 +24,7 @@ function solve(c::AbstractCompositeModel, x::SVector, vars, others; xnorm0=nothi
     r     = compute_residual(c, x, vars, others)   # initial residual
     it = 0
     er = Inf
-    @show xnorm, x, xnorm0
+    #@show xnorm, x, xnorm0
     er0 = mynorm(r, xnorm)
 
     local α
@@ -42,6 +42,9 @@ function solve(c::AbstractCompositeModel, x::SVector, vars, others; xnorm0=nothi
         er = mynorm(r, xnorm)
 
         it > itermax && break
+        #if verbose
+        #    println("Iterations: $it, Error: $er, α = $α")
+        #end
     end
     if verbose
         println("Iterations: $it, Error: $er, α = $α")
