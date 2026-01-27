@@ -20,3 +20,6 @@
 ## Modified Cam-Clay - Golchin (Golchin et al., 2021)
 
 ![](./docs/assets/Golchin.png)
+
+## Rate and State friction (Herrendörfer et al., 2018)
+![](./docs/assets/RateState.png)
