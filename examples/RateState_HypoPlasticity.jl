@@ -30,11 +30,7 @@ function compute_dt_ratestate(rs::RateStateFriction, re::AbstractElasticity, P, 
     dt = min(dt_c, dt_h, dt_w) 
 
     # Upper & lower cutoffs
-    if dt < dt_min
-        dt = dt_min
-    elseif dt > dt_max
-        dt = dt_max
-    end
+    dt = clamp(dt, dt_min, dt_max)
 
     return dt
 end
