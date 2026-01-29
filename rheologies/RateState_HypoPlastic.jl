@@ -45,10 +45,9 @@ RateStateFriction(args...) = RateStateFriction(promote(args...)...)
 # strain rate as a function of stress, state, and pressure  
 @inline function compute_strain_rate(r::RateStateFriction; τ = 0, Ω_old=0, P=0, dt=0, kwargs...)
 
-    Vp = 2 * r.V₀ * sinh(max((τ - r.C), 0) / (r.a *P * (1.0 - r.λ))) * exp(-(r.μ₀ + r.b * Ω_old) / r.a)
+    Vp = 2 * r.V₀ * sinh(max((τ - r.C), 0) / (r.a *P * (1 - r.λ))) * exp(-(r.μ₀ + r.b * Ω_old) / r.a)
    
-    ε = Vp / (2.0 * r.D)
-   # @show ε
+    ε = Vp / (2 * r.D)
     return ε
 end
 
