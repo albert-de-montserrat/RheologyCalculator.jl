@@ -53,7 +53,7 @@ end
 
 # stress as a function of strain rate, state, and pressure
 @inline function compute_stress(r::RateStateFriction; ε = 0, Ω_old=0, P=0, dt = 0, kwargs...) 
-    Vp  = 2.0 * r.D * ε
+    Vp  = 2 * r.D * ε
     Ω   = update_Ω(r; ε=ε, Ω_old=Ω_old, dt=dt)
     μd  = r.a * asinh(Vp / (2 * r.V₀) * exp((r.μ₀ + r.b * Ω) / r.a))
     τII = P * (1 - r.λ) * μd + r.C 
