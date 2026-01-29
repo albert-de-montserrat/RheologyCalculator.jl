@@ -40,7 +40,7 @@ end
     dt = dt_healing(r::RateStateFriction, state)
 Compute time step based on healing criterion
 """
-dt_healing(r::RateStateFriction, Ω) =  0.2 * 1.0 / (r.V₀ / r.L * exp(-Ω))
+dt_healing(r::RateStateFriction, Ω) =  0.2 * r.L / (r.V₀ * exp(-Ω))
 
 """
     dt = dt_weakening(r::RateStateFriction, θmax, Vp)
