@@ -63,7 +63,7 @@ end
 # This updates the state variable Ω based on slip velocity Vp and time step dt, which is needed outside the rheology definition
 @inline function update_Ω(r::RateStateFriction; ε = 0, Ω_old=0, dt = 0,  kwargs...)
     Vp  = 2.0 * r.D * ε
-    if (Vp * dt / r.L <= 1e-6)
+    if (Vp * dt / r.L ≤ 1e-6)
         Ω = log(exp(Ω_old) * (1 - Vp * dt / r.L) + r.V₀ * dt / r.L)
     else
         Ω = log(r.V₀ / Vp + (exp(Ω_old) - r.V₀ / Vp) * exp(-Vp * dt / r.L))
