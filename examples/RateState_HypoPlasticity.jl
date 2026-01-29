@@ -72,7 +72,7 @@ function max_state_change(rs::RateStateFriction, re::AbstractElasticity, P)
         ν = re.ν
     end
 
-    k = 2.0 / pi * (G / (1 - ν)) / faultwidth
+    k = 2 / π * (G / (1 - ν)) / faultwidth
     xi = 0.25 * (k * rs.L / (rs.a * Peff) - (rs.b - rs.a) / rs.a)^2 - k * rs.L / (rs.a * Peff)
     if xi > 0
         θmax = rs.a * Peff / (k * rs.L - (rs.b - rs.a) * Peff)
