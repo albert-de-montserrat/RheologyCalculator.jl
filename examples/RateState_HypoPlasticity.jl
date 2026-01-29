@@ -81,8 +81,7 @@ function max_state_change(rs::RateStateFriction, re::AbstractElasticity, P)
     else
         error("xi=0 in time step calculation")
     end
-    θmax = min(θmax, 0.2) # limit maximum according to Lapusta and Liu (2009)
-    θmax = max(θmax, 0.1) # this is not mentioned in the paper but it's in the code
+    θmax = clamp(θmax, 0.1, 0.2) # limit maximum according to Lapusta and Liu (2009); lower limit is not mentioned in the paper but it's in the code
     return θmax
 end
 
