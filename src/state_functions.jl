@@ -26,3 +26,6 @@ end
 for fn in fns_state
     @eval @inline $fn(r::AbstractRheology, kwargs::NamedTuple) = $fn(r; kwargs...)
 end
+
+# NOTE: for user defined new functions, add the template below to the appropriate rheology type file (e.g., RheologyDefinitions.jl)
+# compute_variable(r::AbstractRheology, kwargs::NamedTuple) = compute_variable(r; kwargs...)

@@ -156,10 +156,12 @@ end
 @inline series_state_functions(::IncompressibleElasticity) = (compute_strain_rate,)
 @inline parallel_state_functions(::IncompressibleElasticity) = (compute_stress,)
 
-@inline compute_strain_rate(r::IncompressibleElasticity; τ = 0, τ0 = 0, dt = 0, kwargs...) = (τ - τ0) / (2 * r.G * dt)
-@inline compute_stress(r::IncompressibleElasticity; ε = 0, τ0 = 0, dt = 0, kwargs...) = 2 * r.G * dt * ε + τ0
+# @inline compute_strain_rate(r::IncompressibleElasticity; τ = 0, τ0 = 0, dt = 0, kwargs...) = (τ - τ0) / (2 * r.G * dt)
+# @inline compute_stress(r::IncompressibleElasticity; ε = 0, τ0 = 0, dt = 0, kwargs...) = 2 * r.G * dt * ε + τ0
+@inline compute_strain_rate(r::IncompressibleElasticity; τ = 0, τ0 = 0, dt = 0, kwargs...) = τ / (2 * r.G * dt)
+@inline compute_stress(r::IncompressibleElasticity; ε = 0, τ0 = 0, dt = 0, kwargs...) = 2 * r.G * dt * ε 
 
-@inline compute_viscosity(r::IncompressibleElasticity; dt = 0, kwargs...)   = r.G * dt
+@inline compute_viscosity(r::IncompressibleElasticity; dt = 0, kwargs...)          = r.G * dt
 @inline compute_viscosity_series(r::IncompressibleElasticity; dt = 0, kwargs...)   = r.G * dt
 @inline compute_viscosity_parallel(r::IncompressibleElasticity; dt = 0, kwargs...) = r.G * dt
 # --------------------------------------------------------------------
@@ -381,7 +383,6 @@ end
 
     return τ
 end
-
 
 @inline compute_viscosity(r::DiffusionCreep; ε = 0, kwargs...)   = compute_stress(r; ε = ε, kwargs...)/(2*ε)
 @inline compute_viscosity_series(r::DiffusionCreep; ε = 0, kwargs...)   = compute_stress(r; ε = ε, kwargs...)/(2*ε)

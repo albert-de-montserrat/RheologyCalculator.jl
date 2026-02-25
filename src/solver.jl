@@ -13,18 +13,17 @@ Optional parameters:
 """
 function solve(c::AbstractCompositeModel, x::SVector, vars, others; xnorm0=nothing, atol::Float64 = 1.0e-9, rtol::Float64 = 1.0e-9, itermax = 1.0e4, verbose::Bool = false, elastic_correction=true)
    
-    if elastic_correction
-        ε_correction = effective_strain_rate_correction(c, vars, others)
-        vars = merge(vars, (; ε = vars.ε + ε_correction))
-    end
+    # if elastic_correction
+    #     ε_correction = effective_strain_rate_correction(c, vars, others)
+    #     vars = merge(vars, (; ε = vars.ε + ε_correction))
+    # end
 
     xnorm = correct_xnorm(x, xnorm0)
     #xnorm = xnorm0 === nothing ? ones(size(x)) : xnorm0
     
-    r     = compute_residual(c, x, vars, others)   # initial residual
-    it = 0
-    er = Inf
-    #@show xnorm, x, xnorm0
+    r   = compute_residual(c, x, vars, others)   # initial residual
+    it  = 0
+    er  = Inf
     er0 = mynorm(r, xnorm)
 
     local α
@@ -56,15 +55,15 @@ end
 function solve(c::AbstractCompositeModel, x::SVector, ε_ij::NTuple{N}, τ0_ij::NTuple{N}, vars0, others; xnorm0=nothing, atol::Float64 = 1.0e-9, rtol::Float64 = 1.0e-9, itermax = 1.0e4, verbose::Bool = false) where N
    
     ε_corr = effective_strain_rate_correction(c, ε_ij, τ0_ij, others)
-    # @show ε_corr
     ε_eff = ε_ij .+ ε_corr
     εII   = second_invariant(ε_eff...)
     
-    vars = merge(vars0, (; ε = εII))
-
+    vars = merge((; ε = εII), vars0)
+    
     xnorm = correct_xnorm(x, xnorm0)
     r     = compute_residual(c, x, vars, others)   # initial residual
-
+    # @show εII x r
+    
     it = 0
     er = Inf
     er0 = mynorm(r, xnorm)
@@ -84,6 +83,11 @@ function solve(c::AbstractCompositeModel, x::SVector, ε_ij::NTuple{N}, τ0_ij::
         er = mynorm(r, xnorm)
 
         it > itermax && break
+
+        # ε_corr = effective_strain_rate_correction(c, ε_ij, τ0_ij, others)
+        # ε_eff  = ε_ij .+ ε_corr
+        # εII    = second_invariant(ε_eff...)
+        
     end
     if verbose
         println("Iterations: $it, Error: $er, α = $α")
