@@ -1,22 +1,72 @@
 using TimerOutputs
 """
-    x = solve(c::AbstractCompositeModel, x::SVector, vars, others; atol = 1.0e-9, rtol = 1.0e-9, itermax = 1e4, verbose=true)
+    x = solve(c::AbstractCompositeModel, x::SVector, vars, others; xnorm0=nothing, atol = 1.0e-9, rtol = 1.0e-9, itermax = 1e4, verbose=true,  elastic_correction=true)
 
 Solve the system of equations defined by the composite model `c` using a Newton-Raphson method.
 Optional parameters:
-- `xnorm`: Normalization vector for the solution vector `x`.
+- `xnorm0`: Normalization vector for the solution vector `x`.
 - `atol`: Absolute tolerance for convergence (default: 1.0e-9)
 - `rtol`: Relative tolerance for convergence (default: 1.0e-9)
 - `itermax`: Maximum number of iterations (default: 1e4)
 - `verbose`: If true, print convergence information (default: false)
+- `elastic_correction`: If true, apply elastic correction (default: true)
 """
-function solve(c::AbstractCompositeModel, x::SVector, vars, others; xnorm = nothing, atol::Float64 = 1.0e-9, rtol::Float64 = 1.0e-9, itermax = 1.0e4, verbose::Bool = false)
+# function solve(c::AbstractCompositeModel, x::SVector, vars, others; xnorm0=nothing, atol::Float64 = 1.0e-9, rtol::Float64 = 1.0e-9, itermax = 1.0e4, verbose::Bool = false, elastic_correction=true)
+   
+#     # if elastic_correction
+#     #     ε_correction = effective_strain_rate_correction(c, vars, others)
+#     #     vars = merge(vars, (; ε = vars.ε + ε_correction))
+#     # end
 
-    if isnothing(xnorm)
-        xnorm = x .* 0 .+ 1.0 # set normalization vector to 1.0
-    end
-    r = compute_residual(c, x, vars, others)   # initial residual
+#     xnorm = correct_xnorm(x, xnorm0)
+#     #xnorm = xnorm0 === nothing ? ones(size(x)) : xnorm0
+    
+#     r   = compute_residual(c, x, vars, others)   # initial residual
+#     it  = 0
+#     er  = Inf
+#     er0 = mynorm(r, xnorm)
 
+#     local α
+#     while er > atol #|| (er > rtol * er0 && it>1)
+#         it += 1
+
+#         J = ForwardDiff.jacobian(y -> compute_residual(c, y, vars, others), x)
+#         Δx = J \ -r
+#         #α = bt_line_search_armijo(Δx, J, x, xnorm, c, vars, others, α_min = 1.0e-8, c=0.9)
+#         α = bt_line_search(Δx, x, c, vars, others, xnorm; α = 1.0, ρ = 0.5, lstol = 0.95, α_min = 0.1)
+#         x += α .* Δx
+
+#         # check convergence
+#         r = compute_residual(c, x, vars, others)
+#         er = mynorm(r, xnorm)
+
+#         it > itermax && break
+#         #if verbose
+#         #    println("Iterations: $it, Error: $er, α = $α")
+#         #end
+#     end
+#     if verbose
+#         println("Iterations: $it, Error: $er, α = $α")
+#     end
+#     return x
+# end
+
+# multidimensional solve with strain rate correction
+function solve(c::AbstractCompositeModel, x::SVector, vars0, others; xnorm0=nothing, atol::Float64 = 1.0e-9, rtol::Float64 = 1.0e-9, itermax = 1.0e4, verbose::Bool = false)
+   
+    ε_corr = effective_strain_rate_correction(c, vars0.ε, others.τ0, others)
+    ε_eff = vars0.ε .+ ε_corr
+    εII   = second_invariant(ε_eff...)
+    
+    # NOTE: be careful with the order of variables here
+    # as the effective strain rate IS ALWAYS THE FIRST
+    vars = merge(vars0, (; ε = εII))
+    # vars = merge((; ε = εII), vars0)
+    
+    xnorm = correct_xnorm(x, xnorm0)
+    r     = compute_residual(c, x, vars, others)   # initial residual
+    # @show εII x r
+    
     it = 0
     er = Inf
     er0 = mynorm(r, xnorm)
@@ -36,6 +86,12 @@ function solve(c::AbstractCompositeModel, x::SVector, vars, others; xnorm = noth
         er = mynorm(r, xnorm)
 
         it > itermax && break
+
+        ε_corr = effective_strain_rate_correction(c, vars.ε, others.τ0, others)
+        ε_eff  = vars.ε .+ ε_corr
+        εII    = second_invariant(ε_eff...)
+        vars   = merge(vars, (; ε = εII))
+        
     end
     if verbose
         println("Iterations: $it, Error: $er, α = $α")
@@ -117,8 +173,7 @@ function bt_line_search(Δx, x, composite, vars, others, xnorm; α = 1.0, ρ = 0
     return α
 end
 
-
-@generated function mynorm(x::SVector{N, T}, y::SVector{N, T}) where {N, T}
+@generated function mynorm(x::SVector{N, T}, y::SVector{N}) where {N, T}
     return quote
         @inline
         v = zero(T)

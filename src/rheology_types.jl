@@ -8,22 +8,6 @@ abstract type AbstractViscosity <: AbstractRheology end # in case we need spacil
 @inline length_state_functions(r::NTuple{N, AbstractRheology}) where {N} = length_state_functions(first(r))..., length_state_functions(Base.tail(r))...
 @inline length_state_functions(r::Tuple{}) = ()
 
-# types = (:LinearViscosity, :LTPViscosity, :DiffusionCreep, :DislocationCreep, :PowerLawViscosity, :IncompressibleElasticity)
-# for t in types
-#     @eval @inline series_state_functions(::($t)) = (compute_strain_rate,)
-# end
-
-# @inline series_state_functions(::LinearViscosityStress) = (compute_stress,)
-# @inline series_state_functions(::BulkViscosity) = (compute_volumetric_strain_rate,)
-# @inline series_state_functions(::Elasticity) = compute_strain_rate, compute_volumetric_strain_rate
-# @inline series_state_functions(::BulkElasticity) = (compute_volumetric_strain_rate,)
-# # @inline series_state_functions(::DruckerPrager) = compute_strain_rate, compute_volumetric_strain_rate, compute_lambda
-# @inline series_state_functions(::DruckerPrager) = (compute_strain_rate, compute_lambda)
-# #@inline series_state_functions(r::Series) = series_state_functions(r.elements)
-# @inline series_state_functions(::AbstractRheology) = error("Rheology not defined")
-# # handle tuples
-
-
 # returns the flattened statefunctions along with NTuples with global & local element numbers
 function series_state_functions(r::NTuple{N, AbstractRheology}, num::MVector{N, Int}) where {N}
     statefuns = (series_state_functions(first(r))..., series_state_functions(Base.tail(r))...)
@@ -35,58 +19,30 @@ function series_state_functions(r::NTuple{N, AbstractRheology}, num::MVector{N, 
 end
 
 # does not allocate:
-@inline series_state_functions(r::NTuple{N, AbstractRheology}) where {N} = series_state_functions(first(r))..., series_state_functions(Base.tail(r))...
+# @inline series_state_functions(r::NTuple{N, AbstractRheology}) where {N} = series_state_functions(first(r))..., series_state_functions(Base.tail(r))...
+@generated function series_state_functions(r::NTuple{N, AbstractRheology}) where {N} 
+    return quote
+        @inline
+        f = Base.@ntuple $N i -> series_state_functions(r[i]) 
+        Base.IteratorsMD.flatten(f)
+    end
+end
+
 # @inline series_state_functions(::Tuple{}) = ()
-
-## METHODS FOR PARALLEL MODELS
-
-# --- Series state functions ---
-# --- Series and Parallel state functions grouped by type ---
-
-# Viscosity types
-# @inline series_state_functions(::LinearViscosity) = (compute_strain_rate,)
-# @inline parallel_state_functions(::LinearViscosity) = (compute_stress,)
-
-# @inline series_state_functions(::LTPViscosity) = (compute_strain_rate,)
-# @inline parallel_state_functions(::LTPViscosity) = (compute_stress,)
-
-# @inline series_state_functions(::DiffusionCreep) = (compute_strain_rate,)
-# @inline parallel_state_functions(::DiffusionCreep) = (compute_stress,)
-
-# @inline series_state_functions(::DislocationCreep) = (compute_strain_rate,)
-# @inline parallel_state_functions(::DislocationCreep) = (compute_stress,)
-
-# @inline series_state_functions(::PowerLawViscosity) = (compute_strain_rate,)
-# @inline parallel_state_functions(::PowerLawViscosity) = (compute_stress,)
-
-# @inline series_state_functions(::LinearViscosityStress) = (compute_stress,)
-# @inline parallel_state_functions(::LinearViscosityStress) = (compute_stress,)
-
-# @inline series_state_functions(::BulkViscosity) = (compute_volumetric_strain_rate,)
-# @inline parallel_state_functions(::BulkViscosity) = (compute_pressure,)
-
-# # Elasticity types
-# @inline series_state_functions(::Elasticity) = (compute_strain_rate, compute_volumetric_strain_rate)
-# @inline parallel_state_functions(::Elasticity) = (compute_stress, compute_pressure)
-
-# @inline series_state_functions(::BulkElasticity) = (compute_volumetric_strain_rate,)
-# @inline parallel_state_functions(::BulkElasticity) = (compute_pressure,)
-
-# @inline series_state_functions(::IncompressibleElasticity) = (compute_strain_rate,)
-# @inline parallel_state_functions(::IncompressibleElasticity) = (compute_stress,)
-
-# # Plasticity types
-# # @inline series_state_functions(::DruckerPrager) = (compute_strain_rate, compute_volumetric_strain_rate, compute_lambda)
-# @inline series_state_functions(::DruckerPrager) = (compute_strain_rate, compute_lambda)
-# # @inline parallel_state_functions(::DruckerPrager) = (compute_stress, compute_pressure, compute_lambda, compute_plastic_strain_rate, compute_volumetric_plastic_strain_rate)
-# @inline parallel_state_functions(::DruckerPrager) = (compute_stress, compute_plastic_strain_rate, compute_lambda_parallel)
 
 # Fallbacks
 @inline series_state_functions(::AbstractRheology) = error("Rheology not defined")
 @inline parallel_state_functions(::AbstractRheology) = error("Rheology not defined")
 
 # handle tuples
-@inline parallel_state_functions(r::NTuple{N, AbstractRheology}) where {N} = parallel_state_functions(first(r))..., parallel_state_functions(Base.tail(r))...
+# @inline parallel_state_functions(r::NTuple{N, AbstractRheology}) where {N} = parallel_state_functions(first(r))..., parallel_state_functions(Base.tail(r))...
+@generated function parallel_state_functions(r::NTuple{N, AbstractRheology}) where {N} 
+    return quote
+        @inline
+        f = Base.@ntuple $N i -> parallel_state_functions(r[i]) 
+        Base.IteratorsMD.flatten(f)
+    end
+end
 @inline parallel_state_functions(::Tuple{}) = ()
 
 function parallel_state_functions(r::NTuple{N, AbstractRheology}, num::MVector{N, Int}) where {N}

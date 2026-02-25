@@ -13,7 +13,7 @@ function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1.0e8)
     P_e = (0.0,)
     t = 0.0
     for i in 2:ntime
-        others   = (; dt = dt, τ0 = τ_e, P=others.P, P0 = P_e)      
+        others   = (; dt = dt, τ0 = τ_e, P0 = P_e)      
         x        = solve(c, x, vars, others, verbose = true, xnorm=xnorm)
         τ1[i]    = x[1]
         t       += others.dt
@@ -24,10 +24,10 @@ function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1.0e8)
     return t_v, τ1
 end
 
-c, x, xnorm, vars, args, others = let
+# c, x, xnorm, vars, args, others = let
     viscous     = LinearViscosity(1e22)
     viscous_reg = LinearViscosity(1e20)
-    elastic     = IncompressibleElasticity(10e9)
+    elastic     = Elasticity(10e9, 20e9)
     plastic     = DruckerPrager(10e6, 0, 0)
 
     # Maxwell visco-elasto-(visco-plastic) model
@@ -35,11 +35,11 @@ c, x, xnorm, vars, args, others = let
     c  = SeriesModel(viscous, elastic, p)
 
     # input variables (constant)
-    vars   = (; ε = 1.0e-14)
+    vars   = (; ε = 1.0e-14, θ = 0e0)
     # guess variables (we solve for these, differentiable)
-    args   = (; τ = 2.0e3, λ = 0)
+    args   = (; τ = 2.0e3, λ = 0,  P = 1.0e6)
     # other non-differentiable variables needed to evaluate the state functions
-    others = (; dt = 1.0e8, τ0 = (0e0, ), P = 1.0e6, P0 = (0.0, ))
+    others = (; dt = 1.0e8, τ0 = (0e0, ), P0 = (0.0, ))
 
     x      = initial_guess_x(c, vars, args, others)
     char_τ = 1e6
@@ -47,26 +47,35 @@ c, x, xnorm, vars, args, others = let
     xnorm  = normalisation_x(c, char_τ, char_ε)
 
     c, x, xnorm, vars, args, others
+# end
+
+eqs = RheologyCalculator.generate_equations(c)
+for eq in eqs
+    println(
+      "
+      self = $(eq.self)
+      fn   = $(eq.fn)
+      "
+    )
 end
 
 
-let
-    t_v, τ = stress_time(c, vars, x, xnorm, others; ntime = 1_500, dt = 1e8)
+# let
+#     t_v, τ = stress_time(c, vars, x, xnorm, others; ntime = 1_500, dt = 1e8)
 
-    function figure()
-        SecYear = 3600 * 24 * 365.25
-        fig = Figure(fontsize = 30, size = (800, 600) .* 2)
-        ax  = Axis(fig[1, 1], title = "Visco-elasto-viscoplastic model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
+#     function figure()
+#         SecYear = 3600 * 24 * 365.25
+#         fig = Figure(fontsize = 30, size = (800, 600) .* 2)
+#         ax  = Axis(fig[1, 1], title = "Visco-elasto-viscoplastic model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
 
-        lines!(ax, t_v / SecYear / 1.0e3, τ_an / 1.0e6, color=:black, label = "visco-elasto-plastic analytical")
-        scatter!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6,  color=:red, label = "numerical")
+#         lines!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6,  color=:red, label = "numerical")
 
-        axislegend(ax, position = :rb)
-        ax.xlabel = L"$t$ [kyr]"
-        ax.ylabel = L"$\tau$ [MPa]"
-        display(fig)
-    end
-    with_theme(figure, theme_latexfonts())
-end
+#         axislegend(ax, position = :rb)
+#         ax.xlabel = L"$t$ [kyr]"
+#         ax.ylabel = L"$\tau$ [MPa]"
+#         display(fig)
+#     end
+#     with_theme(figure, theme_latexfonts())
+# end
 
 
