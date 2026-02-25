@@ -10,30 +10,30 @@ analytical_solution(ϵ, t, G, η) = 2 * ϵ * η * (1 - exp(-G * t / η))
     
 second_invariant(ε) = sqrt((ε[1]^2+ε[2]^2)/2 + ε[3]^2)
 
-function stress_time(c, ε, vars, x; ntime = 200, dt = 1.0e8)
+function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
     # Extract elastic stresses/pressure from solution vector
     τ1   = zeros(ntime)
     τ_an = zeros(ntime)
     t_v  = zeros(ntime)
-    τe   = (0e0,), (0e0,), (0e0,)
+    τe   = ((0e0, 0e0, 0e0),)
     P_e  = (0.0,)
     t    = 0.0
-    εII  = second_invariant(ε)
+    εII  = second_invariant(vars.ε)
     for i in 2:ntime
-        others = (; dt = dt, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
-        x   = solve(c, x, ε, τe, vars, others, verbose = false)
+        others = (; dt = dt, τ0 = τe, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
+        x   = solve(c, x, vars, others, verbose = false)
         τII = x[1]
-        ε_corr = effective_strain_rate_correction(c, ε, τe, others)
-        εeff = ε .+ ε_corr
+        ε_corr = effective_strain_rate_correction(c, vars.ε, τe, others)
+        εeff = vars.ε .+ ε_corr
         εII_eff = second_invariant(εeff)
         η   = τII / (2 * εII_eff)
 
         # @show x, ε_corr, τe
         τxx, τyy, τxy   = @. 2 * εeff * η 
-        # τxx_e = compute_stress_elastic(c, SA[τxx], merge(others, (; τ0 = τe[1])))
-        # τyy_e = compute_stress_elastic(c, SA[τyy], merge(others, (; τ0 = τe[2])))
-        # τxy_e = compute_stress_elastic(c, SA[τxy], merge(others, (; τ0 = τe[3])))
-        τe    = (τxx...,), (τyy...,), (τxy...,)
+        τxx_e = compute_stress_elastic(c, SA[τxx], merge(others, (; τ0 = τe[1])))
+        τyy_e = compute_stress_elastic(c, SA[τyy], merge(others, (; τ0 = τe[2])))
+        τxy_e = compute_stress_elastic(c, SA[τxy], merge(others, (; τ0 = τe[3])))
+        τe    = ((τxx, τyy, τxy),)
     
         τ1[i] = τII
         t += others.dt
@@ -44,7 +44,7 @@ function stress_time(c, ε, vars, x; ntime = 200, dt = 1.0e8)
     return t_v, τ1, τ_an
 end
 
-c, x, ε, τ0, vars, args, others = let
+c, x, vars, args, others = let
 
     viscous = LinearViscosity(1e22)
     elastic = IncompressibleElasticity(10e9)
@@ -54,15 +54,15 @@ c, x, ε, τ0, vars, args, others = let
 
     c      = SeriesModel(viscous, elastic)
     
-    ε      = 1.0e-14, -1.0e-14, 0e0
-    τ0     = (0e0,), (0e0,), (0e0,)
-    vars   = (; θ = 1.0e-20)  # input variables (constant)
+    εᵢⱼ    = 1.0e-14, -1.0e-14, 0e0
+    τ0ᵢⱼ   = ((0e0, 0e0, 0e0), )
+    vars   = (; ε = εᵢⱼ, θ = 1.0e-20)  # input variables (constant)
     args   = (; τ = 2.0e6, P = 1.0e6)      # guess variables (we solve for these, differentiable)
-    others = (; dt = 1.0e10, P0 = (0.0, )) # other non-differentiable variables needed to evaluate the state functions
+    others = (; dt = 1.0e10, τ0 = τ0ᵢⱼ, P0 = (0.0, )) # other non-differentiable variables needed to evaluate the state functions
 
-    x = initial_guess_x(c, vars, args, others) .* 1e6 
+    x = initial_guess_x(c, vars, args, others)
 
-    c, x, ε, τ0, vars, args, others
+    c, x, vars, args, others
 end
 
 let
@@ -73,7 +73,7 @@ let
 
         it = 4
         # for it in eachindex(dt)
-            t_v, τ, τ_an = stress_time(c, ε, vars, x; ntime = Int64(nt[it]), dt = dt[it])
+            t_v, τ, τ_an = stress_time(c, vars, x; ntime = Int64(nt[it]), dt = dt[it])
             ϵ[it] = maximum(abs.(τ .- τ_an))
 
             # Order
@@ -156,3 +156,35 @@ end
 # d = a+b 
 # d == residual1[1]
 # d - εII
+# τe = ((0e0,0e0,0e0),)
+# effective_strain_rate_correction(c, ε, τe, others)
+
+# effective_strain_rate_correction(c, ε, τe, others)
+
+# effective_strain_rate_correction(c.leafs, c.branches, ε, τe, others)
+
+@inline tensor2invariant(A::NTuple{N, Real}) where N = RC.second_invariant(A...)
+@generated function tensor2invariant(A::NTuple{N1, NTuple{N2, Real}}) where {N1, N2} 
+    quote 
+        @inline
+        Base.@ntuple $N1 i -> tensor2invariant(A[i])
+    end
+end
+@inline tensor2invariant(a::Number) = a
+
+function tensor2invariant(x::NamedTuple)
+    k = keys(x)
+    v = values(x)
+    invariants = ntuple(Val(length(k))) do i
+        @inline 
+        tensor2invariant(v[i])
+    end
+    (; zip(k, invariants)...)
+end
+
+tensor2invariant(x)
+
+@b tensor2invariant($x)
+@code_warntype tensor2invariant(x)
+
+x = (; a=(1,2,3), b=((4,5,6), (7,8,9)), c=1)
