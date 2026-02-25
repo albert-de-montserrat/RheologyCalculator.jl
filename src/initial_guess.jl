@@ -56,7 +56,8 @@ estimate_initial_value(eq::CompositeEquation, vars, args, others) = _estimate_in
             args_local = extract_local_kwargs(others, keys_hist, el_number[i])
             args_combined = merge(args, args_local, vars)
             fn_c = counterpart(fn)
-            val = fn_c(rheology[i], args_combined)
+            args_invariant = tensor2invariant(args_combined)
+            val = fn_c(rheology[i], args_invariant)
             # harmonic mean
             sum_vals += iszero(val) ? zero(val) : inv(val)
         end
@@ -73,8 +74,28 @@ end
             args_local = extract_local_kwargs(others, keys_hist, el_number[i])
             args_combined = merge(args, args_local, vars)
             fn_c = counterpart(fn)
-            sum_vals += fn_c(rheology[i], args_combined)
+            args_invariant = tensor2invariant(args_combined)
+            sum_vals += fn_c(rheology[i], args_invariant)
         end
         return sum_vals
     end
+end
+
+@inline tensor2invariant(A::NTuple{N, Real}) where N = second_invariant(A...)
+@generated function tensor2invariant(A::NTuple{N1, NTuple{N2, Real}}) where {N1, N2} 
+    quote 
+        @inline
+        Base.@ntuple $N1 i -> tensor2invariant(A[i])
+    end
+end
+@inline tensor2invariant(a::Number) = a
+
+function tensor2invariant(x::NamedTuple)
+    k = keys(x)
+    v = values(x)
+    invariants = ntuple(Val(length(k))) do i
+        @inline 
+        tensor2invariant(v[i])
+    end
+    (; zip(k, invariants)...)
 end

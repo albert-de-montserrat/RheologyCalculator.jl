@@ -1,30 +1,35 @@
 @inline second_invariant(xx, yy, xy) = √((xx^2 + yy^2) / 2 +  xy^2)
 @inline second_invariant(xx, yy, zz, yz, xz, xy) = √(0.5 * (xx^2 + yy^2 + zz^2) + xy^2 + yz^2 + xz^2)
 
-effective_strain_rate_correction(c::SeriesModel, ε::NTuple{N}, τ0::NTuple{N}, others) where N = effective_strain_rate_correction(iselastic(c), c, ε, τ0, others)
+effective_strain_rate_correction(c::SeriesModel, ε::NTuple, τ0::NTuple, others) = effective_strain_rate_correction(iselastic(c), c, ε, τ0, others)
 
-@generated function effective_strain_rate_correction(::Val{true}, c::SeriesModel, ε::NTuple{N}, τ0::NTuple{N}, others) where N
-    quote
-        @inline 
-        Base.@ntuple $N i -> effective_strain_rate_correction(c, ε[i], τ0[i], others)
-    end
+# @generated function effective_strain_rate_correction(::Val{true}, c::SeriesModel, ε::NTuple, τ0::NTuple{N}, others) where N
+#     quote
+#         @inline 
+#         Base.@ntuple $N i -> effective_strain_rate_correction(c, ε, τ0[i], others)
+#     end
+# end
+function effective_strain_rate_correction(::Val{true}, c::SeriesModel, ε::NTuple, τ0::NTuple, others) where N
+    effective_strain_rate_correction(c.leafs, c.branches, ε, τ0, others)
 end
 
 @inline effective_strain_rate_correction(::Val{false}, c::SeriesModel, ε::NTuple{N, T}, τ0::NTuple{N}, others) where {N,T} = zero(T)
 
-@inline effective_strain_rate_correction(c::SeriesModel, ε::Number, τ0, others) = effective_strain_rate_correction(c.leafs, c.branches, ε, τ0, others)
+@inline effective_strain_rate_correction(c::SeriesModel, ε, τ0, others) = effective_strain_rate_correction(c.leafs, c.branches, ε, τ0, others)
 
-@generated function effective_strain_rate_correction(leafs::NTuple{N, Any}, ::Tuple{}, ε, τ0, others) where {N}
+@generated function effective_strain_rate_correction(leafs::NTuple{N, Any}, ::Tuple{}, ε, τ0::NTuple{Nτ}, others) where {N, Nτ}
     quote
         @inline
         i = 0
-        ε_elastic_cor = zero(eltype(ε))
+        ε_elastic_cor = ε .* 0
         Base.@nexprs $N j -> begin
             i = update_correction_index(leafs[j], i)
-            # η = compute_viscosity(leafs[j], merge((; ε), others))
-            ε_elastic_cor += effective_strain_rate_correction(leafs[j], ε, τ0, others, i)
+            if i > 0
+                # η = compute_viscosity(leafs[j], merge((; ε), others))
+                ε_elastic_cor = ε_elastic_cor .+ effective_strain_rate_correction(leafs[j], ε, τ0[i], others, i)
+            end
         end
-    
+        
         return ε_elastic_cor
     end
 end
@@ -34,7 +39,7 @@ end
 
 @inline function effective_strain_rate_correction(::Val{true}, c::AbstractRheology, ε, τ0, others, I)
     η = compute_viscosity(c, merge((; ε), others))
-    correction = τ0[I] / (2 * η)
+    correction = @. τ0 / (2 * η)
     return correction
 end
 
