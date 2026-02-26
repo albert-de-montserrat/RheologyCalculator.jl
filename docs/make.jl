@@ -9,8 +9,10 @@ makedocs(;
     format   = Documenter.HTML(; prettyurls=get(ENV, "CI", nothing) == "true"), # easier local build
     warnonly = Documenter.except(:footnote),
     pages    = [
-        "Home" => "index.md",
-        "Rheology" => "rheology.md",
+        "Home"                  => "index.md",
+        "Composite models"      => "composites.md",
+        "Rheology"    => "rheology.md",
+        "Usage examples"        => "stress.md",
     ],
 )
 
