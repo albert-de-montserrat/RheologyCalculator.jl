@@ -41,9 +41,9 @@ elastic1 = IncompressibleElasticity(1.0e10)
 elastic2 = IncompressibleElasticity(1.0e10)
 
 c, x, vars, args, others = let
-    #         parallel        -      parallel
-    #            |                      |
-    #   elastic --- viscous    elastic --- viscous
+    #         parallel               parallel
+    #            |           -           |
+    #   elastic --- viscous     elastic --- viscous
 
     p1 = ParallelModel(viscous1, elastic1)
     p2 = ParallelModel(viscous2, elastic2)
@@ -60,13 +60,13 @@ end
 
 # Burgers model, numerics
 t_v, τ1, τ2, P1, P2, x1 = stress_time(c, vars, x; ntime = 25, dt = 1.0e9);
-t_anal, τ1_anal, τ2_anal = simulate_series_Burgers_model(G1, η1, G2, η2, vars.ε, t_v[end], (t_v[2] - t_v[1]) / 10);
+#t_anal, τ1_anal, τ2_anal = simulate_series_Burgers_model(G1, η1, G2, η2, vars.ε, t_v[end], (t_v[2] - t_v[1]) / 10);
 
 SecYear = 3600 * 24 * 365.25
 fig = Figure(fontsize = 30, size = (800, 600))
 ax = Axis(fig[1, 1], title = "Burgers model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
 
-lines!(ax, t_anal / SecYear / 1.0e3, τ1_anal / 1.0e6, label = "analytical", linewidth = 5, color = :black)
+#lines!(ax, t_anal / SecYear / 1.0e3, τ1_anal / 1.0e6, label = "analytical", linewidth = 5, color = :black)
 scatter!(ax, t_v / SecYear / 1.0e3, τ1 / 1.0e6, label = "numerical", color = :red, markersize = 15)
 #scatter!(ax,t_v/SecYear/1e3,τ2/1e6, label="τ2")
 

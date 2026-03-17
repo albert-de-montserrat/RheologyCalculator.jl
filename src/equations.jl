@@ -350,8 +350,6 @@ end
             name = keys(args_template[i])
             merge(NamedTuple{name}(x[i]), others)
         end
-        # args_merged = merge(args...)
-        # Base.@ntuple $N i -> args_merged
 
         Base.@ntuple $N i -> begin
             diffs = Base.@ntuple $N j -> begin
@@ -388,7 +386,6 @@ Base.@propagate_inbounds @inline _extract_local_kwargs(vals_args::Tuple, name, k
 @inline _extract_local_kwargs(vals_args, ::Any, ::Any, ::Any) = vals_args
 
 @inline ismember(name::Symbol, keys_hist::NTuple{N, Symbol}) where {N} = name in keys_hist
-
 
 # @inline evaluate_state_functions(eqs::NTuple{N, CompositeEquation}, args) where N = promote(ntuple(i -> evaluate_state_function(eqs[i], args[i]), Val(N))...)
 @generated function evaluate_state_functions(eqs::NTuple{N, CompositeEquation}, args, others) where {N}
@@ -444,10 +441,8 @@ add_child(::SVector{N, T}, ::CompositeEquation{A, B, typeof(compute_lambda_paral
 add_child(::SVector{N, T}, ::CompositeEquation{A, B, typeof(compute_plastic_strain_rate)}, eq_ind) where {N, A, B, T} = zero(T)
 # add_child(::SVector{Any, T}, ::CompositeEquation{Any, Any, typeof(compute_plastic_strain_rate)}, eq_ind) where T = zero(T)
 
-
 add_child(::SVector, ::Tuple{}) = 0.0e0
 add_child(::SVector, ::NTuple{N, CompositeEquation}, ::Tuple{}) where {N} = 0.0e0
-
 
 # if global, subtract the variables
 @generated function subtract_parent(residual::NTuple{N, Any}, x, eqs::NTuple{N, CompositeEquation}, vars) where {N}
@@ -468,7 +463,7 @@ end
 subtract_parent(residual::Number, x::SVector, eq::CompositeEquation, vars) = residual - subtract_parent(x, eq, vars)
 
 function compute_residual(c, x::SVector{N, T}, vars, others) where {N, T}
-
+    "hop"
     eqs = generate_equations(c)
     @assert length(eqs) == length(x)
     args_all = generate_args_template(eqs, x, others)
@@ -489,8 +484,8 @@ function compute_residual(c, x::SVector{N, T}, vars, others, ::Int64, ::Int64) w
     # evaluates the self-components of the residual
     eq = first(eqs)
     residual = evaluate_state_function(eq, args_all, others)
-    residual = add_children(residual1, x, eq)
-    residual = subtract_parent(residual2, x, eq, vars)
+    residual = add_children(residual, x, eq)
+    residual = subtract_parent(residual, x, eq, vars)
 
     return residual
 end

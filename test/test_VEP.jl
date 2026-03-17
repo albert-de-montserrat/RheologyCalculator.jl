@@ -18,7 +18,7 @@ using LinearAlgebra
         for i in 2:ntime
             others = (; dt = dt, τ0 = τ_e, P = others.P, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
 
-            x       = solve(c, x, vars, others, verbose = false, xnorm=xnorm)
+            x       = solve(c, x, vars, others, verbose = false, xnorm0=xnorm,  elastic_correction=false)
             τ1[i]   = x[1]
             t      += others.dt
             τ_an[i] = analytical_solution(vars.ε, t, c.leafs[2].G, c.leafs[1].η, c.leafs[3].C, c.leafs[3].ϕ, others.P)

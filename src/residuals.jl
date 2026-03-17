@@ -1,5 +1,4 @@
 function compute_residual(c, x::SVector{N, T}, vars, others) where {N, T}
-
     eqs = generate_equations(c)
     @assert length(eqs) == length(x)
     args_all = generate_args_template(eqs, x, others)

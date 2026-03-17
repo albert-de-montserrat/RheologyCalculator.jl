@@ -1,11 +1,3 @@
-# using LinearAlgebra
-# using StaticArrays
-# using ForwardDiff
-# using DifferentiationInterface
-
-# abstract type AbstractRheology end
-# abstract type AbstractPlasticity <: AbstractRheology end # in case we need spacilization at some point
-
 abstract type AbstractCompositeModel  end
 
 @inline series_state_functions(::AbstractCompositeModel) = ()
@@ -14,6 +6,10 @@ abstract type AbstractCompositeModel  end
 struct CompositeModel{Nstrain, Nstress, T} <: AbstractCompositeModel
     components::T
 end
+
+hasbranches(c::AbstractCompositeModel) = hasbranches(c.branches)
+hasbranches(::Tuple{}) = Val(false)
+hasbranches(::T) where T = Val(true)
 
 struct SeriesModel{L, B} <: AbstractCompositeModel # not 100% about the subtyping here, lets see
     leafs::L     # horizontal stacking
@@ -113,8 +109,15 @@ end
     end
 end
 
-@inline series_state_functions(c::NTuple{N, ParallelModel}) where {N} = series_state_functions(first(c))..., series_state_functions(Base.tail(c))...
-@inline series_state_functions(c::Tuple{}) = (compute_strain_rate,)
+# @inline series_state_functions(c::NTuple{N, ParallelModel}) where {N} = series_state_functions(first(c))..., series_state_functions(Base.tail(c))...
+@generated function series_state_functions(funs::NTuple{N, Any}) where {N}
+    return quote
+        @inline
+        f = Base.@ntuple $N i -> series_state_functions(@inbounds(funs[i]))
+        Base.IteratorsMD.flatten(f)
+    end
+end
+@inline series_state_functions(::Tuple{}) = (compute_strain_rate,)
 
 # @inline series_state_functions(c::ParallelModel)                      = flatten_repeated_functions(parallel_state_functions(c.leafs))
 @inline series_state_functions(c::ParallelModel) = flatten_repeated_functions(series_state_functions(c.leafs))

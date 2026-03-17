@@ -26,9 +26,9 @@ p1 = ParallelModel(viscous1, elastic1)
          1 / (2η1) 1              0      0
         -1         2η1 + 2G1*dt   0      0
          0         0              0      1
-         0         0             -1     -K1*dt
+         0         0             -1.0   -K1*dt
     ]
-    @test J === J_sym
+    @test all(J - J_sym .== 0)
 end
 
 @testset "Symbolic Jacobian 2" begin
@@ -49,7 +49,7 @@ end
         0             0            -1  0 -K1*dt      0
         0             0            -1  0      0 -K2*dt
     ]
-    @test J === J_sym
+    @test all(J - J_sym .== 0)
 end
 
 @testset "Symbolic Jacobian 3" begin
@@ -68,5 +68,5 @@ end
                            0             0   1 / (-K1*dt)       1
                            0             0            -1   -K2*dt
     ]
-    @test J === J_sym
+    @test all(J - J_sym .== 0)
 end
