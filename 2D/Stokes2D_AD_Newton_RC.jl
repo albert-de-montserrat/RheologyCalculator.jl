@@ -3,6 +3,47 @@ using ForwardDiff, GLMakie, SparseArrays, LinearAlgebra
 using SparsityTracing, SparseDiffTools
 using Test
 
+
+# This routine calls local routines to update deviatoric stress components
+function update_stress(εij, P, phase)
+    εII = sqrt(0.5*(εij[1]^2 + εij[2]^2) + εij[3].^2)     # 2nd invariant strainrate tensor
+
+    # to be replaced with RC
+    η   = eta_eff_c(εII, phase)
+    τij = 2η.*εij
+    return τij, η
+end
+
+# the rheology routine
+function power_law_upper_lower_bounded(εII; A=1.0, n=4.5, η_min=1e-3, η_max=1e3)
+    # power law with upper and lower bounds
+    η_pl = A^(-1/n) * εII^((1-n)/n) 
+    η_eff = η_min + inv(inv(η_pl) + inv(η_max))
+    
+    τII = 2*η_eff*εII
+
+    return τII
+end
+
+function eta_eff_c(εII, phase)
+    if phase == 1
+        τII = power_law_upper_lower_bounded(εII, n=1)
+    else
+        τII = power_law_upper_lower_bounded(εII, A=0.001, n=1)
+    end
+
+    ηc = τII./(2*εII .+ eps()) # effective viscosity at the center, eps() is added to avoid division by zero
+    return ηc
+end
+
+function eta_eff_c(εII::AbstractArray, phase_c::AbstractArray)
+    ηc = zero(εII)
+    for I in eachindex(εII)
+        ηc[I] = eta_eff_c(εII[I], phase_c[I])
+    end
+    return ηc
+end
+
 # Compute strainrate in an allocation free manner
 function compute_strainrate!(Exx::Array{_T,2},Ezz::Array{_T,2},Exz::Array{_T,2}, Vx::Array{_T,2},Vz::Array{_T,2}, Δx, Δz) where _T
     diff!(Exx, Vx, Δx, 1)       #Exx .= diff(Vx,dims=1)./Δx;    
@@ -65,46 +106,6 @@ Essentially does `diff_a .= diff(a[1], dims=dims[1])./Δ[1] + diff(a[2], dims=di
     return body
 end
 
-function power_law_upper_lower_bounded(εII; A=1.0, n=4.5, η_min=1e-3, η_max=1e3)
-    # power law with upper and lower bounds
-    η_pl = A^(-1/n) * εII^((1-n)/n) 
-    η_eff = η_min + inv(inv(η_pl) + inv(η_max))
-    
-    τII = 2*η_eff*εII
-
-    return τII
-end
-
-# This routine calls local routines to update deviatoric stress components
-function update_stress(εij, P, phase)
-    εII = sqrt(0.5*(εij[1]^2 + εij[2]^2) + εij[3].^2)     # 2nd invariant strainrate tensor
-
-    # to be replaced with RC
-    η   = eta_eff_c(εII, phase)
-    τij = 2η.*εij
-    return τij, η
-end
-
-# the rheology routine
-function eta_eff_c(εII, phase)
-    if phase == 1
-        τII = power_law_upper_lower_bounded(εII, n=1)
-    else
-        τII = power_law_upper_lower_bounded(εII, A=0.001, n=1)
-    end
-
-    ηc = τII./(2*εII .+ eps()) # effective viscosity at the center, eps() is added to avoid division by zero
-    return ηc
-end
-
-function eta_eff_c(εII::AbstractArray, phase_c::AbstractArray)
-    ηc = zero(εII)
-    for I in eachindex(εII)
-        ηc[I] = eta_eff_c(εII[I], phase_c[I])
-    end
-    return ηc
-end
-
 function vertex2center!(center::Array{_T,2}, vertex::Array{_T,2}) where _T
     for I in CartesianIndices(center)
        center[I] =  0.25*(vertex[I[1]+1,I[2]+1] + vertex[I[1]  ,I[2]+1] + vertex[I[1]+1,I[2]  ] + vertex[I[1]  ,I[2]  ])
@@ -129,7 +130,7 @@ function second_invariant!(E2nd, Exx, Ezz, Exz2)
 end
 
 # Update stress and pressure
-function compute_dev_stress_pressure!(P,Txx,Tzz,Txz,Exx,Ezz,Exz, phase_c, ηc) 
+function compute_dev_stress_pressure!(P,Txx,Tzz,Txz,Exx,Ezz,Exz, phase_c, ηc, τij_old) 
     # Warning: when we deal with VE materials, this must be updated!
     
     # square of the second invariant of the strainrate tensor @ center
@@ -158,7 +159,7 @@ function compute_dev_stress_pressure!(P,Txx,Tzz,Txz,Exx,Ezz,Exz, phase_c, ηc)
     return nothing
 end
 
-function compute_residual!(rMass, rVx, rVz, Vx, Vz, P, phase_c, ρc, g, x, z, Δx, Δz, γ, BC)
+function compute_residual!(rMass, rVx, rVz, Vx, Vz, P, phase_c, ρc, g, x, z, Δx, Δz, γ, τij_old, BC)
     nx, nz = size(P)
 
     ηc  = zeros(eltype(P), nx, nz)
@@ -170,7 +171,7 @@ function compute_residual!(rMass, rVx, rVz, Vx, Vz, P, phase_c, ρc, g, x, z, Δ
     Txz = zeros(eltype(P), nx+1, nz+1)
     
     compute_strainrate!(Exx,Ezz,Exz, Vx,Vz, Δx,Δz)
-    compute_dev_stress_pressure!(P, Txx,Tzz,Txz,Exx,Ezz,Exz, phase_c, ηc)
+    compute_dev_stress_pressure!(P, Txx,Tzz,Txz,Exx,Ezz,Exz, phase_c, ηc, τij_old)
 
     # Mass conservation residual
     for I in eachindex(rMass)
@@ -203,14 +204,14 @@ function compute_residual!(rMass, rVx, rVz, Vx, Vz, P, phase_c, ρc, g, x, z, Δ
 end
 
 # residual routine but in vector format (for use with ForwardDiff)
-function residual_vec!(R, X, phase_c, ρc, g, x, z, Δx, Δz, γ, BC)
+function residual_vec!(R, X, phase_c, ρc, g, x, z, Δx, Δz, γ, τij_old,BC)
     nx, nz  = size(phase_c)
     Vx,Vz,P = sol_to_VxVzP(X, nx, nz)
 
     rVx = zeros(eltype(X), nx+1, nz)
     rVz = zeros(eltype(X), nx, nz+1)
     rP  = zeros(eltype(X), nx, nz)
-    compute_residual!(rP, rVx, rVz, Vx, Vz, P, phase_c, ρc, g, x, z, Δx, Δz, γ, BC)
+    compute_residual!(rP, rVx, rVz, Vx, Vz, P, phase_c, ρc, g, x, z, Δx, Δz, γ, τij_old, BC)
     
     R .= vcat(rVx[:], rVz[:], rP[:])
     return nothing
@@ -246,7 +247,7 @@ end
     Js, coloring = stokes_solver_sparsity(ρc, phase_c, nx, nz, g, Δx, Δz, γ)
 Returns the sparsity pattern of the Jacobian matrix for the 2D Stokes solver. This can be used to optimize the storage and computational efficiency of the Jacobian in the Newton solver.
 """
-function stokes_solver_sparsity(ρc, phase_c, nx, nz, g, x, z, γ, BC)
+function stokes_solver_sparsity(ρc, phase_c, nx, nz, g, x, z, γ, τij_old, BC)
     Δx, Δz  = x[2]-x[1], z[2]-z[1]
  
     # Solution vector
@@ -261,7 +262,7 @@ function stokes_solver_sparsity(ρc, phase_c, nx, nz, g, x, z, γ, BC)
     dR      = similar(X_ad)
 
     # call residual routine 
-    residual_vec!(dR, X_ad, phase_c, ρc, g, x, z, Δx, Δz, γ, BC)
+    residual_vec!(dR, X_ad, phase_c, ρc, g, x, z, Δx, Δz, γ, τij_old, BC)
 
     # Sparsity
     Js      = SparsityTracing.jacobian(dR, length(dR))
@@ -274,14 +275,14 @@ end
 
 
 """
-    sol =  stokes_solver_2D(ρc, ηc, ηv, nx, nz, g, Δx, Δz, γ; atol=1e-10, rtol=1e-7, max_it=1500, Js=nothing)
+    sol =  stokes_solver_2D(ρc, ηc, ηv, nx, nz, g, Δx, Δz, γ, τij_old, BC; atol=1e-10, rtol=1e-7, max_it=1500, Js=nothing)
 
 2D nonlinear stokes solver using AD & Newton iterations.
 You can optionally provide the sparsity pattern of the Jacobian matrix (Js) along with its coloring to speed up the AD computations. 
 If not provided, the Jacobian will be computed as a dense matrix, which can be computationally expensive for large systems.
 
 """
-function stokes_solver_2D(ρc, phase_c, nx, nz, g, x, z, γ, BC; atol=1e-10, rtol=1e-7, max_it=1500, Js=nothing, coloring=nothing)
+function stokes_solver_2D(ρc, phase_c, nx, nz, g, x, z, γ, τij_old, BC; atol=1e-10, rtol=1e-7, max_it=1500, Js=nothing, coloring=nothing)
     Δx, Δz  = x[2]-x[1], z[2]-z[1]
 
     # Solution vector
@@ -296,7 +297,7 @@ function stokes_solver_2D(ρc, phase_c, nx, nz, g, x, z, γ, BC; atol=1e-10, rto
     R  = zeros(n)
 
     # create an anonymous function to work with ForwardDiff
-    res! = (R,X) -> residual_vec!(R, X, phase_c, ρc, g, x, z, Δx, Δz, γ, BC)
+    res! = (R,X) -> residual_vec!(R, X, phase_c, ρc, g, x, z, Δx, Δz, γ, τij_old, BC)
 
     # preallocate Jacobian if possible
     if Js==nothing
@@ -357,7 +358,7 @@ function stokes_solver_2D(ρc, phase_c, nx, nz, g, x, z, γ, BC; atol=1e-10, rto
     Tii = zeros(eltype(P), nx, nz)
     ηc  = zeros(nx,nz)
     Txz = zeros(eltype(P), nx+1, nz+1)
-    compute_dev_stress_pressure!(P, Txx,Tzz,Txz,Exx,Ezz,Exz, phase_c, ηc)
+    compute_dev_stress_pressure!(P, Txx,Tzz,Txz,Exx,Ezz,Exz, phase_c, ηc, τij_old)
     Txz2_c  = zero(Txx)
     vertex2center!(Txz2_c, Txz.*Txz)            # interpolate from vertex -> center
     second_invariant!(Tii, Txx, Tzz, Txz2_c)    # 2nd invariant
@@ -395,9 +396,16 @@ g       = -1.0
 set_initial_anomaly!(ρc,      xc, zc,  2.0)
 set_initial_anomaly!(phase_c, xc, zc,  2)
 
-Js, coloring = stokes_solver_sparsity(ρc, phase_c, nx, nz, g, x, z, γ, BC)
+# set old stresses
+Txx_old = zeros(nx  ,nz  )
+Tzz_old = zeros(nx  ,nz  )
+Txz_old = zeros(nx+1,nz+1)
+τij_old = (Txx_old, Tzz_old, Txz_old)
 
-sol = stokes_solver_2D(ρc, phase_c, nx, nz, g, x, z, γ, BC; Js=Js, coloring=coloring)
+Js, coloring = stokes_solver_sparsity(ρc, phase_c, nx, nz, g, x, z, γ, τij_old, BC)
+
+sol = stokes_solver_2D(ρc, phase_c, nx, nz, g, x, z, γ, τij_old, BC; Js=Js, coloring=coloring)
+
 
 
 
