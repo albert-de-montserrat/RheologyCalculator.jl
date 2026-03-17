@@ -463,7 +463,7 @@ end
 subtract_parent(residual::Number, x::SVector, eq::CompositeEquation, vars) = residual - subtract_parent(x, eq, vars)
 
 function compute_residual(c, x::SVector{N, T}, vars, others) where {N, T}
-
+    "hop"
     eqs = generate_equations(c)
     @assert length(eqs) == length(x)
     args_all = generate_args_template(eqs, x, others)
@@ -484,8 +484,8 @@ function compute_residual(c, x::SVector{N, T}, vars, others, ::Int64, ::Int64) w
     # evaluates the self-components of the residual
     eq = first(eqs)
     residual = evaluate_state_function(eq, args_all, others)
-    residual = add_children(residual1, x, eq)
-    residual = subtract_parent(residual2, x, eq, vars)
+    residual = add_children(residual, x, eq)
+    residual = subtract_parent(residual, x, eq, vars)
 
     return residual
 end

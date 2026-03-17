@@ -35,16 +35,22 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
         τxy_e = compute_stress_elastic(c, SA[τxy], merge(others, (; τ0 = τe[3])))
         τe    = ((τxx, τyy, τxy),)
     
-        τ1[i] = τII
+        #τ1[i] = τII
+        τ1[i] = x[1]
+        
         t += others.dt
-        τ_an[i] = analytical_solution(εII, t, c.leafs[2].G, c.leafs[1].η)
+        τ_an[i] = analytical_solution(εII_1, t, c.leafs[2].G, c.leafs[1].η)
         t_v[i] = t
+        #error("stop")
+        #@show τII, εII, t   
     end
 
     return t_v, τ1, τ_an
 end
 
 c, x, vars, args, others = let
+
+c, x, τ0, vars, args, others = let
 
     viscous = LinearViscosity(1e22)
     elastic = IncompressibleElasticity(10e9)
@@ -64,6 +70,16 @@ c, x, vars, args, others = let
 
     c, x, vars, args, others
 end
+
+t_v, τ, τ_an = stress_time(c, vars, x; ntime = 1000, dt = 1e10)
+
+fig,ax,li = lines(t_v, τ_an/1e6)
+scatter!(t_v, τ/1e6)
+
+
+display(fig)
+
+#=
 
 let
     function figure()
