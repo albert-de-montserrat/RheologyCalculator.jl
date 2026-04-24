@@ -2,7 +2,7 @@ using LinearAlgebra, Statistics, StaticArrays
 
 include("../rheologies/Hyperbolic.jl")
 
-@testset "Hyperbolic   " begin
+# @testset "Hyperbolic   " begin
     function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1.0e8)
         # Extract elastic stresses/pressure from solution vector
         τ1      = zeros(ntime)
@@ -17,7 +17,8 @@ include("../rheologies/Hyperbolic.jl")
         for i in 2:ntime
             others = (; dt = dt, τ0 = τ_e, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
             
-            x = RheologyCalculator.solve(c, x, vars, others, verbose = false, xnorm0=xnorm, elastic_correction=false)
+            x = RheologyCalculator.solve(c, x, vars, others, verbose = false, xnorm0=xnorm)
+            # x = RheologyCalculator.solve(c, x, vars, others, verbose = false, xnorm0=xnorm, elastic_correction=false)
             
             t += others.dt
             
@@ -75,4 +76,4 @@ include("../rheologies/Hyperbolic.jl")
     @test any(!isnan, τ)
     @test any(!isnan, P)
 
-end
+# end

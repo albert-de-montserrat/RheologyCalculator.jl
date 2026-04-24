@@ -463,7 +463,7 @@ end
 subtract_parent(residual::Number, x::SVector, eq::CompositeEquation, vars) = residual - subtract_parent(x, eq, vars)
 
 function compute_residual(c, x::SVector{N, T}, vars, others) where {N, T}
-    "hop"
+
     eqs = generate_equations(c)
     @assert length(eqs) == length(x)
     args_all = generate_args_template(eqs, x, others)

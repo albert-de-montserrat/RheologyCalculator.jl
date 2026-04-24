@@ -52,7 +52,7 @@ Optional parameters:
 # end
 
 # multidimensional solve with strain rate correction
-function solve(c::AbstractCompositeModel, x::SVector, vars0, others; xnorm0=nothing, atol::Float64 = 1.0e-9, rtol::Float64 = 1.0e-9, itermax = 1.0e4, verbose::Bool = false)
+function solve(c::AbstractCompositeModel, x::SVector, vars0, others; xnorm0=nothing, atol::Float64 = 1.0e-12, rtol::Float64 = 1.0e-12, itermax = 1.0e4, verbose::Bool = false)
    
     ε_corr = effective_strain_rate_correction(c, vars0.ε, others.τ0, others)
     ε_eff = vars0.ε .+ ε_corr
