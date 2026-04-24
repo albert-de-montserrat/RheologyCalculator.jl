@@ -1,16 +1,47 @@
+"""
+    AbstractCompositeModel
+
+Root type for composite rheology containers. A composite separates direct
+`leafs` from nested `branches` so equation generation can traverse mixed series
+and parallel networks.
+"""
 abstract type AbstractCompositeModel  end
 
 @inline series_state_functions(::AbstractCompositeModel) = ()
 @inline parallel_state_functions(::AbstractCompositeModel) = ()
 
+"""
+    CompositeModel{Nstrain,Nstress,T}
+
+Generic composite wrapper for future or experimental composite representations.
+Most user-facing models are currently built with `SeriesModel` and
+`ParallelModel`.
+"""
 struct CompositeModel{Nstrain, Nstress, T} <: AbstractCompositeModel
     components::T
 end
 
+"""
+    hasbranches(c)
+
+Return `Val(true)` when a composite has nested branch models and `Val(false)`
+when its branch tuple is empty.
+"""
 hasbranches(c::AbstractCompositeModel) = hasbranches(c.branches)
 hasbranches(::Tuple{}) = Val(false)
 hasbranches(::T) where T = Val(true)
 
+"""
+    SeriesModel(elements...)
+
+Build a series composite. Direct rheology elements are stored in `leafs`; nested
+`ParallelModel`s are stored in `branches` and traversed as branch equations.
+
+# Example
+```julia
+c = SeriesModel(LinearViscosity(1e22), IncompressibleElasticity(1e10))
+```
+"""
 struct SeriesModel{L, B} <: AbstractCompositeModel # not 100% about the subtyping here, lets see
     leafs::L     # horizontal stacking
     branches::B  # vertical stacking
@@ -48,6 +79,17 @@ end
     end
 end
 
+"""
+    ParallelModel(elements...)
+
+Build a parallel composite. Direct rheology elements are stored in `leafs`;
+nested `SeriesModel`s are stored in `branches`.
+
+# Example
+```julia
+c = ParallelModel(LinearViscosity(1e22), LinearViscosity(1e21))
+```
+"""
 struct ParallelModel{L, B} <: AbstractCompositeModel # not 100% about the subtyping here, lets see
     leafs::L     # horizontal stacking
     branches::B  # vertical stacking
@@ -127,6 +169,13 @@ end
 # # DEAL FIRST WITH THE SERIES PART
 # #######################################################################
 
+"""
+    global_series_functions(c::SeriesModel)
+
+Return the unique global state functions that a series composite must satisfy.
+For a pure deviatoric series model this is typically `compute_strain_rate`; for
+volumetric models it may also include `compute_volumetric_strain_rate`.
+"""
 @inline function global_series_functions(c::SeriesModel)
     fn_leafs = series_state_functions(c.leafs) |> flatten_repeated_functions |> global_series_state_functions
     fn_branches = series_state_functions(c.branches) |> flatten_repeated_functions |> global_series_state_functions
@@ -137,6 +186,12 @@ end
 @inline global_parallel_functions(c::SeriesModel) = ntuple(i -> parallel_state_functions(c.branches[i].leafs) |> flatten_repeated_functions |> global_parallel_state_functions, Val(count_parallel_elements(c)))
 # @inline local_parallel_functions(c::SeriesModel)  = ntuple(i-> parallel_state_functions(c.branches[i].branches) |> flatten_repeated_functions |> local_parallel_state_functions, Val(count_parallel_elements(c)))
 
+"""
+    local_parallel_functions(c::SeriesModel)
+
+Return the local state-function groups needed by parallel branches nested inside
+the series composite `c`.
+"""
 @inline function local_parallel_functions(c::SeriesModel)
     Np = count_parallel_elements(c)
     return ntuple(Val(Np)) do i

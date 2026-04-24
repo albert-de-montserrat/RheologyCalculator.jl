@@ -110,4 +110,4 @@ ax.ylabel = L"\tau [MPa]"
 display(fig)
 ```
 
-![](../assets/Burgers_model.png)
+![](https://raw.githubusercontent.com/albert-de-montserrat/RheologyCalculator.jl/main/docs/assets/Burgers_model.png)

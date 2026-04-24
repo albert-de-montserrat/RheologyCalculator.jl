@@ -27,5 +27,17 @@ for fn in fns_state
     @eval @inline $fn(r::AbstractRheology, kwargs::NamedTuple) = $fn(r; kwargs...)
 end
 
+for fn in fns_state
+    @eval @doc """
+        $($fn)(r; kwargs...)
+        $($fn)(r, kwargs::NamedTuple)
+
+    State-function interface for rheology elements. Concrete rheologies extend
+    the keyword form, for example `compute_stress(r; ε, kwargs...)`; the
+    `NamedTuple` wrapper is used by the equation evaluator. The fallback for
+    `AbstractRheology` returns zero.
+    """ $fn
+end
+
 # NOTE: for user defined new functions, add the template below to the appropriate rheology type file (e.g., RheologyDefinitions.jl)
 # compute_variable(r::AbstractRheology, kwargs::NamedTuple) = compute_variable(r; kwargs...)

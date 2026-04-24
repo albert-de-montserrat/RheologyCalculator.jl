@@ -1,6 +1,20 @@
+"""
+    second_invariant(xx, yy, xy)
+    second_invariant(xx, yy, zz, yz, xz, xy)
+
+Return the second invariant of a 2D or 3D symmetric deviatoric tensor stored in
+Voigt-like component order.
+"""
 @inline second_invariant(xx, yy, xy) = √((xx^2 + yy^2) / 2 +  xy^2)
 @inline second_invariant(xx, yy, zz, yz, xz, xy) = √(0.5 * (xx^2 + yy^2 + zz^2) + xy^2 + yz^2 + xz^2)
 
+"""
+    effective_strain_rate_correction(c, ε, τ0, others)
+
+Compute the effective strain-rate correction induced by previous elastic stress
+history in composite `c`. Elastic elements contribute `τ0 / (2η)` using their
+current effective viscosity; non-elastic elements contribute zero.
+"""
 effective_strain_rate_correction(c::SeriesModel, ε::NTuple, τ0::NTuple, others) = effective_strain_rate_correction(iselastic(c), c, ε, τ0, others)
 
 # @generated function effective_strain_rate_correction(::Val{true}, c::SeriesModel, ε::NTuple, τ0::NTuple{N}, others) where N
@@ -73,7 +87,12 @@ end
     end
 end
 
-# elastic trait
+"""
+    iselastic(r)
+
+Return `Val(true)` when `r` is an elastic rheology or a composite containing an
+elastic rheology, otherwise `Val(false)`.
+"""
 @inline iselastic(r::AbstractCompositeModel) = Val(_iselastic(r))
 @inline iselastic(::AbstractElasticity)      = Val(true)
 @inline iselastic(::AbstractRheology)        = Val(false)

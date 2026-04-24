@@ -1,51 +1,74 @@
 # Rheologies
 
-## Creep laws
-### Linear viscosity
+Concrete rheology elements are regular Julia types that subtype one of the
+abstract rheology supertypes:
 
-$\tau = 2\eta\dot\varepsilon$
+```@docs
+RheologyCalculator.AbstractRheology
+RheologyCalculator.AbstractViscosity
+RheologyCalculator.AbstractElasticity
+RheologyCalculator.AbstractPlasticity
+```
+
+Each concrete element declares the state functions it contributes in series and
+parallel composition. The state-function interface is documented below and in
+[API](@ref).
+
+## Creep Laws
+
+### Linear Viscosity
 
 ```julia
 LinearViscosity(η)
 ```
 
-### Power law viscosity
+For scalar deviatoric quantities:
 
-$\tau = 2\eta\dot\varepsilon^n$
+```math
+\tau = 2\eta\dot\varepsilon
+```
+
+### Power-Law Viscosity
 
 ```julia
 PowerLawViscosity(η, n)
 ```
 
-### Diffusion Creep
+The current implementation uses:
 
-$\dot{\varepsilon} = A \tau d^{\mathrm{p}} f_\mathrm{H_2O}^r \exp\left(-\frac{E+PV}{RT}\right)$
-
-```julia
-DiffusionCreep(n, r, A, E, V, R)
+```math
+\dot\varepsilon = \frac{\tau^n}{2\eta}
 ```
 
-where 'n' is the power-law exponent,'r' is the exponent of water-fugacity,'A' is the material specific rheological parameter,'E' is the activation energy,'V' is the activation volume,'R' is the universal gas constant.
+### Diffusion Creep
+
+```julia
+DiffusionCreep(n, r, p, A, E, V, R)
+```
+
+where `n` is the stress exponent, `r` is the water-fugacity exponent, `p` is the
+grain-size exponent, `A` is the prefactor, `E` is the activation energy, `V` is
+the activation volume, and `R` is the gas constant.
 
 ### Dislocation Creep
-
-$\dot{\varepsilon} = A \tau d^{\mathrm{p}} f_\mathrm{H_2O}^r \exp\left(-\frac{E+PV}{RT}\right)$
 
 ```julia
 DislocationCreep(n, r, A, E, V, R)
 ```
 
-where 'n' is the power-law exponent,'r' is the exponent of water-fugacity,'A' is the material specific rheological parameter,'E' is the activation energy,'V' is the activation volume,'R' is the universal gas constant.
+where `n` is the stress exponent, `r` is the water-fugacity exponent, `A` is the
+prefactor, `E` is the activation energy, `V` is the activation volume, and `R`
+is the gas constant.
 
 ## Elasticity
 
-### Compressible elasticity
+### Compressible Elasticity
 
 ```julia
 Elasticity(G, K)
 ```
 
-where 'G' and 'K' are the shear and bulk modulus, respectively.
+where `G` and `K` are the shear and bulk moduli.
 
 ### Incompressible Elasticity
 
@@ -53,9 +76,16 @@ where 'G' and 'K' are the shear and bulk modulus, respectively.
 IncompressibleElasticity(G)
 ```
 
-where 'G' is the shear modulus.
+where `G` is the shear modulus.
 
-## Plastic failure
+### Bulk Elements
+
+```julia
+BulkElasticity(K)
+BulkViscosity(χ)
+```
+
+## Plastic Failure
 
 ### Drucker-Prager
 
@@ -63,11 +93,23 @@ where 'G' is the shear modulus.
 DruckerPrager(C, ϕ, ψ)
 ```
 
-where 'C' is the cohesion, and `ϕ` and `ψ` are the friction and dilation angles, respectively.
+where `C` is the cohesion, and `ϕ` and `ψ` are the friction and dilation angles.
 
+## State Functions
 
-# Others
-"""@docs
-BulkViscosity(η)
-BulkElasticity(K)
-""
+Rheologies extend these methods to participate in equation generation:
+
+```@docs
+RheologyCalculator.compute_strain_rate
+RheologyCalculator.compute_stress
+RheologyCalculator.compute_volumetric_strain_rate
+RheologyCalculator.compute_pressure
+RheologyCalculator.compute_lambda
+RheologyCalculator.compute_lambda_parallel
+RheologyCalculator.compute_plastic_strain_rate
+RheologyCalculator.compute_volumetric_plastic_strain_rate
+RheologyCalculator.compute_plastic_stress
+RheologyCalculator.compute_viscosity
+RheologyCalculator.compute_viscosity_series
+RheologyCalculator.compute_viscosity_parallel
+```
