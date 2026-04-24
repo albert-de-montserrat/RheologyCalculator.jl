@@ -6,6 +6,7 @@ import Statistics: mean
 using StaticArrays
 
 include("../rheologies/RheologyDefinitions.jl")
+include("tensor_helpers.jl")
 
 analytical_solution(ϵ, t, G, η) = 2 * ϵ * η * (1 - exp(-G * t / η))
 
@@ -14,17 +15,18 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
     τ1   = zeros(ntime)
     τ_an = zeros(ntime)
     t_v  = zeros(ntime)
-    τ_e  = (0.0,)
+    τ_e  = (zero_stress_tensor_2D(),)
     P_e  = (0.0,)
     t   = 0.0
+    εII = second_invariant_2D(vars.ε)
     for i in 2:ntime
         others = (; dt = dt, τ0 = τ_e, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
 
         x = solve(c, x, vars, others, verbose = false)
         τ1[i] = x[1]
         t += others.dt
-        τ_an[i] = analytical_solution(vars.ε, t, c.leafs[2].G, c.leafs[1].η)
-        τ_e = compute_stress_elastic(c, x, others)
+        τ_an[i] = analytical_solution(εII, t, c.leafs[2].G, c.leafs[1].η)
+        τ_e = elastic_stress_history_2D(c, x[1], vars.ε, τ_e, others)
     
         t_v[i] = t
     end
@@ -37,24 +39,17 @@ function stress_time_tensor(c, vars, x; ntime = 200, dt = 1.0e8)
     τ1   = zeros(ntime)
     τ_an = zeros(ntime)
     t_v  = zeros(ntime)
-    τ_e  = (0.0, 0.0, 0.0)
-    τ    = MVector(x...)
-    P_e  = 0.0
+    τ_e  = (zero_stress_tensor_2D(),)
+    P_e  = (0.0,)
     t    = 0.0
-    εII  = √((vars.ε[1]^2 + vars.ε[2]^2)/2 + vars.ε[3]^2) 
+    εII  = second_invariant_2D(vars.ε)
     for i in 2:ntime
-
-        τ_e = ntuple(Val(3)) do j
-            others = (; dt = dt, τ0 = τ_e[j], P0 = P_e)              # other non-differentiable variables needed to evaluate the state functions
-            vars2  = (; ε = vars.ε[j], θ = 1.0e-20)                  # input variables (constant)
-            # args2   = (; τ = τ[i], P = 1.0e6)                      # guess variables (we solve for these, differentiable)
-        
-            τ[j] = solve(c, SA[τ[j]], vars2, others, verbose = false)[1]
-            compute_stress_elastic(c, SA[τ[j]], others)[1]
-        end
+        others = (; dt = dt, τ0 = τ_e, P0 = P_e)
+        x = solve(c, x, vars, others, verbose = false)
+        τ_e = elastic_stress_history_2D(c, x[1], vars.ε, τ_e, others)
         t += others.dt
         
-        τ1[i] = √((τ[1]^2 + τ[2]^2)/2 + τ[3]^2)
+        τ1[i] = x[1]
 
         # τ_an[i] = analytical_solution(vars.ε[1], t, c.leafs[2].G, c.leafs[1].η)
         τ_an[i] = analytical_solution(εII, t, c.leafs[2].G, c.leafs[1].η)
@@ -74,20 +69,14 @@ c, x, vars, args, others = let
 
     c  = SeriesModel(viscous, elastic)
 
-    ε      = 1.0e-14, -1.0e-14, 0e0
-    τ      = 2e3, -2e3, 0e0
-    τ0     = 2e3, -2e3, 0e0
-    x = ntuple(Val(3)) do i
-        vars   = (; ε = ε[i], θ = 1.0e-20)                    # input variables (constant)
-        args   = (; τ = τ[i], P = 1.0e6)                      # guess variables (we solve for these, differentiable)
-        others = (; dt = 1.0e10, τ0 = (τ0[i],), P0 = (0.0, )) # other non-differentiable variables needed to evaluate the state functions
-        initial_guess_x(c, vars, args, others)[1]
-    end
-    vars   = (; ε = ε, θ = 1.0e-20)                    # input variables (constant)
-    args   = (; τ = τ, P = 1.0e6)                      # guess variables (we solve for these, differentiable)
-    others = (; dt = 1.0e10, τ0 = (τ0,), P0 = (0.0, )) # other non-differentiable variables needed to evaluate the state functions
+    εᵢⱼ    = 1.0e-14, -1.0e-14, 0e0
+    τ0ᵢⱼ   = ((2e3, -2e3, 0e0),)
+    vars   = (; ε = εᵢⱼ, θ = 1.0e-20)                    # input variables (constant)
+    args   = (; τ = 2e3, P = 1.0e6)                      # guess variables (we solve for these, differentiable)
+    others = (; dt = 1.0e10, τ0 = τ0ᵢⱼ, P0 = (0.0, )) # other non-differentiable variables needed to evaluate the state functions
+    x = initial_guess_x(c, vars, args, others)
     
-    c, SVector(x...), vars, args, others
+    c, x, vars, args, others
 end
 
 let

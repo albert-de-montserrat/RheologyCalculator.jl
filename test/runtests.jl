@@ -3,6 +3,7 @@ import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 import RheologyCalculator: compute_residual
 
 include("../rheologies/RheologyDefinitions.jl")
+include("../examples/tensor_helpers.jl")
 
 function runtests()
     files = readdir(@__DIR__)

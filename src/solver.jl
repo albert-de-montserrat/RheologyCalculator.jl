@@ -65,7 +65,7 @@ function solve(c::AbstractCompositeModel, x::SVector, vars0, others; xnorm0=noth
    
     ε_corr = effective_strain_rate_correction(c, vars0.ε, others.τ0, others)
     ε_eff = vars0.ε .+ ε_corr
-    εII   = second_invariant(ε_eff...)
+    εII   = second_invariant_value(ε_eff)
     
     # NOTE: be careful with the order of variables here
     # as the effective strain rate IS ALWAYS THE FIRST
@@ -96,10 +96,10 @@ function solve(c::AbstractCompositeModel, x::SVector, vars0, others; xnorm0=noth
 
         it > itermax && break
 
-        ε_corr = effective_strain_rate_correction(c, vars.ε, others.τ0, others)
-        ε_eff  = vars.ε .+ ε_corr
-        εII    = second_invariant(ε_eff...)
-        vars   = merge(vars, (; ε = εII))
+        ε_corr = effective_strain_rate_correction(c, vars0.ε, others.τ0, others)
+        ε_eff  = vars0.ε .+ ε_corr
+        εII    = second_invariant_value(ε_eff)
+        vars   = merge(vars0, (; ε = εII))
         
     end
     if verbose

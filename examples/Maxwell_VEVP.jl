@@ -4,20 +4,21 @@ using StaticArrays
 using GLMakie
 
 include("../rheologies/RheologyDefinitions.jl")
+include("tensor_helpers.jl")
 
 function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1.0e8)
     # Extract elastic stresses/pressure from solutio vector
     τ1   = zeros(ntime)
     t_v = zeros(ntime)
-    τ_e = (0.0,)
+    τ_e = (zero_stress_tensor_2D(),)
     P_e = (0.0,)
     t = 0.0
     for i in 2:ntime
         others   = (; dt = dt, τ0 = τ_e, P0 = P_e)      
-        x        = solve(c, x, vars, others, verbose = true, xnorm=xnorm)
+        x        = solve(c, x, vars, others, verbose = true, xnorm0=xnorm)
         τ1[i]    = x[1]
         t       += others.dt
-        τ_e      = x[1] 
+        τ_e      = elastic_stress_history_2D(c, x[1], vars.ε, τ_e, others)
     
         t_v[i] = t
     end
@@ -35,15 +36,17 @@ end
     c  = SeriesModel(viscous, elastic, p)
 
     # input variables (constant)
-    vars   = (; ε = 1.0e-14, θ = 0e0)
+    εᵢⱼ    = tensor_strain_rate_2D(1.0e-14)
+    τ0ᵢⱼ   = (zero_stress_tensor_2D(),)
+    vars   = (; ε = εᵢⱼ, θ = 0e0)
     # guess variables (we solve for these, differentiable)
     args   = (; τ = 2.0e3, λ = 0,  P = 1.0e6)
     # other non-differentiable variables needed to evaluate the state functions
-    others = (; dt = 1.0e8, τ0 = (0e0, ), P0 = (0.0, ))
+    others = (; dt = 1.0e8, τ0 = τ0ᵢⱼ, P0 = (0.0, ))
 
     x      = initial_guess_x(c, vars, args, others)
     char_τ = 1e6
-    char_ε = vars.ε 
+    char_ε = second_invariant_2D(vars.ε)
     xnorm  = normalisation_x(c, char_τ, char_ε)
 
     c, x, xnorm, vars, args, others
@@ -77,5 +80,4 @@ end
 #     end
 #     with_theme(figure, theme_latexfonts())
 # end
-
 

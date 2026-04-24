@@ -7,6 +7,7 @@ using StaticArrays
 
 include("../rheologies/RheologyDefinitions.jl")
 include("../rheologies/Golchin.jl")
+include("tensor_helpers.jl")
 
 function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1.0e8)
     # Extract elastic stresses/pressure from solution vector
@@ -17,22 +18,22 @@ function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1.0e8)
     
     mode2   = zeros(ntime)
     t_v     = zeros(ntime)
-    τ_e     = (0.0,)
+    τ_e     = (zero_stress_tensor_2D(),)
     P_e     = (0.0e6,)
     P1[1]   = P_e[1]
-    τ1[1]   = τ_e[1]
+    τ1[1]   = second_invariant_2D(τ_e[1])
     x       = SA[τ1[1],0, P1[1]]
     t       = 0.0
     for i in 2:ntime
         others = (; dt = dt, τ0 = τ_e, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
         
-        x = RheologyCalculator.solve(c, x, vars, others, verbose = true, xnorm=xnorm)
+        x = RheologyCalculator.solve(c, x, vars, others, verbose = true, xnorm0=xnorm)
         
         t += others.dt
         
-        τ_e = compute_stress_elastic(c, x, others)
+        τ_e = elastic_stress_history_2D(c, x[1], vars.ε, τ_e, others)
         P_e = compute_pressure_elastic(c, x, others)
-        τ1[i] = τ_e[1]
+        τ1[i] = second_invariant_2D(τ_e[1])
         P1[i] = P_e[1]
         F1[i] = compute_F(c.leafs[end], τ1[i], P1[i])   
 
@@ -52,15 +53,15 @@ c, x, xnorm, vars, args, others = let
     c  = SeriesModel(viscous, elastic, plastic)
 
     # input variables (constant)
-    vars = (; ε = 0*7.0e-14, θ = 7.0e-15)
+    vars = vars_2D(0*7.0e-14, 7.0e-15)
     # guess variables (we solve for these, differentiable)
     args = (; τ = 0.0e3, P = 0.3e6, λ = 0)
     # other non-differentiable variables needed to evaluate the state functions
-    others = (; dt = 1.0e5, τ0 = (0e0, ), P0 = (0.3e6, ))
+    others = (; dt = 1.0e5, τ0 = (zero_stress_tensor_2D(),), P0 = (0.3e6, ))
 
     x       = initial_guess_x(c, vars, args, others)
     char_τ  = 1e25 # Issue with scaling
-    char_ε  = abs(vars.ε)+abs(vars.θ)
+    char_ε  = second_invariant_2D(vars.ε) + abs(vars.θ)
     xnorm   = normalisation_x(c, char_τ, char_ε)
 
     c, x, xnorm, vars, args, others
@@ -85,12 +86,12 @@ function figure()
     ax4 = Axis(fig[2,2], title="Stress paths",               xlabel=L"$P$ [MPa]", ylabel=L"$\tau_{II}$ [MPa]",      xlabelsize=20, ylabelsize=20)
 
     SecYear = 3600 * 24 * 365.25
-    t_v1, τ1, P1, F1, mode2_1 = stress_time(c, (; ε = 0*7.0e-14, θ =   7.0e-15), x, xnorm, others; ntime = 11, dt = SecYear*2)
+    t_v1, τ1, P1, F1, mode2_1 = stress_time(c, vars_2D(0*7.0e-14, 7.0e-15), x, xnorm, others; ntime = 11, dt = SecYear*2)
     @show F1
     println("-------")
-    t_v2, τ2, P2, F2, mode2_2 = stress_time(c, (; ε =   0*7.0e-14, θ = -7.0e-15), x, xnorm, others; ntime = 1300, dt = 1e8)
+    t_v2, τ2, P2, F2, mode2_2 = stress_time(c, vars_2D(0*7.0e-14, -7.0e-15), x, xnorm, others; ntime = 1300, dt = 1e8)
     println("-------")
-    t_v3, τ3, P3, F3, mode2_3 = stress_time(c, (; ε =   7.0e-14, θ =   -4.0e-15), x, xnorm, others; ntime = 700, dt = 1e8)
+    t_v3, τ3, P3, F3, mode2_3 = stress_time(c, vars_2D(7.0e-14, -4.0e-15), x, xnorm, others; ntime = 700, dt = 1e8)
     println("-------")
 
     lines!(ax1, t_v1 / SecYear , P1 / 1.0e6, color=:red, label = L"$P$")

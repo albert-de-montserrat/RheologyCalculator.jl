@@ -2,6 +2,7 @@ using ForwardDiff, RheologyCalculator
 import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 
 include("../rheologies/RheologyDefinitions.jl")
+include("tensor_helpers.jl")
 
 using GLMakie
 
@@ -12,7 +13,7 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
     P1 = zeros(ntime)
     P2 = zeros(ntime)
     t_v = zeros(ntime)
-    τ_e = (0.0, 0.0)
+    τ_e = (zero_stress_tensor_2D(), zero_stress_tensor_2D())
     P_e = (0.0, 0.0)
     t = 0.0
     for i in 2:ntime
@@ -20,13 +21,13 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
         others = (; dt = dt, τ0 = τ_e, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
 
         x = solve(c, x, vars, others)
-        τ_e = compute_stress_elastic(c, x, others)
+        τ_e = elastic_stress_history_2D(c, x, vars.ε, τ_e, others)
         P_e = compute_pressure_elastic(c, x, others)
 
-        @inbounds τ1[i] = τ_e[1]
+        @inbounds τ1[i] = second_invariant_2D(τ_e[1])
         @inbounds P1[i] = P_e[1]
         # if length(τ_e) > 1
-            @inbounds τ2[i] = τ_e[2]
+            @inbounds τ2[i] = second_invariant_2D(τ_e[2])
             @inbounds P2[i] = P_e[2]
         # end
         t += others.dt
@@ -72,9 +73,9 @@ c, x, vars, args, others = let
     viscous3 = LinearViscosity(1.0e21)
     c = SeriesModel(viscous3, elastic1, p)
 
-    vars = (; ε = 1.0e-15, θ = 1.0e-20)         # input variables (constant)
+    vars = vars_2D(1.0e-15, 1.0e-20)         # input variables (constant)
     args = (; τ = 2.0e3, P = 1.0e6)             # guess variables (we solve for these, differentiable)
-    others = (; dt = 1.0e10, τ0 = (1.0, 2.0), P0 = (0.0, 0.1))       # other non-differentiable variables needed to evaluate the state functions
+    others = (; dt = 1.0e10, τ0 = (stress_tensor_from_invariant_2D(1.0, vars.ε), stress_tensor_from_invariant_2D(2.0, vars.ε)), P0 = (0.0, 0.1))       # other non-differentiable variables needed to evaluate the state functions
 
     x = initial_guess_x(c, vars, args, others)
 
@@ -100,7 +101,7 @@ let
         for it in eachindex(dt)
             # Burgers model, numerics
             t_v, τ1, τ2, P1, P2, x1 = stress_time(c, vars, x; ntime = Int64(nt[it]), dt = dt[it]);
-            t_anal, τ1_anal, τ2_anal = simulate_series_Burgers_model(G1, η1, G2, η2, vars.ε, Int64(nt[it]),  dt[it]);
+            t_anal, τ1_anal, τ2_anal = simulate_series_Burgers_model(G1, η1, G2, η2, second_invariant_2D(vars.ε), Int64(nt[it]),  dt[it]);
             ϵ[it] = maximum(abs.(τ1 .- τ1_anal))
 
             # Order
@@ -129,4 +130,3 @@ let
     end
     with_theme(figure, theme_latexfonts())
 end
-

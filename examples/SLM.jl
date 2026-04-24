@@ -3,6 +3,7 @@ import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 
 using GLMakie
 include("../rheologies/RheologyDefinitions.jl")
+include("tensor_helpers.jl")
 
 function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
     # Extract elastic stresses/pressure from solutio vector
@@ -11,7 +12,7 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
     # P1 = zeros(ntime)
     # P2 = zeros(ntime)
     t_v = zeros(ntime)
-    τ_e = (0.0, 0.0)
+    τ_e = (zero_stress_tensor_2D(), zero_stress_tensor_2D())
     P_e = (0.0, 0.0)
     t = 0.0
     for i in 2:ntime
@@ -21,7 +22,7 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
         x = solve(c, x, vars, others, verbose = false)
         τ1[i] = x[1]
 
-        τ_e = compute_stress_elastic(c, x, others)
+        τ_e = elastic_stress_history_2D(c, x, vars.ε, τ_e, others)
         P_e = compute_pressure_elastic(c, x, others)
 
         # τ1[i] = τ_e[1]
@@ -54,9 +55,9 @@ c, x, vars, args, others = let
     p  = ParallelModel(c0, elastic0)
     c  = SeriesModel(p)
 
-    vars = (; ε = 1.0e-15, θ = 1.0e-20)         # input variables (constant)
+    vars = vars_2D(1.0e-15, 1.0e-20)         # input variables (constant)
     args = (; τ = 2.0e3, P = 1.0e6)             # guess variables (we solve for these, differentiable)
-    others = (; dt = 1.0e10, τ0 = (1.0, 2.0), P0 = (0.0, 0.1))       # other non-differentiable variables needed to evaluate the state functions
+    others = (; dt = 1.0e10, τ0 = (stress_tensor_from_invariant_2D(1.0, vars.ε), stress_tensor_from_invariant_2D(2.0, vars.ε)), P0 = (0.0, 0.1))       # other non-differentiable variables needed to evaluate the state functions
 
     x = initial_guess_x(c, vars, args, others)
 
