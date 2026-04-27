@@ -12,6 +12,7 @@ import RheologyCalculator: _isvolumetric
 @inline stress_history_invariant(τ0::Number) = τ0
 @inline stress_history_invariant(τ0::NTuple{3, Any}) = sqrt((τ0[1]^2 + τ0[2]^2) / 2 + τ0[3]^2)
 @inline stress_history_invariant(τ0::NTuple{6, Any}) = sqrt(0.5 * (τ0[1]^2 + τ0[2]^2 + τ0[3]^2) + τ0[4]^2 + τ0[5]^2 + τ0[6]^2)
+@inline signed_power(x, n) = sign(x) * abs(x)^n
 
 # Linear Viscosity ---------------------------------------------------
 """
@@ -322,19 +323,19 @@ DiffusionCreep(args...) = DiffusionCreep(args[1], promote(args[2:end]...)...)
 @inline series_state_functions(::DiffusionCreep) = (compute_strain_rate,)
 @inline parallel_state_functions(::DiffusionCreep) = (compute_stress,)
 
-@inline function compute_strain_rate(r::DiffusionCreep; τ = 0, T = 0, P = 0, f = 0, args...)
+@inline function compute_strain_rate(r::DiffusionCreep; τ = 0, T = 0, P = 0, f = 1, d = 1, args...)
     (; n, r, p, A, E, V, R) = r
 
-    ε = A * TauII ^n * exp(-(E + P * V) / (R * T))
+    ε = A * signed_power(τ, n) * f^r * d^(-p) * exp(-(E + P * V) / (R * T))
     return ε
 end
 
-@inline function compute_stress(r::DiffusionCreep; ε = 0, T = 0, P = 0, f = 0, args...)
-    (; n, r, A, E, V, R) = r
+@inline function compute_stress(r::DiffusionCreep; ε = 0, T = 0, P = 0, f = 1, d = 1, args...)
+    (; n, r, p, A, E, V, R) = r
 
     _n = inv(n)
 
-    τ = A^(-_n) * ε * f^(-r * _n) * exp((E + P * V) / (n * R * T))
+    τ = A^(-_n) * signed_power(ε, _n) * f^(-r * _n) * d^(p * _n) * exp((E + P * V) / (n * R * T))
 
     return τ
 end
