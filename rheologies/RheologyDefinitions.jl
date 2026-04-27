@@ -289,6 +289,7 @@ end
 end
 
 @inline compute_plastic_stress(r::DruckerPrager; τ_pl = 0, kwargs...) = τ_pl
+@inline compute_stress(r::DruckerPrager; τ_pl = 0, kwargs...) = τ_pl
 
 @inline compute_viscosity(r::DruckerPrager; kwargs...)   = Inf
 @inline compute_viscosity_series(r::DruckerPrager; kwargs...)   = Inf

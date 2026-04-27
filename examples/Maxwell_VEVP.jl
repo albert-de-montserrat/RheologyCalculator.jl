@@ -25,11 +25,12 @@ function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1.0e8)
     return t_v, τ1
 end
 
-# c, x, xnorm, vars, args, others = let
+c, x, xnorm, vars, args, others, yield_stress = let
     viscous     = LinearViscosity(1e22)
     viscous_reg = LinearViscosity(1e20)
-    elastic     = Elasticity(10e9, 20e9)
-    plastic     = DruckerPrager(10e6, 0, 0)
+    # elastic     = Elasticity(10e9, 20e9)
+    elastic     = IncompressibleElasticity(10e9)
+    plastic     = DruckerPrager(10e6, 5, 0)
 
     # Maxwell visco-elasto-(visco-plastic) model
     p  = ParallelModel(plastic, viscous_reg)
@@ -49,35 +50,83 @@ end
     char_ε = second_invariant_2D(vars.ε)
     xnorm  = normalisation_x(c, char_τ, char_ε)
 
-    c, x, xnorm, vars, args, others
-# end
+    yield_stress = args.P * plastic.sinϕ + plastic.C * plastic.cosϕ
 
-eqs = RheologyCalculator.generate_equations(c)
-for eq in eqs
-    println(
-      "
-      self = $(eq.self)
-      fn   = $(eq.fn)
-      "
-    )
+    c, x, xnorm, vars, args, others, yield_stress
 end
 
-
-# let
-#     t_v, τ = stress_time(c, vars, x, xnorm, others; ntime = 1_500, dt = 1e8)
-
-#     function figure()
-#         SecYear = 3600 * 24 * 365.25
-#         fig = Figure(fontsize = 30, size = (800, 600) .* 2)
-#         ax  = Axis(fig[1, 1], title = "Visco-elasto-viscoplastic model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
-
-#         lines!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6,  color=:red, label = "numerical")
-
-#         axislegend(ax, position = :rb)
-#         ax.xlabel = L"$t$ [kyr]"
-#         ax.ylabel = L"$\tau$ [MPa]"
-#         display(fig)
-#     end
-#     with_theme(figure, theme_latexfonts())
+# eqs = RheologyCalculator.generate_equations(c)
+# for eq in eqs
+#     println(
+#       "
+#       self = $(eq.self)
+#       fn   = $(eq.fn)
+#       "
+#     )
 # end
 
+let
+    t_v, τ = stress_time(c, vars, x, xnorm, others; ntime = 1_500, dt = 1e8)
+    darkmode = true
+
+    function figure(; darkmode = false)
+        SecYear = 3600 * 24 * 365.25
+        fig = Figure(fontsize = 30, size = (800, 600) .* 2)
+        ax  = Axis(fig[1, 1], title = "Visco-elasto-viscoplastic model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
+        if darkmode
+            ax.xgridvisible = true
+            ax.ygridvisible = true
+            ax.xgridcolor = RGBAf(1, 1, 1, 1)
+            ax.ygridcolor = RGBAf(1, 1, 1, 1)
+            ax.xgridwidth = 8
+            ax.ygridwidth = 8
+        end
+
+        linecolor = darkmode ? :tomato : :red
+        lines!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6, color = linecolor, label = "numerical", linewidth=5)
+        hlines!(ax, yield_stress / 1.0e6, color = darkmode ? :cyan : :black, linestyle = :dash, linewidth = 5, label = "yield stress ($(round(yield_stress / 1.0e6, digits = 2)) MPa)")
+
+        axislegend(ax, position = :rb)
+        ax.xlabel = L"$t$ [kyr]"
+        ax.ylabel = L"$\tau$ [MPa]"
+        display(fig)
+    end
+    dark_latex_theme = merge(
+        theme_dark(),
+        theme_latexfonts(),
+        Theme(;
+            textcolor = :white,
+            Axis = (;
+                titlecolor = :white,
+                xlabelcolor = :white,
+                ylabelcolor = :white,
+                xticklabelcolor = :white,
+                yticklabelcolor = :white,
+                xgridvisible = true,
+                ygridvisible = true,
+                xtickcolor = :white,
+                ytickcolor = :white,
+                xgridcolor = RGBAf(1, 1, 1, 1),
+                ygridcolor = RGBAf(1, 1, 1, 1),
+                xgridwidth = 1,
+                ygridwidth = 1,
+                leftspinevisible = true,
+                rightspinevisible = true,
+                bottomspinevisible = true,
+                topspinevisible = true,
+                leftspinecolor = :white,
+                rightspinecolor = :white,
+                bottomspinecolor = :white,
+                topspinecolor = :white,
+                xticksvisible = true,
+                yticksvisible = true,
+            ),
+            Legend = (;
+                labelcolor = :white,
+                titlecolor = :white,
+            ),
+        ),
+    )
+    plot_theme = darkmode ? dark_latex_theme : theme_latexfonts()
+    with_theme(() -> figure(darkmode = darkmode), plot_theme)
+end
