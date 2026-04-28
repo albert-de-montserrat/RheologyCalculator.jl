@@ -23,7 +23,7 @@ model `c`. Internally generates the equation set from `c` and delegates to the
 function initial_guess_x(c, vars, args, others)
     eqs = generate_equations(c)
     x0 = initial_guess_x(eqs, vars, args, others)
-    return SVector{length(x0), eltype(x0)}(x0)
+    return SA[promote(x0...)...]
 end
 
 """
