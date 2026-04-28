@@ -7,7 +7,7 @@ Return `a` for a scalar invariant, or the second invariant of a 2D or 3D
 symmetric deviatoric tensor stored in Voigt-like component order.
 """
 @inline second_invariant(a::Number) = a
-@inline second_invariant(xx, yy, xy) = √((xx^2 + yy^2) / 2 +  xy^2)
+@inline second_invariant(xx, yy, xy) = √((xx^2 + yy^2 + (-xx - yy)^2) / 2 +  xy^2)
 @inline second_invariant(xx, yy, zz, yz, xz, xy) = √(0.5 * (xx^2 + yy^2 + zz^2) + xy^2 + yz^2 + xz^2)
 @inline second_invariant_value(a::Number) = second_invariant(a)
 @inline second_invariant_value(a::NTuple) = second_invariant(a...)

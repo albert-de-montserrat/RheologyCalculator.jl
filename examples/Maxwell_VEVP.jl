@@ -2,6 +2,7 @@ using RheologyCalculator
 import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 using StaticArrays
 using GLMakie
+using LaTeXStrings
 
 include("../rheologies/RheologyDefinitions.jl")
 include("tensor_helpers.jl")
@@ -29,7 +30,7 @@ c, x, xnorm, vars, args, others, yield_stress = let
     viscous     = LinearViscosity(1e22)
     viscous_reg = LinearViscosity(1e20)
     # elastic     = Elasticity(10e9, 20e9)
-    elastic     = IncompressibleElasticity(10e9)
+    elastic     = IncompressibleElasticity(30e9)
     plastic     = DruckerPrager(10e6, 5, 0)
 
     # Maxwell visco-elasto-(visco-plastic) model
@@ -71,62 +72,35 @@ let
 
     function figure(; darkmode = false)
         SecYear = 3600 * 24 * 365.25
-        fig = Figure(fontsize = 30, size = (800, 600) .* 2)
-        ax  = Axis(fig[1, 1], title = "Visco-elasto-viscoplastic model", xlabel = "t [kyr]", ylabel = L"\tau [MPa]")
+        fig = Figure(fontsize = 24, size = (1300, 850), backgroundcolor = darkmode ? :black : :white)
+        ax  = Axis(fig[1, 1],
+            title = "Visco-elasto-viscoplastic model",
+            xlabel = L"t\ [\mathrm{kyr}]",
+            ylabel = L"\tau\ [\mathrm{MPa}]",
+            backgroundcolor = darkmode ? :black : :white,
+        )
         if darkmode
-            ax.xgridvisible = true
-            ax.ygridvisible = true
-            ax.xgridcolor = RGBAf(1, 1, 1, 1)
-            ax.ygridcolor = RGBAf(1, 1, 1, 1)
-            ax.xgridwidth = 8
-            ax.ygridwidth = 8
+            ax.titlecolor = :white
+            ax.xlabelcolor = :white
+            ax.ylabelcolor = :white
+            ax.xticklabelcolor = :white
+            ax.yticklabelcolor = :white
+            ax.xgridcolor = (:white, 0.18)
+            ax.ygridcolor = (:white, 0.18)
+            ax.xminorgridcolor = (:white, 0.08)
+            ax.yminorgridcolor = (:white, 0.08)
+            ax.leftspinecolor = :white
+            ax.rightspinecolor = :white
+            ax.topspinecolor = :white
+            ax.bottomspinecolor = :white
         end
 
-        linecolor = darkmode ? :tomato : :red
-        lines!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6, color = linecolor, label = "numerical", linewidth=5)
-        hlines!(ax, yield_stress / 1.0e6, color = darkmode ? :cyan : :black, linestyle = :dash, linewidth = 5, label = "yield stress ($(round(yield_stress / 1.0e6, digits = 2)) MPa)")
+        linecolor = darkmode ? :dodgerblue3 : :red
+        lines!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6, color = linecolor, label = "numerical", linewidth = 3)
+        hlines!(ax, yield_stress / 1.0e6, color = darkmode ? :white : :black, linestyle = :dash, linewidth = 3, label = "yield stress ($(round(yield_stress / 1.0e6, digits = 2)) MPa)")
 
-        axislegend(ax, position = :rb)
-        ax.xlabel = L"$t$ [kyr]"
-        ax.ylabel = L"$\tau$ [MPa]"
+        axislegend(ax, position = :rb, backgroundcolor = darkmode ? (:black, 0.0) : :white, framecolor = darkmode ? (:white, 0.25) : :black, labelcolor = darkmode ? :white : :black)
         display(fig)
     end
-    dark_latex_theme = merge(
-        theme_dark(),
-        theme_latexfonts(),
-        Theme(;
-            textcolor = :white,
-            Axis = (;
-                titlecolor = :white,
-                xlabelcolor = :white,
-                ylabelcolor = :white,
-                xticklabelcolor = :white,
-                yticklabelcolor = :white,
-                xgridvisible = true,
-                ygridvisible = true,
-                xtickcolor = :white,
-                ytickcolor = :white,
-                xgridcolor = RGBAf(1, 1, 1, 1),
-                ygridcolor = RGBAf(1, 1, 1, 1),
-                xgridwidth = 1,
-                ygridwidth = 1,
-                leftspinevisible = true,
-                rightspinevisible = true,
-                bottomspinevisible = true,
-                topspinevisible = true,
-                leftspinecolor = :white,
-                rightspinecolor = :white,
-                bottomspinecolor = :white,
-                topspinecolor = :white,
-                xticksvisible = true,
-                yticksvisible = true,
-            ),
-            Legend = (;
-                labelcolor = :white,
-                titlecolor = :white,
-            ),
-        ),
-    )
-    plot_theme = darkmode ? dark_latex_theme : theme_latexfonts()
-    with_theme(() -> figure(darkmode = darkmode), plot_theme)
+    figure(darkmode = darkmode)
 end

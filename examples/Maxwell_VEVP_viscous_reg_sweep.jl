@@ -2,6 +2,7 @@ using RheologyCalculator
 import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 using StaticArrays
 using GLMakie
+using LaTeXStrings
 using Printf
 
 include("../rheologies/RheologyDefinitions.jl")
@@ -51,7 +52,7 @@ end
 
 function eta_label(η)
     η_string = replace(@sprintf("%.0e", η), "e+" => "e")
-    return "ηᵣ = $(η_string) Pa s"
+    return latexstring("\\eta_r = $(η_string)\\ \\mathrm{Pa\\ s}")
 end
 
 let
@@ -68,19 +69,40 @@ let
 
     function figure(; darkmode = false)
         SecYear = 3600 * 24 * 365.25
-        fig = Figure(fontsize = 30, size = (800, 600) .* 2)
-        ax = Axis(fig[1, 1], title = "Visco-elasto-viscoplastic model", xlabel = L"$t$ [kyr]", ylabel = L"$\tau$ [MPa]")
+        fig = Figure(fontsize = 24, size = (1300, 850), backgroundcolor = darkmode ? :black : :white)
+        ax = Axis(fig[1, 1],
+            title = "Visco-elasto-viscoplastic model",
+            xlabel = L"t\ [\mathrm{kyr}]",
+            ylabel = L"\tau\ [\mathrm{MPa}]",
+            backgroundcolor = darkmode ? :black : :white,
+        )
         if darkmode
-            ax.xgridvisible = true
-            ax.ygridvisible = true
-            ax.xgridcolor = RGBAf(1, 1, 1, 1)
-            ax.ygridcolor = RGBAf(1, 1, 1, 1)
-            # ax.xgridwidth = 1
-            # ax.ygridwidth = 2
-            ax.spinewidth = 3
+            ax.titlecolor = :white
+            ax.xlabelcolor = :white
+            ax.ylabelcolor = :white
+            ax.xticklabelcolor = :white
+            ax.yticklabelcolor = :white
+            ax.xgridcolor = (:white, 0.18)
+            ax.ygridcolor = (:white, 0.18)
+            ax.xminorgridcolor = (:white, 0.08)
+            ax.yminorgridcolor = (:white, 0.08)
+            ax.leftspinecolor = :white
+            ax.rightspinecolor = :white
+            ax.topspinecolor = :white
+            ax.bottomspinecolor = :white
         end
 
-        colors = darkmode ? (:tomato, :cyan, :gold, :lime, :magenta) : (:red, :blue, :orange, :green, :purple)
+        yield_stress = first(results).yield_stress
+        hlines!(
+            ax,
+            yield_stress / 1.0e6,
+            color = darkmode ? (:white, 0.72) : :black,
+            linestyle = :dash,
+            linewidth = 3,
+            label = L"\mathrm{yield\ stress}",
+        )
+
+        colors = darkmode ? ("#4CC9F0", "#F72585", "#F9C74F", "#90BE6D", "#B5179E") : (:red, :blue, :orange, :green, :purple)
         for (result, color) in zip(results, colors)
             lines!(
                 ax,
@@ -92,59 +114,11 @@ let
             )
         end
 
-        yield_stress = first(results).yield_stress
-        hlines!(
-            ax,
-            yield_stress / 1.0e6,
-            color = darkmode ? :white : :black,
-            linestyle = :dash,
-            linewidth = 5,
-            # label = "yield stress ($(round(yield_stress / 1.0e6, digits = 2)) MPa)",
-            label = "yield stress)",
-        )
-
-        Legend(fig[1, 2], ax)
-        colgap!(fig.layout, 20)
+        legend = Legend(fig[1, 2], ax, backgroundcolor = (:black, 0.0), framecolor = darkmode ? (:white, 0.25) : (:black, 0.25), labelcolor = darkmode ? :white : :black)
+        colgap!(fig.layout, 35)
         display(fig)
+        save("VEVP.png", fig)
     end
 
-    dark_latex_theme = merge(
-        theme_dark(),
-        theme_latexfonts(),
-        Theme(;
-            textcolor = :white,
-            Axis = (;
-                titlecolor = :white,
-                xlabelcolor = :white,
-                ylabelcolor = :white,
-                xticklabelcolor = :white,
-                yticklabelcolor = :white,
-                xgridvisible = true,
-                ygridvisible = true,
-                xtickcolor = :white,
-                ytickcolor = :white,
-                xgridcolor = RGBAf(1, 1, 1, 1),
-                ygridcolor = RGBAf(1, 1, 1, 1),
-                xgridwidth = 1,
-                ygridwidth = 1,
-                leftspinevisible = true,
-                rightspinevisible = true,
-                bottomspinevisible = true,
-                topspinevisible = true,
-                leftspinecolor = :white,
-                rightspinecolor = :white,
-                bottomspinecolor = :white,
-                topspinecolor = :white,
-                spinewidth = 3,
-                xticksvisible = true,
-                yticksvisible = true,
-            ),
-            Legend = (;
-                labelcolor = :white,
-                titlecolor = :white,
-            ),
-        ),
-    )
-    plot_theme = darkmode ? dark_latex_theme : theme_latexfonts()
-    with_theme(() -> figure(darkmode = true), plot_theme)
+    figure(darkmode = darkmode)
 end

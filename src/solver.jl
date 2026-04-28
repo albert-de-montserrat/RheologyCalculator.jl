@@ -69,23 +69,24 @@ function solve(c::AbstractCompositeModel, x::SVector, vars0, others; xnorm0=noth
     
     # NOTE: be careful with the order of variables here
     # as the effective strain rate IS ALWAYS THE FIRST
-    vars = merge(vars0, (; ε = εII))
+    # vars = merge(vars0, (; ε = εII))
+    vars   = (; ε = εII, θ = 0.0) # this mames it type unstable; TODO
+
     # vars = merge((; ε = εII), vars0)
-    
     xnorm = correct_xnorm(x, xnorm0)
     r     = compute_residual(c, x, vars, others)   # initial residual
-    # @show εII x r
     
     it = 0
     er = Inf
     er0 = mynorm(r, xnorm)
 
-    local α
+    # local α
     while er > atol && er > rtol * er0
         it += 1
 
         J = ForwardDiff.jacobian(y -> compute_residual(c, y, vars, others), x)
-        Δx = J \ -r
+        # Δx = J \ -r
+        Δx = backsolve(J, r)
         #α = bt_line_search_armijo(Δx, J, x, xnorm, c, vars, others, α_min = 1.0e-8, c=0.9)
         α = bt_line_search(Δx, x, c, vars, others, xnorm; α = 1.0, ρ = 0.5, lstol = 0.95, α_min = 0.1)
         x += α .* Δx
@@ -96,13 +97,13 @@ function solve(c::AbstractCompositeModel, x::SVector, vars0, others; xnorm0=noth
 
         it > itermax && break
 
-        ε_corr = effective_strain_rate_correction(c, vars0.ε, others.τ0, others)
-        ε_eff  = vars0.ε .+ ε_corr
-        εII    = second_invariant_value(ε_eff)
-        vars   = merge(vars0, (; ε = εII))
-        
+        # ε_corr = effective_strain_rate_correction(c, vars0.ε, others.τ0, others)
+        # ε_eff  = vars0.ε .+ ε_corr
+        # εII    = second_invariant_value(ε_eff)
+        # vars   = merge(vars0, (; ε = εII)) # this mames it type unstable; TODO
+
     end
-    if verbose
+    if verbose && it > 1
         println("Iterations: $it, Error: $er, α = $α")
     end
     return x
@@ -218,3 +219,7 @@ normalization factor is zero.
         return v
     end
 end
+
+@inline backsolve(J::SVector{1}, r::SVector{1})   = SA[-r[1] * inv(J[1])]
+@inline backsolve(J::SMatrix{1,1}, r::SVector{1}) = SA[-r[1] * inv(J[1])]
+@inline backsolve(J, r) = J \ -r
