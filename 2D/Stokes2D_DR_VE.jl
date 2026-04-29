@@ -113,15 +113,37 @@ function solve_stress_RC(r, εxx, εyy, εxy, τ0xx, τ0yy, τ0xy, τII, P, dt)
     ε_corr = effective_strain_rate_correction(r, εᵢⱼ, τ0ᵢⱼ, others)
     εeff   = εᵢⱼ .+ ε_corr
     εII    = second_invariant(εeff)
-    η      = τII / (2 * εII + eps())
-    # @show τII εII η
+    η      = τII / (2 * εII + eps() * iszero(εII))
     τᵢⱼ    = @. 2 * εeff * η
 
     return τII, τᵢⱼ...
 end
 
-# @b solve_stress_RC($(r, Exxv[I], Eyyv[I], Exy[I], Txxv0[I], Tyyv0[I], Txy0[I], TIIv[I], Ptv[I], Δt)...)
-# r = c[phases_v[I]]
+
+# t2, txx, tyy, txy = solve_stress_RC(c[phases_c[I]], Exx[I], Eyy[I], Exyc[I], Txx0[I], Tyy0[I], Txy0c[I], TIIc[I], Pt[I], Δt)
+# TIIc[I] #- t2
+# Txx[I]  #- txx
+# Tyy[I]  #- tyy
+# Txyc[I] #- txyc
+# ηve_c[I]
+# ηc[I]
+
+# t2, txx, tyy, txy = solve_stress_RC(c[phases_v[I]], Exxv[I], Eyyv[I], Exy[I], Txxv0[I], Tyyv0[I], Txy0[I], TIIv[I], Ptv[I], Δt)
+# TIIv[I] - t2
+# Txxv[I] - txx
+# Tyyv[I] - tyy
+# Txy[I]  - txy
+
+
+# Deviatoric stress
+# Txx   .= 2.0.*ηve_c.*(Exx  .+ Txx0 ./(2*G*Δt)) 
+# Tyy   .= 2.0.*ηve_c.*(Eyy  .+ Tyy0 ./(2*G*Δt)) 
+# Txy   .= 2.0.*ηve_v.*(Exy  .+ Txy0 ./(2*G*Δt))
+# Txxv  .= 2.0.*ηve_v.*(Exxv .+ Txxv0./(2*G*Δt))
+# Tyyv  .= 2.0.*ηve_v.*(Eyyv .+ Tyyv0./(2*G*Δt))
+# Txyc  .= 2.0.*ηve_c.*(Exyc .+ Txy0c./(2*G*Δt))
+# TIIc  .= sqrt.(0.5.*(Txx.^2  .+ Tyy.^2  .+ (.-Txx.-Tyy).^2)   .+ Txyc.^2 )
+# TIIv  .= sqrt.(0.5.*(Txxv.^2 .+ Tyyv.^2 .+ (.-Txxv.-Tyyv).^2) .+ Txy.^2 )
 
 # 2D Stokes routine
 function Stokes2D_VEP(n)
@@ -229,6 +251,16 @@ function Stokes2D_VEP(n)
     ηc_sharp = zeros(ncx  ,ncy  )
     ηv_sharp = zeros(ncx+1,ncy+1)
     P_num    = zeros(ncx  ,ncy  )
+
+    TIIc2 = similar(TIIc)
+    Txx2 = similar(Txx)
+    Tyy2 = similar(Tyy)
+    Txyc2 = similar(Txyc)
+    TIIv2 = similar(TIIv)
+    Txxv2 = similar(Txxv)
+    Tyyv2 = similar(Tyyv)
+    Txy2 = similar(Txy)
+
     # Initialisation
     xce, yce = LinRange(-Lx/2-Δx/2, Lx/2+Δx/2, ncx+2), LinRange(-Ly/2-Δy/2, Ly/2+Δy/2, ncy+2)
     xc, yc   = LinRange(-Lx/2+Δx/2, Lx/2-Δx/2, ncx), LinRange(-Ly/2+Δy/2, Ly/2-Δy/2, ncy)
@@ -250,8 +282,10 @@ function Stokes2D_VEP(n)
         ηc_sharp[(xc.-x_inc[inc]).^2 .+ (yc'.-y_inc[inc]).^2 .< r_inc[inc]^2 ] .= η_inc[inc]
     end  
     # Harmonic averaging mimicking PIC interpolation
-    ηc    .= av4_harm(ηv_sharp)
-    ηv[2:end-1,2:end-1] .= av4_harm(ηc_sharp)
+    # ηc    .= av4_harm(ηv_sharp)
+    # ηv[2:end-1,2:end-1] .= av4_harm(ηc_sharp)
+    ηc    .= ηc_sharp
+    ηv .= ηv_sharp
     ηv[1,:] .=  ηv[2,:]; ηv[end,:] .=  ηv[end-1,:]
     ηv[:,1] .=  ηv[:,2]; ηv[:,end] .=  ηv[:,end-1]
     # Effective viscosity
@@ -351,31 +385,31 @@ function Stokes2D_VEP(n)
                 TIIv[I], Txxv[I], Tyyv[I], Txy[I] = solve_stress_RC(c[phases_v[I]], Exxv[I], Eyyv[I], Exy[I], Txxv0[I], Tyyv0[I], Txy0[I], TIIv[I], Ptv[I], Δt)
             end
             # end
-            # Plasticity
-            λ̇c            .= 0.
-            λ̇v            .= 0.
-            Fc            .= TIIc .- C.*cosd(ϕ) .- Pt .*sind(ϕ)
-            Fv            .= TIIv .- C.*cosd(ϕ) .- Ptv.*sind(ϕ)
-            λ̇c[Fc.>0]     .= Fc[Fc.>0]./(ηve_c[Fc.>0] .+ ηvp .+ K.*Δt.*sind(ϕ).*sind.(ψ))      
-            λ̇v[Fv.>0]     .= Fv[Fv.>0]./(ηve_v[Fv.>0] .+ ηvp .+ K.*Δt.*sind(ϕ).*sind.(ψ))      
-            ηvep_c        .= ηve_c
-            ηvep_v        .= ηve_v
-            ηvp_c .= (TIIc.-λ̇c.*ηve_c) ./ (2 .* EIIc)
-            ηvp_v .= (TIIv.-λ̇v.*ηve_v) ./ (2 .* EIIv)
-            ηvep_c[Fc.>0] .= ηvp_c[Fc.>0]
-            ηvep_v[Fv.>0] .= ηvp_v[Fv.>0]
-            Txx   .= 2.0.*ηvep_c.*(Exx .+ Txx0./(2*G*Δt))
-            Tyy   .= 2.0.*ηvep_c.*(Eyy .+ Tyy0./(2*G*Δt))
-            Txy   .= 2.0.*ηvep_v.*(Exy .+ Txy0./(2*G*Δt))
-            Txxv  .= 2.0.*ηvep_v.*(Exxv .+ Txxv0./(2*G*Δt))
-            Tyyv  .= 2.0.*ηvep_v.*(Eyyv .+ Tyyv0./(2*G*Δt))
-            Txyc  .= 2.0.*ηvep_c.*(Exyc .+ Txy0c./(2*G*Δt))
-            ΔPψ   .= λ̇c.*sind(ψ).*K.*Δt
-            # Check
-            TIIc  .= sqrt.(0.5.*(Txx.^2  .+ Tyy.^2  .+ (.-Txx.-Tyy).^2)   .+ Txyc.^2 )
-            TIIv  .= sqrt.(0.5.*(Txxv.^2 .+ Tyyv.^2 .+ (.-Txxv.-Tyyv).^2) .+ Txy.^2 )
-            Fc    .= TIIc .- C.*cosd(ϕ) .- (Pt .+ λ̇c.*sind(ψ).*K.*Δt).*sind(ϕ)  .- ηvp.*λ̇c
-            Fv    .= TIIv .- C.*cosd(ϕ) .- (Ptv.+ λ̇v.*sind(ψ).*K.*Δt).*sind(ϕ)  .- ηvp.*λ̇v
+            # # Plasticity
+            # λ̇c            .= 0.
+            # λ̇v            .= 0.
+            # Fc            .= TIIc .- C.*cosd(ϕ) .- Pt .*sind(ϕ)
+            # Fv            .= TIIv .- C.*cosd(ϕ) .- Ptv.*sind(ϕ)
+            # λ̇c[Fc.>0]     .= Fc[Fc.>0]./(ηve_c[Fc.>0] .+ ηvp .+ K.*Δt.*sind(ϕ).*sind.(ψ))      
+            # λ̇v[Fv.>0]     .= Fv[Fv.>0]./(ηve_v[Fv.>0] .+ ηvp .+ K.*Δt.*sind(ϕ).*sind.(ψ))      
+            # ηvep_c        .= ηve_c
+            # ηvep_v        .= ηve_v
+            # ηvp_c .= (TIIc.-λ̇c.*ηve_c) ./ (2 .* EIIc)
+            # ηvp_v .= (TIIv.-λ̇v.*ηve_v) ./ (2 .* EIIv)
+            # ηvep_c[Fc.>0] .= ηvp_c[Fc.>0]
+            # ηvep_v[Fv.>0] .= ηvp_v[Fv.>0]
+            # Txx   .= 2.0.*ηvep_c.*(Exx .+ Txx0./(2*G*Δt))
+            # Tyy   .= 2.0.*ηvep_c.*(Eyy .+ Tyy0./(2*G*Δt))
+            # Txy   .= 2.0.*ηvep_v.*(Exy .+ Txy0./(2*G*Δt))
+            # Txxv  .= 2.0.*ηvep_v.*(Exxv .+ Txxv0./(2*G*Δt))
+            # Tyyv  .= 2.0.*ηvep_v.*(Eyyv .+ Tyyv0./(2*G*Δt))
+            # Txyc  .= 2.0.*ηvep_c.*(Exyc .+ Txy0c./(2*G*Δt))
+            # ΔPψ   .= λ̇c.*sind(ψ).*K.*Δt
+            # # Check
+            # TIIc  .= sqrt.(0.5.*(Txx.^2  .+ Tyy.^2  .+ (.-Txx.-Tyy).^2)   .+ Txyc.^2 )
+            # TIIv  .= sqrt.(0.5.*(Txxv.^2 .+ Tyyv.^2 .+ (.-Txxv.-Tyyv).^2) .+ Txy.^2 )
+            # Fc    .= TIIc .- C.*cosd(ϕ) .- (Pt .+ λ̇c.*sind(ψ).*K.*Δt).*sind(ϕ)  .- ηvp.*λ̇c
+            # Fv    .= TIIv .- C.*cosd(ϕ) .- (Ptv.+ λ̇v.*sind(ψ).*K.*Δt).*sind(ϕ)  .- ηvp.*λ̇v
             # Residuals
             Rx    .= (.-(Pt[2:end,:] .- Pt[1:end-1,:])./Δx .- (ΔPψ[2:end,:] .- ΔPψ[1:end-1,:])./Δx .+ (Txx[2:end,:] .- Txx[1:end-1,:])./Δx .+ (Txy[2:end-1,2:end] .- Txy[2:end-1,1:end-1])./Δy)
             Ry    .= (.-(Pt[:,2:end] .- Pt[:,1:end-1])./Δy .- (ΔPψ[:,2:end] .- ΔPψ[:,1:end-1])./Δy .+ (Tyy[:,2:end] .- Tyy[:,1:end-1])./Δy .+ (Txy[2:end,2:end-1] .- Txy[1:end-1,2:end-1])./Δx)
@@ -411,7 +445,7 @@ function Stokes2D_VEP(n)
                 Exyc  .= av(Exy)
                 EIIc  .= sqrt.(0.5.*((Exx  .+ Txx0 ./(2*G*Δt)).^2 .+ (Eyy  .+ Tyy0 ./(2*G*Δt)).^2 .+ (.-(Exx  .+ Txx0 ./(2*G*Δt)).-(Eyy  .+ Tyy0 ./(2*G*Δt))).^2) .+ (Exyc .+ Txy0c./(2*G*Δt)).^2 )
                 EIIv  .= sqrt.(0.5.*((Exxv .+ Txxv0./(2*G*Δt)).^2 .+ (Eyyv .+ Tyyv0./(2*G*Δt)).^2 .+ (.-(Exxv .+ Txxv0./(2*G*Δt)).-(Eyyv .+ Tyyv0./(2*G*Δt))).^2) .+ (Exy  .+ Txy0 ./(2*G*Δt)).^2 )
-                # # Deviatoric stress
+                # Deviatoric s/tress
                 # Txx   .= 2.0.*ηve_c.*(Exx  .+ Txx0 ./(2*G*Δt)) 
                 # Tyy   .= 2.0.*ηve_c.*(Eyy  .+ Tyy0 ./(2*G*Δt)) 
                 # Txy   .= 2.0.*ηve_v.*(Exy  .+ Txy0 ./(2*G*Δt))
@@ -424,29 +458,33 @@ function Stokes2D_VEP(n)
                     # centres
                     if all(I.I .≤ size(TIIc))
                         TIIc[I], Txx[I], Tyy[I], Txyc[I] = solve_stress_RC(c[phases_c[I]], Exx[I], Eyy[I], Exyc[I], Txx0[I], Tyy0[I], Txy0c[I], TIIc[I], Pt[I], Δt)
+                        # TIIc2[I], Txx2[I], Tyy2[I], Txyc2[I] = solve_stress_RC(c[phases_c[I]], Exx[I], Eyy[I], Exyc[I], Txx0[I], Tyy0[I], Txy0c[I], TIIc[I], Pt[I], Δt)
+                        # TIIc[I], = solve_stress_RC(c[phases_c[I]], Exx[I], Eyy[I], Exyc[I], Txx0[I], Tyy0[I], Txy0c[I], TIIc[I], Pt[I], Δt)
                     end
                     # vertices
                     TIIv[I], Txxv[I], Tyyv[I], Txy[I] = solve_stress_RC(c[phases_v[I]], Exxv[I], Eyyv[I], Exy[I], Txxv0[I], Tyyv0[I], Txy0[I], TIIv[I], Ptv[I], Δt)
+                    # TIIv2[I], Txxv2[I], Tyyv2[I], Txy2[I] = solve_stress_RC(c[phases_v[I]], Exxv[I], Eyyv[I], Exy[I], Txxv0[I], Tyyv0[I], Txy0[I], TIIv[I], Ptv[I], Δt)
+                    # TIIv[I], = solve_stress_RC(c[phases_v[I]], Exxv[I], Eyyv[I], Exy[I], Txxv0[I], Tyyv0[I], Txy0[I], TIIv[I], Ptv[I], Δt)
                 end
-                # Plasticity
-                Fc              .= TIIc .- C.*cosd(ϕ) .- Pt .*sind(ϕ)
-                Fv              .= TIIv .- C.*cosd(ϕ) .- Ptv.*sind(ϕ)
-                λ̇_true_c        .= 0.
-                λ̇_true_v        .= 0.
-                λ̇_true_c[Fc.>0] .= Fc[Fc.>0]./(ηve_c[Fc.>0] .+ ηvp .+ K.*Δt.*sind(ϕ).*sind.(ψ))      
-                λ̇_true_v[Fv.>0] .= Fv[Fv.>0]./(ηve_v[Fv.>0] .+ ηvp .+ K.*Δt.*sind(ϕ).*sind.(ψ))
-                λ̇c              .= λ̇rel*λ̇_true_c .+ (1-λ̇rel).*λ̇c
-                λ̇v              .= λ̇rel*λ̇_true_v .+ (1-λ̇rel).*λ̇v 
-                ηvep_c .= ηve_c
-                ηvep_v .= ηve_v
-                ηvp_c  .= (TIIc.-λ̇c.*ηve_c) ./ (2 .* EIIc)
-                ηvp_v  .= (TIIv.-λ̇v.*ηve_v) ./ (2 .* EIIv)
-                ηvep_c[Fc.>0] .= ηvp_c[Fc.>0]
-                ηvep_v[Fv.>0] .= ηvp_v[Fv.>0] 
-                Txx    .= 2.0.*ηvep_c.*(Exx  .+ Txx0 ./(2*G*Δt)) 
-                Tyy    .= 2.0.*ηvep_c.*(Eyy  .+ Tyy0 ./(2*G*Δt)) 
-                Txy    .= 2.0.*ηvep_v.*(Exy  .+ Txy0 ./(2*G*Δt))
-                ΔPψ    .= λ̇c.*sind(ψ).*K.*Δt
+                # # Plasticity
+                # Fc              .= TIIc .- C.*cosd(ϕ) .- Pt .*sind(ϕ)
+                # Fv              .= TIIv .- C.*cosd(ϕ) .- Ptv.*sind(ϕ)
+                # λ̇_true_c        .= 0.
+                # λ̇_true_v        .= 0.
+                # λ̇_true_c[Fc.>0] .= Fc[Fc.>0]./(ηve_c[Fc.>0] .+ ηvp .+ K.*Δt.*sind(ϕ).*sind.(ψ))      
+                # λ̇_true_v[Fv.>0] .= Fv[Fv.>0]./(ηve_v[Fv.>0] .+ ηvp .+ K.*Δt.*sind(ϕ).*sind.(ψ))
+                # λ̇c              .= λ̇rel*λ̇_true_c .+ (1-λ̇rel).*λ̇c
+                # λ̇v              .= λ̇rel*λ̇_true_v .+ (1-λ̇rel).*λ̇v 
+                # ηvep_c .= ηve_c
+                # ηvep_v .= ηve_v
+                # ηvp_c  .= (TIIc.-λ̇c.*ηve_c) ./ (2 .* EIIc)
+                # ηvp_v  .= (TIIv.-λ̇v.*ηve_v) ./ (2 .* EIIv)
+                # ηvep_c[Fc.>0] .= ηvp_c[Fc.>0]
+                # ηvep_v[Fv.>0] .= ηvp_v[Fv.>0] 
+                # Txx    .= 2.0.*ηvep_c.*(Exx  .+ Txx0 ./(2*G*Δt)) 
+                # Tyy    .= 2.0.*ηvep_c.*(Eyy  .+ Tyy0 ./(2*G*Δt)) 
+                # Txy    .= 2.0.*ηvep_v.*(Exy  .+ Txy0 ./(2*G*Δt))
+                # ΔPψ    .= λ̇c.*sind(ψ).*K.*Δt
                 # Residuals
                 P_num  .= γ_eff .* Rp
                 Rx     .= (1.0./Dx).*(.-(P_num[2:end,:] .- P_num[1:end-1,:])./Δx .- (Pt[2:end,:] .- Pt[1:end-1,:])./Δx .- (ΔPψ[2:end,:] .- ΔPψ[1:end-1,:])./Δx .+ (Txx[2:end,:] .- Txx[1:end-1,:])./Δx .+ (Txy[2:end-1,2:end] .- Txy[2:end-1,1:end-1])./Δy)

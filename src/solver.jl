@@ -69,8 +69,7 @@ function solve(c::AbstractCompositeModel, x::SVector, vars0, others; xnorm0=noth
     
     # NOTE: be careful with the order of variables here
     # as the effective strain rate IS ALWAYS THE FIRST
-    # vars = merge(vars0, (; ε = εII))
-    vars   = (; ε = εII, θ = 0.0) # this mames it type unstable; TODO
+    vars = merge(vars0, (; ε = εII))
 
     # vars = merge((; ε = εII), vars0)
     xnorm = correct_xnorm(x, xnorm0)
@@ -80,15 +79,16 @@ function solve(c::AbstractCompositeModel, x::SVector, vars0, others; xnorm0=noth
     er = Inf
     er0 = mynorm(r, xnorm)
 
-    # local α
+    α = 1e0
     while er > atol && er > rtol * er0
         it += 1
 
         J = ForwardDiff.jacobian(y -> compute_residual(c, y, vars, others), x)
-        # Δx = J \ -r
+        # r, J = value_and_jacobian(y -> compute_residual(c, y, vars, others), AutoForwardDiff(), x)
         Δx = backsolve(J, r)
-        #α = bt_line_search_armijo(Δx, J, x, xnorm, c, vars, others, α_min = 1.0e-8, c=0.9)
-        α = bt_line_search(Δx, x, c, vars, others, xnorm; α = 1.0, ρ = 0.5, lstol = 0.95, α_min = 0.1)
+        if it > 1 
+            α = bt_line_search(Δx, x, c, vars, others, xnorm; α = 1.0, ρ = 0.5, lstol = 0.95, α_min = 0.1)
+        end
         x += α .* Δx
 
         # check convergence

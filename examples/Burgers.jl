@@ -58,16 +58,17 @@ function simulate_series_Burgers_model(E1, η1, E2, η2, ε̇, N, dt)
     return t, σ, σ_spring
 end
 
-viscous1 = LinearViscosity(5.0e19)
-viscous2 = LinearViscosity(1.0e20)
-elastic = Elasticity(1.0e10, 3.0e10)
-elastic1 = Elasticity(1.0e10, 4.0e10)
 
 c, x, vars, args, others = let
+
     # Burger's model
     #      elastic - viscous -    parallel
     #                                |
     #                   elastic --- viscous
+    viscous1 = LinearViscosity(5.0e19)
+    viscous2 = LinearViscosity(1.0e20)
+    elastic = Elasticity(1.0e10, 3.0e10)
+    elastic1 = Elasticity(1.0e10, 4.0e10)
 
     p = ParallelModel(viscous2, elastic)
     viscous3 = LinearViscosity(1.0e21)
@@ -130,3 +131,26 @@ let
     end
     with_theme(figure, theme_latexfonts())
 end
+
+
+Base.@kwdef mutable struct Foo
+    type   ::Union{String, Missing}          = missing
+    nel    ::Union{Int64,  Missing}          = missing
+    nf     ::Union{Int64,  Missing}          = missing
+    nv     ::Union{Int64,  Missing}          = missing
+    nn_el  ::Union{Int64,  Missing}          = missing
+    nf_el  ::Union{Int64,  Missing}          = missing
+end
+
+a=Foo(nel=20)
+@b $a.nel
+
+function foo(x; a=1, b=2, kwargs...)
+    x + a + b
+end
+
+foo(x, kwargs) = foo(x; kwargs...)
+
+args = (; a=1, b=2, c=3)
+
+foo(1, args)

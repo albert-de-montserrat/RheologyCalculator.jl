@@ -1,6 +1,6 @@
 # Here we define individual rheological elements, which is is not part of the computational core of 
 # RheologyCalculator as it may depend on your local implementation.
-using RheologyCalculator, ForwardDiff
+using RheologyCalculator #, ForwardDiff
 
 # These functions need to be imported, as we use multiple dispatch to extend them here
 import RheologyCalculator: series_state_functions, parallel_state_functions
@@ -193,13 +193,13 @@ end
 LTPViscosity(args...) = LTPViscosity(promote(args...)...)
 @inline series_state_functions(::LTPViscosity) = (compute_strain_rate,)
 
-@inline compute_strain_rate(r::LTPViscosity; τ = 0, kwargs...) = max(r.ε0 * sinh(r.Q * (τ - r.σb) / r.σr), 0.0)
+@inline compute_strain_rate(r::LTPViscosity; τ = 0e0, kwargs...) = max(r.ε0 * sinh(r.Q * (τ - r.σb) / r.σr), 0.0)
 # @inline compute_strain_rate(r::LTPViscosity; τ = 0, kwargs...) = r.ε0 * sinh(r.Q * (τ - r.σb) / r.σr)
-@inline compute_stress(r::LTPViscosity; ε = 0, kwargs...) = r.σr / r.Q * asinh(ε / r.ε0) + r.σb
+@inline compute_stress(r::LTPViscosity; ε = 0e0, kwargs...) = r.σr / r.Q * asinh(ε / r.ε0) + r.σb
 
-@inline compute_viscosity(r::LTPViscosity; ε = 0, kwargs...)   = compute_stress(r; ε = ε, kwargs...)/(2*ε)
-@inline compute_viscosity_series(r::LTPViscosity; ε = 0, kwargs...)   = compute_stress(r; ε = ε, kwargs...)/(2*ε)
-@inline compute_viscosity_parallel(r::LTPViscosity; τ = 0, kwargs...) = τ / (2 * compute_strain_rate(r; τ = τ, kwargs...))
+@inline compute_viscosity(r::LTPViscosity; ε = 0e0, kwargs...)   = compute_stress(r; ε = ε, kwargs...)/(2*ε)
+@inline compute_viscosity_series(r::LTPViscosity; ε = 0e0, kwargs...)   = compute_stress(r; ε = ε, kwargs...)/(2*ε)
+@inline compute_viscosity_parallel(r::LTPViscosity; τ = 00e, kwargs...) = τ / (2 * compute_strain_rate(r; τ = τ, kwargs...))
 # --------------------------------------------------------------------
 
 # DruckerPrager ------------------------------------------------------
@@ -252,25 +252,26 @@ end
 @inline function compute_strain_rate(r::DruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)
     ε_pl = compute_plastic_strain_rate(r::DruckerPrager; τ_pl = τ, λ = λ, P_pl = P, kwargs...)
     F = compute_F(r, τ, P)
-    return ε_pl/2*(F > -1e-8)
+    return ε_pl/2#*(F > -1e-8)
 end
 
 @inline function compute_volumetric_strain_rate(r::DruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)
     θ_pl = compute_volumetric_plastic_strain_rate(r::DruckerPrager; τ_pl = τ, λ = λ, P_pl = P, kwargs...)
     F = compute_F(r, τ, P)
-    return -θ_pl*(F > -1e-8)
+    return -θ_pl#*(F > -1e-8)
 end
 
 @inline function compute_lambda(r::DruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)
     F = compute_F(r, τ, P)
     η_χ = 1.0  # Lagrange multiplier, value doesn't matter
-    return F*(F>-1e-8) - λ * η_χ #* (F < -1e-8)
+    # return F*(F>-1e-8) - λ * η_χ #* (F < -1e-8)
+    return F - λ * η_χ #* (F < -1e-8)
 end
 
 @inline function compute_lambda_parallel(r::DruckerPrager; τ_pl = 0, λ = 0, P = 0, kwargs...)
     F = compute_F(r, τ_pl, P)
     η_χ = 1.0  # Lagrange multiplier, value doesn't matter
-    return F - λ * η_χ* (F > -1e-8)
+    return F - λ * η_χ #* (F > -1e-8)
 end
 
 # special plastic helper functions
@@ -281,11 +282,13 @@ end
 compute_Q(r::DruckerPrager, τ, P) = τ - P * r.sinψ
 
 @inline function compute_plastic_strain_rate(r::DruckerPrager; τ_pl = 0, λ = 0, P_pl = 0, ε = 0, kwargs...)
-    return λ  * ForwardDiff.derivative(x -> compute_Q(r, x, P_pl), τ_pl) - ε
+    return λ - ε
+    # return λ * ForwardDiff.derivative(x -> compute_Q(r, x, P_pl), τ_pl) - ε
 end
 
 @inline function compute_volumetric_plastic_strain_rate(r::DruckerPrager; τ_pl = 0, λ = 0, P_pl = 0, θ = 0, kwargs...)
-    return λ * ForwardDiff.derivative(x -> compute_Q(r, τ_pl, x), P_pl) - θ
+    return -λ * r.sinψ - θ
+    # return λ * ForwardDiff.derivative(x -> compute_Q(r, τ_pl, x), P_pl) - θ
 end
 
 @inline compute_plastic_stress(r::DruckerPrager; τ_pl = 0, kwargs...) = τ_pl

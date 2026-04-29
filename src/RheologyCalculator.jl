@@ -1,6 +1,7 @@
 module RheologyCalculator
 
-using ForwardDiff, StaticArrays, LinearAlgebra
+using DifferentiationInterface, StaticArrays, LinearAlgebra
+import ForwardDiff: ForwardDiff
 
 import Base.IteratorsMD.flatten
 

@@ -55,6 +55,10 @@ function dark_colorbar!(cb)
     return cb
 end
 
+function heatmap_colorbar!(figpos, hm, label)
+    return dark_colorbar!(Colorbar(figpos, hm; label, labelsize = 32, height = Relative(0.7), valign = :center))
+end
+
 # can be replaced by AD
 function Gershgorin_Stokes2D_SchurComplement(ηc, ηv, γ, Δx, Δy, ncx  ,ncy)
         
@@ -100,33 +104,26 @@ function solve_stress_RC(r, εxx, εyy, εxy, τ0xx, τ0yy, τ0xy, τII, P, dt)
     εᵢⱼ    = εxx, εyy, εxy
     τ0ᵢⱼ   = ((τ0xx, τ0yy, τ0xy), )
     vars   = (; ε = εᵢⱼ, θ = 0e0)                 # input variables (constant)
-    args   = (; τ = τII, λ = 0e0, P = P)                   # guess variables (we solve for these, differentiable)
-    others = (; dt = dt, τ0 = τ0ᵢⱼ, P0 = (0.0, )) # other non-differentiable variables needed to evaluate the state functions
+    args   = (; τ = τII, P = P)                   # guess variables (we solve for these, differentiable)
+    others = (; dt = dt, τ0 = τ0ᵢⱼ, P = P, P0 = (0.0, )) # other non-differentiable variables needed to evaluate the state functions
     x      = initial_guess_x(r, vars, args, others)
     sol    = solve(r, x, vars, others, verbose = false)
     τII    = sol[1]
-    
-    εII    = second_invariant(εᵢⱼ)
-    η      = τII / (2 * εII + eps())
-    τᵢⱼ    = @. 2 * εᵢⱼ * η
 
-    # ε_corr = effective_strain_rate_correction(c, εᵢⱼ, τ0ᵢⱼ, others)
-    # εeff   = εᵢⱼ .+ ε_corr
-    # εII    = second_invariant(εeff)
-    # η      = τII / (2 * εII + eps())
-    # # @show τII εII η
-    # τᵢⱼ    = @. 2 * εeff * η
+    ε_corr = effective_strain_rate_correction(r, εᵢⱼ, τ0ᵢⱼ, others)
+    εeff   = εᵢⱼ .+ ε_corr
+    εII    = second_invariant(εeff)
+    η      = τII / (2 * εII + eps() * iszero(εII))
+    τᵢⱼ    = @. 2 * εeff * η
 
     return τII, τᵢⱼ...
 end
-
-# @b solve_stress_RC($(r, Exxv[I], Eyyv[I], Exy[I], Txxv0[I], Tyyv0[I], Txy0[I], TIIv[I], Ptv[I], Δt)...)
-# r = c[phases_v[I]]
 
 # 2D Stokes routine
 function Stokes2D_VEP(n)
 
     sc = (σ=1e6, t=1e10, L=1e3)
+
 
     # Physics
     Lx, Ly   = 2e3/sc.L, 1e3/sc.L   # domain size
@@ -139,8 +136,8 @@ function Stokes2D_VEP(n)
     εbg      =-1e-15*sc.t      # background strain-rate
     comp     = true                 
     K        = 5e10/sc.σ  
-    ϕ        = 35.0 
-    ψ        = 0.0
+    ϕ        = 30.0 
+    ψ        = 10.0   
     ηvp      = 2e20/sc.σ/sc.t    
 
     # Maxwell viscoelastic model
@@ -150,18 +147,21 @@ function Stokes2D_VEP(n)
     viscous_reg       = LinearViscosity(ηvp)
     plastic           = DruckerPrager(C, ϕ, ψ)
 
-    elastic           = IncompressibleElasticity(30e3)
-    DP                = ParallelModel(viscous_reg, plastic)
+    # elastic           = IncompressibleElasticity(30e3)
+    # DP                = ParallelModel(viscous_reg, plastic)
+    elastic           = Elasticity(1e10, 2e11)
+    plastic           = DruckerPragerCap(; C=1e6, ϕ=30.0, ψ=10.0, η_vp=viscous_reg, Pt=-5e5) 
     c_matrix          = SeriesModel(viscous_matrix, elastic, DP)
     c_inclusion       = SeriesModel(viscous_inclusion, elastic, DP)
+
     c                 = c_matrix, c_inclusion
 
     # Numerics
     ncx, ncy = 2*n*31, n*31   # numerical grid resolution
-    nt       = 50           # time steps
+    nt       = 30           # time steps
     ϵ        = 1e-6         # tolerance
     iterMax  = 20000        # max number of iters
-    nout     = 100          # check frequency
+    nout     = 100           # check frequency
     c_fact   = 0.5          # damping factor
     dτ_local = true         # helps a little bit sometimes, sometimes not! 
     CFL_v    = 0.99         # CFL: can't make it larger
@@ -233,6 +233,7 @@ function Stokes2D_VEP(n)
     ηc_sharp = zeros(ncx  ,ncy  )
     ηv_sharp = zeros(ncx+1,ncy+1)
     P_num    = zeros(ncx  ,ncy  )
+
     # Initialisation
     xce, yce = LinRange(-Lx/2-Δx/2, Lx/2+Δx/2, ncx+2), LinRange(-Ly/2-Δy/2, Ly/2+Δy/2, ncy+2)
     xc, yc   = LinRange(-Lx/2+Δx/2, Lx/2-Δx/2, ncx), LinRange(-Ly/2+Δy/2, Ly/2-Δy/2, ncy)
@@ -254,8 +255,10 @@ function Stokes2D_VEP(n)
         ηc_sharp[(xc.-x_inc[inc]).^2 .+ (yc'.-y_inc[inc]).^2 .< r_inc[inc]^2 ] .= η_inc[inc]
     end  
     # Harmonic averaging mimicking PIC interpolation
-    ηc    .= av4_harm(ηv_sharp)
-    ηv[2:end-1,2:end-1] .= av4_harm(ηc_sharp)
+    # ηc    .= av4_harm(ηv_sharp)
+    # ηv[2:end-1,2:end-1] .= av4_harm(ηc_sharp)
+    ηc    .= ηc_sharp
+    ηv .= ηv_sharp
     ηv[1,:] .=  ηv[2,:]; ηv[end,:] .=  ηv[end-1,:]
     ηv[:,1] .=  ηv[:,2]; ηv[:,end] .=  ηv[:,end-1]
     # Effective viscosity
@@ -326,60 +329,15 @@ function Stokes2D_VEP(n)
             Exyc  .= av(Exy)
             EIIc  .= sqrt.(0.5.*((Exx  .+ Txx0 ./(2*G*Δt)).^2 .+ (Eyy  .+ Tyy0 ./(2*G*Δt)).^2 .+ (.-(Exx  .+ Txx0 ./(2*G*Δt)).-(Eyy  .+ Tyy0 ./(2*G*Δt))).^2) .+ (Exyc .+ Txy0c./(2*G*Δt)).^2 )
             EIIv  .= sqrt.(0.5.*((Exxv .+ Txxv0./(2*G*Δt)).^2 .+ (Eyyv .+ Tyyv0./(2*G*Δt)).^2 .+ (.-(Exxv .+ Txxv0./(2*G*Δt)).-(Eyyv .+ Tyyv0./(2*G*Δt))).^2) .+ (Exy  .+ Txy0 ./(2*G*Δt)).^2 )
-            # # Deviatoric stress
-            # all(Txx   .== 2.0.*ηve_c.*(Exx  .+ Txx0 ./(2*G*Δt)))
-            # all(Tyy   .== 2.0.*ηve_c.*(Eyy  .+ Tyy0 ./(2*G*Δt)))
-            # all(Txy   .== 2.0.*ηve_v.*(Exy  .+ Txy0 ./(2*G*Δt)))
-            # all(Txxv  .== 2.0.*ηve_v.*(Exxv .+ Txxv0./(2*G*Δt)))
-            # all(Tyyv  .== 2.0.*ηve_v.*(Eyyv .+ Tyyv0./(2*G*Δt)))
-            # all(Txyc  .== 2.0.*ηve_c.*(Exyc .+ Txy0c./(2*G*Δt)))
-            # @timeit to "Arrays" begin
-            #     Txx   .= 2.0.*ηve_c.*(Exx  .+ Txx0 ./(2*G*Δt))
-            #     Tyy   .= 2.0.*ηve_c.*(Eyy  .+ Tyy0 ./(2*G*Δt))
-            #     Txy   .= 2.0.*ηve_v.*(Exy  .+ Txy0 ./(2*G*Δt))
-            #     Txxv  .= 2.0.*ηve_v.*(Exxv .+ Txxv0./(2*G*Δt))
-            #     Tyyv  .= 2.0.*ηve_v.*(Eyyv .+ Tyyv0./(2*G*Δt))
-            #     Txyc  .= 2.0.*ηve_c.*(Exyc .+ Txy0c./(2*G*Δt))
-                
-            #     TIIc  .= sqrt.(0.5.*(Txx.^2  .+ Tyy.^2  .+ (.-Txx.-Tyy).^2)   .+ Txyc.^2 )
-            #     TIIv  .= sqrt.(0.5.*(Txxv.^2 .+ Tyyv.^2 .+ (.-Txxv.-Tyyv).^2) .+ Txy.^2 )
-            # end
-            # @timeit to "RC" begin
-                # Threads.@threads 
-                for I in CartesianIndices(Txxv)
-                    # centres
-                    if all(I.I .≤ size(TIIc))
-                        TIIc[I], Txx[I], Tyy[I], Txyc[I] = solve_stress_RC(c[phases_c[I]], Exx[I], Eyy[I], Exyc[I], Txx0[I], Tyy0[I], Txy0c[I], TIIc[I], Pt[I], Δt)
-                    end
-                    # vertices
-                    TIIv[I], Txxv[I], Tyyv[I], Txy[I] = solve_stress_RC(c[phases_v[I]], Exxv[I], Eyyv[I], Exy[I], Txxv0[I], Tyyv0[I], Txy0[I], TIIv[I], Ptv[I], Δt)
+            # Deviatoric stress          
+            Threads.@threads for I in CartesianIndices(Txxv)
+                # centres
+                if all(I.I .≤ size(TIIc))
+                    @inbounds TIIc[I], Txx[I], Tyy[I], Txyc[I] = solve_stress_RC(c[phases_c[I]], Exx[I], Eyy[I], Exyc[I], Txx0[I], Tyy0[I], Txy0c[I], TIIc[I], Pt[I], Δt)
                 end
-            # # end
-            # # Plasticity
-            # λ̇c            .= 0.
-            # λ̇v            .= 0.
-            # Fc            .= TIIc .- C.*cosd(ϕ) .- Pt .*sind(ϕ)
-            # Fv            .= TIIv .- C.*cosd(ϕ) .- Ptv.*sind(ϕ)
-            # λ̇c[Fc.>0]     .= Fc[Fc.>0]./(ηve_c[Fc.>0] .+ ηvp .+ K.*Δt.*sind(ϕ).*sind.(ψ))      
-            # λ̇v[Fv.>0]     .= Fv[Fv.>0]./(ηve_v[Fv.>0] .+ ηvp .+ K.*Δt.*sind(ϕ).*sind.(ψ))      
-            # ηvep_c        .= ηve_c
-            # ηvep_v        .= ηve_v
-            # ηvp_c .= (TIIc.-λ̇c.*ηve_c) ./ (2 .* EIIc)
-            # ηvp_v .= (TIIv.-λ̇v.*ηve_v) ./ (2 .* EIIv)
-            # ηvep_c[Fc.>0] .= ηvp_c[Fc.>0]
-            # ηvep_v[Fv.>0] .= ηvp_v[Fv.>0]
-            # Txx   .= 2.0.*ηvep_c.*(Exx .+ Txx0./(2*G*Δt))
-            # Tyy   .= 2.0.*ηvep_c.*(Eyy .+ Tyy0./(2*G*Δt))
-            # Txy   .= 2.0.*ηvep_v.*(Exy .+ Txy0./(2*G*Δt))
-            # Txxv  .= 2.0.*ηvep_v.*(Exxv .+ Txxv0./(2*G*Δt))
-            # Tyyv  .= 2.0.*ηvep_v.*(Eyyv .+ Tyyv0./(2*G*Δt))
-            # Txyc  .= 2.0.*ηvep_c.*(Exyc .+ Txy0c./(2*G*Δt))
-            # ΔPψ   .= λ̇c.*sind(ψ).*K.*Δt
-            # # Check
-            # TIIc  .= sqrt.(0.5.*(Txx.^2  .+ Tyy.^2  .+ (.-Txx.-Tyy).^2)   .+ Txyc.^2 )
-            # TIIv  .= sqrt.(0.5.*(Txxv.^2 .+ Tyyv.^2 .+ (.-Txxv.-Tyyv).^2) .+ Txy.^2 )
-            # Fc    .= TIIc .- C.*cosd(ϕ) .- (Pt .+ λ̇c.*sind(ψ).*K.*Δt).*sind(ϕ)  .- ηvp.*λ̇c
-            # Fv    .= TIIv .- C.*cosd(ϕ) .- (Ptv.+ λ̇v.*sind(ψ).*K.*Δt).*sind(ϕ)  .- ηvp.*λ̇v
+                # vertices
+                @inbounds TIIv[I], Txxv[I], Tyyv[I], Txy[I] = solve_stress_RC(c[phases_v[I]], Exxv[I], Eyyv[I], Exy[I], Txxv0[I], Tyyv0[I], Txy0[I], TIIv[I], Ptv[I], Δt)
+            end
             # Residuals
             Rx    .= (.-(Pt[2:end,:] .- Pt[1:end-1,:])./Δx .- (ΔPψ[2:end,:] .- ΔPψ[1:end-1,:])./Δx .+ (Txx[2:end,:] .- Txx[1:end-1,:])./Δx .+ (Txy[2:end-1,2:end] .- Txy[2:end-1,1:end-1])./Δy)
             Ry    .= (.-(Pt[:,2:end] .- Pt[:,1:end-1])./Δy .- (ΔPψ[:,2:end] .- ΔPψ[:,1:end-1])./Δy .+ (Tyy[:,2:end] .- Tyy[:,1:end-1])./Δy .+ (Txy[2:end,2:end-1] .- Txy[1:end-1,2:end-1])./Δx)
@@ -415,34 +373,14 @@ function Stokes2D_VEP(n)
                 Exyc  .= av(Exy)
                 EIIc  .= sqrt.(0.5.*((Exx  .+ Txx0 ./(2*G*Δt)).^2 .+ (Eyy  .+ Tyy0 ./(2*G*Δt)).^2 .+ (.-(Exx  .+ Txx0 ./(2*G*Δt)).-(Eyy  .+ Tyy0 ./(2*G*Δt))).^2) .+ (Exyc .+ Txy0c./(2*G*Δt)).^2 )
                 EIIv  .= sqrt.(0.5.*((Exxv .+ Txxv0./(2*G*Δt)).^2 .+ (Eyyv .+ Tyyv0./(2*G*Δt)).^2 .+ (.-(Exxv .+ Txxv0./(2*G*Δt)).-(Eyyv .+ Tyyv0./(2*G*Δt))).^2) .+ (Exy  .+ Txy0 ./(2*G*Δt)).^2 )
-                # Deviatoric stress
-                Txx   .= 2.0.*ηve_c.*(Exx  .+ Txx0 ./(2*G*Δt)) 
-                Tyy   .= 2.0.*ηve_c.*(Eyy  .+ Tyy0 ./(2*G*Δt)) 
-                Txy   .= 2.0.*ηve_v.*(Exy  .+ Txy0 ./(2*G*Δt))
-                Txxv  .= 2.0.*ηve_v.*(Exxv .+ Txxv0./(2*G*Δt))
-                Tyyv  .= 2.0.*ηve_v.*(Eyyv .+ Tyyv0./(2*G*Δt))
-                Txyc  .= 2.0.*ηve_c.*(Exyc .+ Txy0c./(2*G*Δt))
-                TIIc  .= sqrt.(0.5.*(Txx.^2  .+ Tyy.^2  .+ (.-Txx.-Tyy).^2)   .+ Txyc.^2 )
-                TIIv  .= sqrt.(0.5.*(Txxv.^2 .+ Tyyv.^2 .+ (.-Txxv.-Tyyv).^2) .+ Txy.^2 )
-                # Plasticity
-                Fc              .= TIIc .- C.*cosd(ϕ) .- Pt .*sind(ϕ)
-                Fv              .= TIIv .- C.*cosd(ϕ) .- Ptv.*sind(ϕ)
-                λ̇_true_c        .= 0.
-                λ̇_true_v        .= 0.
-                λ̇_true_c[Fc.>0] .= Fc[Fc.>0]./(ηve_c[Fc.>0] .+ ηvp .+ K.*Δt.*sind(ϕ).*sind.(ψ))      
-                λ̇_true_v[Fv.>0] .= Fv[Fv.>0]./(ηve_v[Fv.>0] .+ ηvp .+ K.*Δt.*sind(ϕ).*sind.(ψ))
-                λ̇c              .= λ̇rel*λ̇_true_c .+ (1-λ̇rel).*λ̇c
-                λ̇v              .= λ̇rel*λ̇_true_v .+ (1-λ̇rel).*λ̇v 
-                ηvep_c .= ηve_c
-                ηvep_v .= ηve_v
-                ηvp_c  .= (TIIc.-λ̇c.*ηve_c) ./ (2 .* EIIc)
-                ηvp_v  .= (TIIv.-λ̇v.*ηve_v) ./ (2 .* EIIv)
-                ηvep_c[Fc.>0] .= ηvp_c[Fc.>0]
-                ηvep_v[Fv.>0] .= ηvp_v[Fv.>0] 
-                Txx    .= 2.0.*ηvep_c.*(Exx  .+ Txx0 ./(2*G*Δt)) 
-                Tyy    .= 2.0.*ηvep_c.*(Eyy  .+ Tyy0 ./(2*G*Δt)) 
-                Txy    .= 2.0.*ηvep_v.*(Exy  .+ Txy0 ./(2*G*Δt))
-                ΔPψ    .= λ̇c.*sind(ψ).*K.*Δt
+                Threads.@threads for I in CartesianIndices(Txxv)
+                    # centres
+                    if all(I.I .≤ size(TIIc))
+                        @inbounds TIIc[I], Txx[I], Tyy[I], Txyc[I] = solve_stress_RC(c[phases_c[I]], Exx[I], Eyy[I], Exyc[I], Txx0[I], Tyy0[I], Txy0c[I], TIIc[I], Pt[I], Δt)
+                    end
+                    # vertices
+                    @inbounds TIIv[I], Txxv[I], Tyyv[I], Txy[I] = solve_stress_RC(c[phases_v[I]], Exxv[I], Eyyv[I], Exy[I], Txxv0[I], Tyyv0[I], Txy0[I], TIIv[I], Ptv[I], Δt)
+                end
                 # Residuals
                 P_num  .= γ_eff .* Rp
                 Rx     .= (1.0./Dx).*(.-(P_num[2:end,:] .- P_num[1:end-1,:])./Δx .- (Pt[2:end,:] .- Pt[1:end-1,:])./Δx .- (ΔPψ[2:end,:] .- ΔPψ[1:end-1,:])./Δx .+ (Txx[2:end,:] .- Txx[1:end-1,:])./Δx .+ (Txy[2:end-1,2:end] .- Txy[2:end-1,1:end-1])./Δy)
@@ -461,7 +399,7 @@ function Stokes2D_VEP(n)
                     err_evo_V[iter] = errVx/errVx00; err_evo_P[iter] = errPt/errPt0; err_evo_it[iter] =  iter
                     dVx .= dVxdτ.*βVx.*dτVx
                     dVy .= dVydτ.*βVy.*dτVy
-                    # @printf("it = %d, iter = %d, err = %1.3e norm[Rx=%1.3e, Ry=%1.3e] \n", it, iter, err, norm_Rx, norm_Ry)
+                    @printf("it = %d, iter = %d, err = %1.3e norm[Rx=%1.3e, Ry=%1.3e] \n", it, iter, err, errVx/errVx00, errVy/errVy00)
                     # λminV  = abs.((sum(dVx.*(Rx .- Rx0))) + abs.((sum(dVy.*(Ry .- Ry0))) )/ ( sum(dVx.*dVx)) + sum(dVy.*dVy) ) 
                     λminV  = abs(  sum(dVx.*(Rx .- Rx0)) + sum(dVy.*(Ry .- Ry0))  ) / (sum(dVx.*dVx) .+ sum(dVy.*dVy))
                     cVx .= 2*sqrt.(λminV)*c_fact
@@ -488,35 +426,6 @@ function Stokes2D_VEP(n)
         Tii_evo[it] = maximum(TIIc)
         it_evo[it]  = iter/ncx
 
-        # Plotting
-        EIIc  .= sqrt.(0.5.*((Exx).^2 .+ (Eyy).^2 .+ (.-(Exx).-(Eyy)).^2) .+ (Exyc).^2 )
-        fig = Figure(size = (1100, 850), backgroundcolor = :black)
-
-        ax1 = Axis(fig[1, 1], title = "EII", xlabel = "x", ylabel = "y", aspect = DataAspect(), backgroundcolor = :black)
-        dark_axis!(ax1)
-        hm1 = heatmap!(ax1, xc, yc, log10.(EIIc ./ sc.t), colormap = :inferno)
-        xlims!(ax1, -Lx / 2, Lx / 2)
-        dark_colorbar!(Colorbar(fig[1, 2], hm1))
-
-        ax2 = Axis(fig[1, 3], title = "Pt", xlabel = "x", ylabel = "y", aspect = DataAspect(), backgroundcolor = :black)
-        dark_axis!(ax2)
-        hm2 = heatmap!(ax2, xc, yc, Pt .* sc.σ, colormap = :inferno)
-        xlims!(ax2, -Lx / 2, Lx / 2)
-        dark_colorbar!(Colorbar(fig[1, 4], hm2))
-
-        ax3 = Axis(fig[2, 1:2], xlabel = "time", ylabel = "mean dev. stress", backgroundcolor = :black)
-        dark_line_axis!(ax3)
-        lines!(ax3, 1:it, Tii_evo[1:it] .* sc.σ, color = :deepskyblue2, linewidth = 3)
-
-        ax4 = Axis(fig[2, 3], title = "ηc", xlabel = "x", ylabel = "y", aspect = DataAspect(), backgroundcolor = :black)
-        dark_axis!(ax4)
-        hm4 = heatmap!(ax4, xc, yc, log10.(ηc), colormap = :inferno)
-        xlims!(ax4, -Lx / 2, Lx / 2)
-        dark_colorbar!(Colorbar(fig[2, 4], hm4))
-
-        colgap!(fig.layout, 35)
-
-        display(fig)
         @show iter/ncx
         @show itg
 
@@ -525,12 +434,52 @@ function Stokes2D_VEP(n)
     @show η_h = 1.0 / sum(1.0/n ./ηc)
     @show η_g = exp( sum( 1.0/n*log.(ηc)))
     @show η_a = mean(ηc)
-    # @show to
+
+    # Plotting
+    EIIc  .= sqrt.(0.5.*((Exx).^2 .+ (Eyy).^2 .+ (.-(Exx).-(Eyy)).^2) .+ (Exyc).^2 )
+    fig = Figure(size = (1100, 850) .* 2, backgroundcolor = :black, fontsize=24)
+
+    ax1 = Axis(fig[1, 1], xlabel = L"$$x", ylabel = L"$$y", aspect = DataAspect(), backgroundcolor = :black)
+    dark_axis!(ax1)
+    hm1 = heatmap!(ax1, xc, yc, log10.(EIIc ./ sc.t), colormap = :bilbao)
+    xlims!(ax1, -Lx / 2, Lx / 2)
+    heatmap_colorbar!(fig[1, 2], hm1, L"$\dot{\varepsilon}_{\text{II}}$ [s$^{-1}$]")
+
+    ax2 = Axis(fig[1, 3], xlabel = L"$$x", ylabel = L"$$y", aspect = DataAspect(), backgroundcolor = :black)
+    dark_axis!(ax2)
+    hm2 = heatmap!(ax2, xc, yc, (Pt .* sc.σ) ./1e6 , colormap = :vikO)
+    xlims!(ax2, -Lx / 2, Lx / 2)
+    heatmap_colorbar!(fig[1, 4], hm2, L"$$P [MPa]")
+
+    ax3 = Axis(fig[2, 1:2], xlabel = L"$$time step", ylabel = L"mean $\tau_{\text{II}}$ [MPa]", backgroundcolor = :black)
+    dark_line_axis!(ax3)
+    lines!(ax3, (Tii_evo .* sc.σ) ./1e6, color = :deepskyblue2, linewidth = 3)
+
+    ax4 = Axis(fig[2, 3], xlabel = L"$$x", ylabel = L"$$y", aspect = DataAspect(), backgroundcolor = :black)
+    dark_axis!(ax4)
+    hm4 = heatmap!(ax4, xc, yc, log10.(ηc), colormap = :glasgow)
+    xlims!(ax4, -Lx / 2, Lx / 2)
+    heatmap_colorbar!(fig[2, 4], hm4, L"\eta")
+
+    colgap!(fig.layout, 35)
+
+    display(fig)
+    save("StokesVEVP_RC.png", fig)
+
     return
 end
 
-Stokes2D_VEP(2)
+@time Stokes2D_VEP(2)
+# ProfileCanvas.@profview Stokes2D_VEP(2)
 
+# itPH = 18 iter = 003500 iter/nx = 028, err = 6.224e-07 norm[Rx=2.925e-07, Ry=6.224e-07, Rp=7.248e-14] - max(F) = 0.00e+00 
+#   5.702802 seconds (608.05 k allocations: 8.516 GiB, 11.37% gc time)
+# iter / ncx = 28.225806451612904
+# itg = 80300
+# η_h = 1.0 / sum((1.0 / n) ./ ηc) = 6.406666666626265e-5
+# η_g = exp(sum((1.0 / n) * log.(ηc))) = 6.267384920848267e6
+# η_a = mean(ηc) = 9.843912591051003e6
+# 105 seconds (16.58 M allocations: 195.416 GiB, 12.52% gc time, 0.81% compilation time)
 
 #### V-E case
 

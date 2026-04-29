@@ -1,15 +1,52 @@
 # Initialisation
 using Printf, Statistics, LinearAlgebra
-# import Plots as pt
 using GLMakie
-
-using ParallelStencil
-@init_parallel_stencil(Threads, Float64, 2)
 # Macros
 @views    av(A) = 0.25*(A[1:end-1,1:end-1].+A[2:end,1:end-1].+A[1:end-1,2:end].+A[2:end,2:end])
 @views av_xa(A) =  0.5*(A[1:end-1,:].+A[2:end,:])
 @views av_ya(A) =  0.5*(A[:,1:end-1].+A[:,2:end])
 @views av4_harm(A) = 1.0./( 0.25.*(1.0./A[1:end-1,1:end-1].+1.0./A[2:end,1:end-1].+1.0./A[1:end-1,2:end].+1.0./A[2:end,2:end]) ) 
+
+
+function dark_axis!(ax)
+    ax.titlecolor = :white
+    ax.xlabelcolor = :white
+    ax.ylabelcolor = :white
+    ax.xticklabelcolor = :white
+    ax.yticklabelcolor = :white
+    ax.xgridcolor = (:white, 0.18)
+    ax.ygridcolor = (:white, 0.18)
+    ax.xminorgridcolor = (:white, 0.08)
+    ax.yminorgridcolor = (:white, 0.08)
+    ax.leftspinecolor = :white
+    ax.rightspinecolor = :white
+    ax.topspinecolor = :white
+    ax.bottomspinecolor = :white
+    return ax
+end
+
+function dark_line_axis!(ax)
+    dark_axis!(ax)
+    ax.xgridcolor = (:white, 0.32)
+    ax.ygridcolor = (:white, 0.32)
+    ax.xgridwidth = 1.2
+    ax.ygridwidth = 1.2
+    return ax
+end
+
+function dark_colorbar!(cb)
+    cb.labelcolor = :white
+    cb.ticklabelcolor = :white
+    cb.leftspinecolor = (:white, 0.25)
+    cb.rightspinecolor = (:white, 0.25)
+    cb.topspinecolor = (:white, 0.25)
+    cb.bottomspinecolor = (:white, 0.25)
+    return cb
+end
+
+function heatmap_colorbar!(figpos, hm, label)
+    return dark_colorbar!(Colorbar(figpos, hm; label, labelsize = 32, height = Relative(0.7), valign = :center))
+end
 
 # can be replaced by AD
 function Gershgorin_Stokes2D_SchurComplement(ηc, ηv, γ, Δx, Δy, ncx  ,ncy)
@@ -54,41 +91,32 @@ end
 
 # 2D Stokes routine
 @views function Stokes2D_VEP(n)
-    sc = (σ=1e0, t=1e0, L=1e0)
-    # sc = (σ=1e6, t=1e10, L=1e3)
+    sc = (σ=1e6, t=1e10, L=1e3)
     # Physics
-    Lx, Ly   = 500e3/sc.L, 500e3/sc.L # domain size
-    radi     = 0.1e3/sc.L             # inclusion radius
-    η0       = 1e21/sc.σ/sc.t         # viscous viscosity
-    ηi       = 1e23/sc.σ/sc.t         # block viscosity
-    δρ       = 1000                   # density contrast
-    ρ0       = 3.2e3 * 0              # viscous density
-    ρi       = 3.2e3 * 0 + δρ         # block density
-    G        = Inf/sc.σ
-    C        = Inf/sc.σ
-    Δt       = 10e3 * 365.25 * 24 * 3600 /sc.t # time step
-    εbg      = 0*sc.t                         # background strain-rate
-    comp     = false                 
-    K        = Inf/sc.σ  
+    Lx, Ly   = 2e3/sc.L, 1e3/sc.L # domain size
+    radi     = 0.1e3/sc.L           # inclusion radius
+    η0       = 1e23/sc.σ/sc.t       # viscous viscosity
+    ηi       = 1e10/sc.σ/sc.t       # min/max inclusion viscosity
+    G        = 3e10/sc.σ
+    C        = 5e7/sc.σ
+    Δt       = 4e10/sc.t
+    εbg      =-1e-15*sc.t      # background strain-rate
+    comp     = true                 
+    K        = 5e10/sc.σ  
     ϕ        = 35.0 
-    ψ        = 5.0
+    ψ        = 0.0   
     ηvp      = 2e20/sc.σ/sc.t    
-    g        = 9.81 * 1
-    # Rectangular density anomaly
-    xc_anomaly = 250.0e3         # origin of thermal anomaly
-    yc_anomaly = -(Ly - 400.0e3) # origin of thermal anomaly
-    r_anomaly  = 50.0e3          # radius of perturbation
     # Numerics
-    ncx, ncy = n*32, n*32 # numerical grid resolution
-    nt       = 30          # time steps
+    ncx, ncy = 2*n*31, n*31   # numerical grid resolution
+    nt       = 35           # time steps
     ϵ        = 1e-6         # tolerance
     iterMax  = 20000        # max number of iters
-    nout     = 100          # check frequency
+    nout     = 1          # check frequency
     c_fact   = 0.5          # damping factor
     dτ_local = true         # helps a little bit sometimes, sometimes not! 
     CFL_v    = 0.99         # CFL: can't make it larger
     γfact    = 20           # penalty: multiplier to the arithmetic mean of η
-    rel_drop = 1e-2         # relative drop of velocity residual per PH iteration
+    rel_drop = 1e-1         # relative drop of velocity residual per PH iteration
     λ̇rel     = 1.075        # overrelaxation helps!
     # Preprocessing
     Δx, Δy  = Lx/ncx, Ly/ncy
@@ -143,7 +171,6 @@ end
     cVy      = zeros(ncx  ,ncy-1)  # this disappears is dτ is not local
     αVx      = zeros(ncx-1,ncy  )  # this disappears is dτ is not local
     αVy      = zeros(ncx  ,ncy-1)  # this disappears is dτ is not local
-    ρg       = zeros(ncx  ,ncy  )
     ηb       = zeros(ncx  ,ncy  )
     ηc       = zeros(ncx  ,ncy  )
     ηv       = zeros(ncx+1,ncy+1)
@@ -157,35 +184,31 @@ end
     ηv_sharp = zeros(ncx+1,ncy+1)
     P_num    = zeros(ncx  ,ncy  )
     # Initialisation
-    xce, yce = LinRange(-Lx/2-Δx/2, Lx/2+Δx/2, ncx+2), LinRange(-Ly-Δy/2, 0e0 , ncy+2)
-    xc, yc   = LinRange(-Lx/2+Δx/2, Lx/2-Δx/2, ncx),   LinRange(-Ly+Δy/2, 0e0 , ncy)
-    xv, yv   = LinRange(-Lx/2, Lx/2, ncx+1),           LinRange(-Ly,      0e0 , ncy+1)   
-    # Rectangular density anomaly
-    xc_anomaly  = 0e0             # origin of thermal anomaly
-    yc_anomaly  = -(Ly - 400.0e3) # origin of thermal anomaly
-    r_anomaly   = 50.0e3          # radius of perturbation
-    isinblock_c = [(x^2 ≤ r_anomaly^2) & ((y-yc_anomaly)^2 ≤ r_anomaly^2) for x in xc, y in yc]
-    isinblock_v = [(x^2 ≤ r_anomaly^2) & ((y-yc_anomaly)^2 ≤ r_anomaly^2) for x in xv, y in yv]
-    # Block buoyancy
-    ρg              .= ρ0 .* g
-    ρg[isinblock_c] .= ρi .* g
-    ρg_vy            = av_ya(ρg) 
-    Pt              .= reverse(cumsum(reverse((ρg) .* Δy, dims=2), dims=2), dims=2)
-    Pt0             .= Pt
-    # Block viscosity
-    # ηv_sharp              .= η0
-    # ηc_sharp              .= η0
-    # ηv_sharp[isinblock_v] .= ηi
-    # ηc_sharp[isinblock_c] .= ηi
-    ηv              .= η0
-    ηc              .= η0
-    ηv[isinblock_v] .= ηi
-    ηc[isinblock_c] .= ηi
+    xce, yce = LinRange(-Lx/2-Δx/2, Lx/2+Δx/2, ncx+2), LinRange(-Ly/2-Δy/2, Ly/2+Δy/2, ncy+2)
+    xc, yc   = LinRange(-Lx/2+Δx/2, Lx/2-Δx/2, ncx), LinRange(-Ly/2+Δy/2, Ly/2-Δy/2, ncy)
+    xv, yv   = LinRange(-Lx/2, Lx/2, ncx+1), LinRange(-Ly/2, Ly/2, ncy+1)
+    # Multiple circles with various viscosities
+    ηi    = (w=1/ηi, s=ηi) 
+    x_inc = [0.0   0.2  -0.3 -0.4  0.0 -0.3 0.4  0.3  0.35 -0.1 ] 
+    y_inc = [0.0   0.4   0.4 -0.3 -0.2  0.2 -0.2 -0.4 0.2  -0.4 ]
+    r_inc = [radi  0.09  0.05 0.08 0.08  0.1 0.07 0.08 0.07 0.07] 
+    η_inc = [ηi.s  ηi.w  ηi.w ηi.s ηi.w ηi.s ηi.w ηi.s ηi.s ηi.w]
+    ηv_sharp   .= η0
+    for inc in 1:1#eachindex(η_inc)
+        ηv_sharp[(xv.-x_inc[inc]).^2 .+ (yv'.-y_inc[inc]).^2 .< r_inc[inc]^2 ] .= η_inc[inc]
+    end
+    ηc_sharp   .= η0
+    for inc in 1:1#eachindex(η_inc)
+        ηc_sharp[(xc.-x_inc[inc]).^2 .+ (yc'.-y_inc[inc]).^2 .< r_inc[inc]^2 ] .= η_inc[inc]
+    end  
     # Harmonic averaging mimicking PIC interpolation
-    # ηc                  .= av4_harm(ηv_sharp)
+    # ηc    .= av4_harm(ηv_sharp)
     # ηv[2:end-1,2:end-1] .= av4_harm(ηc_sharp)
-    ηv[1,:]             .=  ηv[2,:]; ηv[end,:] .=  ηv[end-1,:]
-    ηv[:,1]             .=  ηv[:,2]; ηv[:,end] .=  ηv[:,end-1]
+
+    ηc      .= ηc_sharp
+    ηv      .= ηv_sharp
+    # ηv[1,:] .= ηv[2,:]; ηv[end,:] .=  ηv[end-1,:]
+    # ηv[:,1] .= ηv[:,2]; ηv[:,end] .=  ηv[:,end-1]
     # Effective viscosity
     ηve_c .= (1 ./ ηc .+ 1 ./ (G*Δt)).^-1
     ηve_v .= (1 ./ ηv .+ 1 ./ (G*Δt)).^-1
@@ -198,11 +221,10 @@ end
     if comp
         γ_num = γi.*ones(size(ηb)) * 1.0
         γ_phy = ηb
-        γ_eff = ((γ_phy.*γ_num)./(γ_phy.+γ_num))
+        γ_eff .= ((γ_phy.*γ_num)./(γ_phy.+γ_num))
     else
         γ_eff .= γi
-        γ_eff .= γ_eff
-        ηb    .= γ_eff
+        # γ_eff .= γ_eff
     end
     # Optimal pseudo-time steps - can be replaced by AD
     Dx, Dy, λmaxVx, λmaxVy = Gershgorin_Stokes2D_SchurComplement(ηve_c, ηve_v, γ_eff, Δx, Δy, ncx ,ncy)
@@ -219,22 +241,22 @@ end
     αVx .= (2 .- cVx.*dτVx) ./ (2 .+ cVx.*dτVx)
     αVy .= (2 .- cVy.*dτVy) ./ (2 .+ cVy.*dτVy)
     # Initial condition
-    # Vx     .=   εbg.*xv .+    0*yce'
-    # Vy     .=     0*xce .- εbg.*yv'
-    # Vx[2:end-1,:] .= 0 # ensure non zero initial pressure residual
-    # Vy[:,2:end-1] .= 0 # ensure non zero initial pressure residual
+    Vx     .=   εbg.*xv .+    0*yce'
+    Vy     .=     0*xce .- εbg.*yv'
+    Vx[2:end-1,:] .= 0 # ensure non zero initial pressure residual
+    Vy[:,2:end-1] .= 0 # ensure non zero initial pressure residual
     # Time
     Tii_evo = zeros(nt) 
     it_evo  = zeros(nt)
     itg = 0
     err_evo_it, err_evo_V, err_evo_P = zeros(iterMax), zeros(iterMax), zeros(iterMax)
-    for it=1:1
+    for it=1:nt
         Txx0 .= Txx; Tyy0 .= Tyy; Txy0 .= Txy; Txy0c .= Txyc;  Txxv0 .= Txxv; Tyyv0 .= Tyyv; Pt0 .= Pt
         # Iteration loop
         errVx0 = 1.0;  errVy0 = 1.0;  errPt0 = 1.0 
         errVx00= 1.0;  errVy00= 1.0; 
         iter=0; err=2*ϵ; err_evo_it .= 0.; err_evo_V .= 0.; err_evo_P .= 0.;
-        @time for itPH = 1:1000
+        @time for itPH = 1:250
             # Boundaries
             Vx[:,1] .= Vx[:,2]; Vx[:,end] .= Vx[:,end-1]
             Vy[1,:] .= Vy[2,:]; Vy[end,:] .= Vy[end-1,:]
@@ -262,42 +284,42 @@ end
             Txyc  .= 2.0.*ηve_c.*(Exyc .+ Txy0c./(2*G*Δt))
             TIIc  .= sqrt.(0.5.*(Txx.^2  .+ Tyy.^2  .+ (.-Txx.-Tyy).^2)   .+ Txyc.^2 )
             TIIv  .= sqrt.(0.5.*(Txxv.^2 .+ Tyyv.^2 .+ (.-Txxv.-Tyyv).^2) .+ Txy.^2 )
-            # # Plasticity
-            # λ̇c            .= 0.
-            # λ̇v            .= 0.
-            # Fc            .= TIIc .- C.*cosd(ϕ) .- Pt .*sind(ϕ)
-            # Fv            .= TIIv .- C.*cosd(ϕ) .- Ptv.*sind(ϕ)
-            # λ̇c[Fc.>0]     .= Fc[Fc.>0]./(ηve_c[Fc.>0] .+ ηvp .+ K.*Δt.*sind(ϕ).*sind.(ψ))      
-            # λ̇v[Fv.>0]     .= Fv[Fv.>0]./(ηve_v[Fv.>0] .+ ηvp .+ K.*Δt.*sind(ϕ).*sind.(ψ))      
-            # ηvep_c        .= ηve_c
-            # ηvep_v        .= ηve_v
-            # ηvp_c .= (TIIc.-λ̇c.*ηve_c) ./ (2 .* EIIc)
-            # ηvp_v .= (TIIv.-λ̇v.*ηve_v) ./ (2 .* EIIv)
-            # ηvep_c[Fc.>0] .= ηvp_c[Fc.>0]
-            # ηvep_v[Fv.>0] .= ηvp_v[Fv.>0]
-            # Txx   .= 2.0.*ηvep_c.*(Exx .+ Txx0./(2*G*Δt))
-            # Tyy   .= 2.0.*ηvep_c.*(Eyy .+ Tyy0./(2*G*Δt))
-            # Txy   .= 2.0.*ηvep_v.*(Exy .+ Txy0./(2*G*Δt))
-            # Txxv  .= 2.0.*ηvep_v.*(Exxv .+ Txxv0./(2*G*Δt))
-            # Tyyv  .= 2.0.*ηvep_v.*(Eyyv .+ Tyyv0./(2*G*Δt))
-            # Txyc  .= 2.0.*ηvep_c.*(Exyc .+ Txy0c./(2*G*Δt))
-            # ΔPψ   .= λ̇c.*sind(ψ).*K.*Δt
+            # Plasticity
+            λ̇c            .= 0.
+            λ̇v            .= 0.
+            Fc            .= TIIc .- C.*cosd(ϕ) .- Pt .*sind(ϕ)
+            Fv            .= TIIv .- C.*cosd(ϕ) .- Ptv.*sind(ϕ)
+            λ̇c[Fc.>0]     .= Fc[Fc.>0]./(ηve_c[Fc.>0] .+ ηvp .+ K.*Δt.*sind(ϕ).*sind.(ψ))      
+            λ̇v[Fv.>0]     .= Fv[Fv.>0]./(ηve_v[Fv.>0] .+ ηvp .+ K.*Δt.*sind(ϕ).*sind.(ψ))      
+            ηvep_c        .= ηve_c
+            ηvep_v        .= ηve_v
+            ηvp_c .= (TIIc.-λ̇c.*ηve_c) ./ (2 .* EIIc)
+            ηvp_v .= (TIIv.-λ̇v.*ηve_v) ./ (2 .* EIIv)
+            ηvep_c[Fc.>0] .= ηvp_c[Fc.>0]
+            ηvep_v[Fv.>0] .= ηvp_v[Fv.>0]
+            Txx   .= 2.0.*ηvep_c.*(Exx .+ Txx0./(2*G*Δt))
+            Tyy   .= 2.0.*ηvep_c.*(Eyy .+ Tyy0./(2*G*Δt))
+            Txy   .= 2.0.*ηvep_v.*(Exy .+ Txy0./(2*G*Δt))
+            Txxv  .= 2.0.*ηvep_v.*(Exxv .+ Txxv0./(2*G*Δt))
+            Tyyv  .= 2.0.*ηvep_v.*(Eyyv .+ Tyyv0./(2*G*Δt))
+            Txyc  .= 2.0.*ηvep_c.*(Exyc .+ Txy0c./(2*G*Δt))
+            ΔPψ   .= λ̇c.*sind(ψ).*K.*Δt
             # Check
             TIIc  .= sqrt.(0.5.*(Txx.^2  .+ Tyy.^2  .+ (.-Txx.-Tyy).^2)   .+ Txyc.^2 )
             TIIv  .= sqrt.(0.5.*(Txxv.^2 .+ Tyyv.^2 .+ (.-Txxv.-Tyyv).^2) .+ Txy.^2 )
             Fc    .= TIIc .- C.*cosd(ϕ) .- (Pt .+ λ̇c.*sind(ψ).*K.*Δt).*sind(ϕ)  .- ηvp.*λ̇c
             Fv    .= TIIv .- C.*cosd(ϕ) .- (Ptv.+ λ̇v.*sind(ψ).*K.*Δt).*sind(ϕ)  .- ηvp.*λ̇v
             # Residuals
-            Rx    .= .-(Pt[2:end,:] .- Pt[1:end-1,:])./Δx .- (ΔPψ[2:end,:] .- ΔPψ[1:end-1,:])./Δx .+ (Txx[2:end,:] .- Txx[1:end-1,:])./Δx .+ (Txy[2:end-1,2:end] .- Txy[2:end-1,1:end-1])./Δy
-            Ry    .= .-(Pt[:,2:end] .- Pt[:,1:end-1])./Δy .- (ΔPψ[:,2:end] .- ΔPψ[:,1:end-1])./Δy .+ (Tyy[:,2:end] .- Tyy[:,1:end-1])./Δy .+ (Txy[2:end,2:end-1] .- Txy[1:end-1,2:end-1])./Δx .- ρg_vy
+            Rx    .= (.-(Pt[2:end,:] .- Pt[1:end-1,:])./Δx .- (ΔPψ[2:end,:] .- ΔPψ[1:end-1,:])./Δx .+ (Txx[2:end,:] .- Txx[1:end-1,:])./Δx .+ (Txy[2:end-1,2:end] .- Txy[2:end-1,1:end-1])./Δy)
+            Ry    .= (.-(Pt[:,2:end] .- Pt[:,1:end-1])./Δy .- (ΔPψ[:,2:end] .- ΔPψ[:,1:end-1])./Δy .+ (Tyy[:,2:end] .- Tyy[:,1:end-1])./Δy .+ (Txy[2:end,2:end-1] .- Txy[1:end-1,2:end-1])./Δx)
             Rp    .= .-∇V .- comp*(Pt.-Pt0)./ηb 
             # Residual check
-            errVy = norm(Ry) / length(Ry)
-            errVx = norm(Rx) / length(Rx)
-            errPt = norm(Rp) / length(Rp)
+            errVx = norm(Rx) / √(length(Rx))
+            errVy = norm(Ry) / √(length(Ry))
+            errPt = norm(Rp) / √(length(Rp))
             if itPH==1 errVx0=errVx; errVy0=errVy; errPt0=errPt; end
             err = maximum([min(errVx/errVx0, errVx), min(errVy/errVy0, errVy)]) #, min(errPt/errPt0, errPt)
-            @printf("itPH = %02d iter = %06d iter/nx = %03d, err = %1.3e norm[Rx=%1.3e, Ry=%1.3e, Rp=%1.3e] \n", itPH, iter, iter/ncx, err, min(errVx/errVx0, errVx), min(errVy/errVy0, errVy), min(errPt/errPt0, errPt))
+            @printf("itPH = %02d iter = %06d iter/nx = %03d, err = %1.3e norm[Rx=%1.3e, Ry=%1.3e, Rp=%1.3e] - max(F) = %1.2e \n", itPH, iter, iter/ncx, err, min(errVx/errVx0, errVx), min(errVy/errVy0, errVy), min(errPt/errPt0, errPt), max(maximum(Fc), maximum(Fv)))
             if (err<ϵ) break end
             # Set tolerance of velocity solve proportional to residual
             ϵ_vel = err*rel_drop
@@ -333,29 +355,29 @@ end
                 Txyc  .= 2.0.*ηve_c.*(Exyc .+ Txy0c./(2*G*Δt))
                 TIIc  .= sqrt.(0.5.*(Txx.^2  .+ Tyy.^2  .+ (.-Txx.-Tyy).^2)   .+ Txyc.^2 )
                 TIIv  .= sqrt.(0.5.*(Txxv.^2 .+ Tyyv.^2 .+ (.-Txxv.-Tyyv).^2) .+ Txy.^2 )
-                # # Plasticity
-                # Fc              .= TIIc .- C.*cosd(ϕ) .- Pt .*sind(ϕ)
-                # Fv              .= TIIv .- C.*cosd(ϕ) .- Ptv.*sind(ϕ)
-                # λ̇_true_c        .= 0.
-                # λ̇_true_v        .= 0.
-                # λ̇_true_c[Fc.>0] .= Fc[Fc.>0]./(ηve_c[Fc.>0] .+ ηvp .+ K.*Δt.*sind(ϕ).*sind.(ψ))      
-                # λ̇_true_v[Fv.>0] .= Fv[Fv.>0]./(ηve_v[Fv.>0] .+ ηvp .+ K.*Δt.*sind(ϕ).*sind.(ψ))
-                # λ̇c              .= λ̇rel*λ̇_true_c .+ (1-λ̇rel).*λ̇c
-                # λ̇v              .= λ̇rel*λ̇_true_v .+ (1-λ̇rel).*λ̇v 
-                # ηvep_c .= ηve_c
-                # ηvep_v .= ηve_v
-                # ηvp_c  .= (TIIc.-λ̇c.*ηve_c) ./ (2 .* EIIc)
-                # ηvp_v  .= (TIIv.-λ̇v.*ηve_v) ./ (2 .* EIIv)
-                # ηvep_c[Fc.>0] .= ηvp_c[Fc.>0]
-                # ηvep_v[Fv.>0] .= ηvp_v[Fv.>0] 
-                # Txx    .= 2.0.*ηvep_c.*(Exx  .+ Txx0 ./(2*G*Δt)) 
-                # Tyy    .= 2.0.*ηvep_c.*(Eyy  .+ Tyy0 ./(2*G*Δt)) 
-                # Txy    .= 2.0.*ηvep_v.*(Exy  .+ Txy0 ./(2*G*Δt))
-                # ΔPψ    .= λ̇c.*sind(ψ).*K.*Δt
+                # Plasticity
+                Fc              .= TIIc .- C.*cosd(ϕ) .- Pt .*sind(ϕ)
+                Fv              .= TIIv .- C.*cosd(ϕ) .- Ptv.*sind(ϕ)
+                λ̇_true_c        .= 0.
+                λ̇_true_v        .= 0.
+                λ̇_true_c[Fc.>0] .= Fc[Fc.>0]./(ηve_c[Fc.>0] .+ ηvp .+ K.*Δt.*sind(ϕ).*sind.(ψ))      
+                λ̇_true_v[Fv.>0] .= Fv[Fv.>0]./(ηve_v[Fv.>0] .+ ηvp .+ K.*Δt.*sind(ϕ).*sind.(ψ))
+                λ̇c              .= λ̇rel*λ̇_true_c .+ (1-λ̇rel).*λ̇c
+                λ̇v              .= λ̇rel*λ̇_true_v .+ (1-λ̇rel).*λ̇v 
+                ηvep_c .= ηve_c
+                ηvep_v .= ηve_v
+                ηvp_c  .= (TIIc.-λ̇c.*ηve_c) ./ (2 .* EIIc)
+                ηvp_v  .= (TIIv.-λ̇v.*ηve_v) ./ (2 .* EIIv)
+                ηvep_c[Fc.>0] .= ηvp_c[Fc.>0]
+                ηvep_v[Fv.>0] .= ηvp_v[Fv.>0] 
+                Txx    .= 2.0.*ηvep_c.*(Exx  .+ Txx0 ./(2*G*Δt)) 
+                Tyy    .= 2.0.*ηvep_c.*(Eyy  .+ Tyy0 ./(2*G*Δt)) 
+                Txy    .= 2.0.*ηvep_v.*(Exy  .+ Txy0 ./(2*G*Δt))
+                ΔPψ    .= λ̇c.*sind(ψ).*K.*Δt
                 # Residuals
                 P_num  .= γ_eff .* Rp
                 Rx     .= (1.0./Dx).*(.-(P_num[2:end,:] .- P_num[1:end-1,:])./Δx .- (Pt[2:end,:] .- Pt[1:end-1,:])./Δx .- (ΔPψ[2:end,:] .- ΔPψ[1:end-1,:])./Δx .+ (Txx[2:end,:] .- Txx[1:end-1,:])./Δx .+ (Txy[2:end-1,2:end] .- Txy[2:end-1,1:end-1])./Δy)
-                Ry     .= (1.0./Dy).*(.-(P_num[:,2:end] .- P_num[:,1:end-1])./Δy .- (Pt[:,2:end] .- Pt[:,1:end-1])./Δy .- (ΔPψ[:,2:end] .- ΔPψ[:,1:end-1])./Δy .+ (Tyy[:,2:end] .- Tyy[:,1:end-1])./Δy .+ (Txy[2:end,2:end-1] .- Txy[1:end-1,2:end-1])./Δx .- ρg_vy) 
+                Ry     .= (1.0./Dy).*(.-(P_num[:,2:end] .- P_num[:,1:end-1])./Δy .- (Pt[:,2:end] .- Pt[:,1:end-1])./Δy .- (ΔPψ[:,2:end] .- ΔPψ[:,1:end-1])./Δy .+ (Tyy[:,2:end] .- Tyy[:,1:end-1])./Δy .+ (Txy[2:end,2:end-1] .- Txy[1:end-1,2:end-1])./Δx)
                 # Damping-pong
                 dVxdτ  .= αVx.*dVxdτ .+ Rx
                 dVydτ  .= αVy.*dVydτ .+ Ry
@@ -364,11 +386,17 @@ end
                 Vy[2:end-1,2:end-1] .+= dVydτ.*βVy.*dτVy 
                 # Residual check
                 if mod(iter, nout)==0
-                    errVx = norm(Dx.*Rx) / length(Ry)
-                    errVy = norm(Dy.*Ry) / length(Rx)
-                    if iter==nout errVx00=errVx; errVy00=errVy; end
+                    errVx = norm(Dx.*Rx) / √(length(Rx))
+                    errVy = norm(Dy.*Ry) / √(length(Ry))
+                    if iter==nout 
+                        errVx00 = errVx 
+                        errVy00 = errVy
+                    end
                     err = maximum([errVx./errVx00, errVy./errVy00])
-                    # err_evo_V[iter] = errVx/errVx00; err_evo_P[iter] = errPt/errPt0; err_evo_it[iter] =  iter
+                    
+                    # @printf("it = %d, iter = %d, err = %1.3e, errVx = %1.3e , errVy = %1.3e \n", itPT, iter, err, errVx, errVy)
+
+                    err_evo_V[iter] = errVx/errVx00; err_evo_P[iter] = errPt/errPt0; err_evo_it[iter] =  iter
                     dVx .= dVxdτ.*βVx.*dτVx
                     dVy .= dVydτ.*βVy.*dτVy
                     # @printf("it = %d, iter = %d, err = %1.3e norm[Rx=%1.3e, Ry=%1.3e] \n", it, iter, err, norm_Rx, norm_Ry)
@@ -398,11 +426,6 @@ end
         Tii_evo[it] = maximum(TIIc)
         it_evo[it]  = iter/ncx
 
-        # Plotting
-        EIIc  .= sqrt.(0.5.*((Exx).^2 .+ (Eyy).^2 .+ (.-(Exx).-(Eyy)).^2) .+ (Exyc).^2 )
-        p1 = pt.heatmap(Vy', aspect_ratio=1)
-        p2 = pt.heatmap(∇V' , aspect_ratio=1)
-        display(pt.plot(p1, p2))
         @show iter/ncx
         @show itg
 
@@ -411,18 +434,50 @@ end
     @show η_h = 1.0 / sum(1.0/n ./ηc)
     @show η_g = exp( sum( 1.0/n*log.(ηc)))
     @show η_a = mean(ηc)
-    @show extrema(∇V)
-    
-    return Vx,Vy,∇V,Pt
+
+    # Plotting
+    EIIc  .= sqrt.(0.5.*((Exx).^2 .+ (Eyy).^2 .+ (.-(Exx).-(Eyy)).^2) .+ (Exyc).^2 )
+    fig = Figure(size = (1100, 850) .* 2, backgroundcolor = :black, fontsize=24)
+
+    ax1 = Axis(fig[1, 1], xlabel = L"$$x", ylabel = L"$$y", aspect = DataAspect(), backgroundcolor = :black)
+    dark_axis!(ax1)
+    hm1 = heatmap!(ax1, xc, yc, log10.(EIIc ./ sc.t), colormap = :bilbao)
+    xlims!(ax1, -Lx / 2, Lx / 2)
+    heatmap_colorbar!(fig[1, 2], hm1, L"$\dot{\varepsilon}_{\text{II}}$ [s$^{-1}$]")
+
+    ax2 = Axis(fig[1, 3], xlabel = L"$$x", ylabel = L"$$y", aspect = DataAspect(), backgroundcolor = :black)
+    dark_axis!(ax2)
+    hm2 = heatmap!(ax2, xc, yc, (Pt .* sc.σ) ./1e6 , colormap = :vikO)
+    xlims!(ax2, -Lx / 2, Lx / 2)
+    heatmap_colorbar!(fig[1, 4], hm2, L"$$P [MPa]")
+
+    ax3 = Axis(fig[2, 1:2], xlabel = L"$$time step", ylabel = L"mean $\tau_{\text{II}}$ [MPa]", backgroundcolor = :black)
+    dark_line_axis!(ax3)
+    lines!(ax3, (Tii_evo .* sc.σ) ./1e6, color = :deepskyblue2, linewidth = 3)
+
+    ax4 = Axis(fig[2, 3], xlabel = L"$$x", ylabel = L"$$y", aspect = DataAspect(), backgroundcolor = :black)
+    dark_axis!(ax4)
+    hm4 = heatmap!(ax4, xc, yc, log10.(ηc), colormap = :glasgow)
+    xlims!(ax4, -Lx / 2, Lx / 2)
+    heatmap_colorbar!(fig[2, 4], hm4, L"\eta")
+
+    colgap!(fig.layout, 35)
+
+    display(fig)
+    save("StokesVEVP.png", fig)
+
+
+    return
 end
 
-n=4
-Vx,Vy,∇V,Pt= Stokes2D_VEP(n)
+@time Stokes2D_VEP(2)
 
-f1,ax,h1=heatmap(Vx)
-f2,ax,h2=heatmap(Vy)
-f3,ax,h3=heatmap(log10.(abs.(∇V)))
-
-Colorbar(f1[1,2],h1); f1
-Colorbar(f2[1,2],h2); f2
-Colorbar(f3[1,2],h3); f3
+# 7e-06, Rp=1.060e-14] - max(F) = 1.64e-14 
+# itPH = 21 iter = 001848 iter/nx = 015, err = 5.691e-07 norm[Rx=2.173e-07, Ry=5.691e-07, Rp=5.516e-15] - max(F) = 2.51e-14 
+#   2.357313 seconds (379.28 k allocations: 5.136 GiB, 15.15% gc time)
+# iter / ncx = 14.903225806451612
+# itg = 33268
+# η_h = 1.0 / sum((1.0 / n) ./ ηc) = 6.353719008224728e-5
+# η_g = exp(sum((1.0 / n) * log.(ηc))) = 5.651875658642966e6
+# η_a = mean(ηc) = 9.80749219562958e6
+#  43.592272 seconds (7.44 M allocations: 89.672 GiB, 18.00% gc time, 0.14% compilation time)

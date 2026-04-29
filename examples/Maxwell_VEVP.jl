@@ -7,6 +7,12 @@ using LaTeXStrings
 include("../rheologies/RheologyDefinitions.jl")
 include("tensor_helpers.jl")
 
+#     t_v, τ = stress_time(c, vars, x, xnorm, others; ntime = 1_500, dt = 1e8)
+# @b solve($(c, x, vars, others)..., verbose = $true, xnorm0=$xnorm)
+# @b solve($(c, x, vars, others)...)
+#  solve(c, x, vars, others, verbose = true, xnorm0=xnorm)
+
+
 function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1.0e8)
     # Extract elastic stresses/pressure from solutio vector
     τ1   = zeros(ntime)
