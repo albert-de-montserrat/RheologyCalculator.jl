@@ -97,9 +97,9 @@ end
 @inline series_state_functions(::Elasticity) = (compute_strain_rate, compute_volumetric_strain_rate)
 @inline parallel_state_functions(::Elasticity) = (compute_stress, compute_pressure)
 
-@inline compute_strain_rate(r::Elasticity; τ = 0, τ0 = 0, dt = 0, kwargs...) = (τ - stress_history_invariant(τ0)) / (2 * r.G * dt)
+@inline compute_strain_rate(r::Elasticity; τ = 0, τ0 = 0, dt = 0, kwargs...) = τ / (2 * r.G * dt)
 @inline compute_volumetric_strain_rate(r::Elasticity; P = 0, P0 = 0, dt = 0, kwargs...) = -(P - P0) / (r.K * dt)
-@inline compute_stress(r::Elasticity; ε = 0, τ0 = 0, dt = 0, kwargs...) = 2 * r.G * dt * ε + stress_history_invariant(τ0)
+@inline compute_stress(r::Elasticity; ε = 0, τ0 = 0, dt = 0, kwargs...) = 2 * r.G * dt * ε
 @inline compute_pressure(r::Elasticity; θ = 0, P0 = 0, dt = 0, kwargs...) = P0 - r.K * dt * θ
 
 @inline compute_viscosity(r::Elasticity; dt = 0, kwargs...)   = r.G * dt
@@ -330,7 +330,7 @@ DiffusionCreep(args...) = DiffusionCreep(args[1], promote(args[2:end]...)...)
 @inline function compute_strain_rate(r::DiffusionCreep; τ = 0, T = 0, P = 0, f = 1, d = 1, args...)
     (; n, r, p, A, E, V, R) = r
 
-    ε = A * signed_power(τ, n) * f^r * d^(-p) * exp(-(E + P * V) / (R * T))
+    ε = A * τ^n * f^r * d^(-p) * exp(-(E + P * V) / (R * T))
     return ε
 end
 
@@ -338,8 +338,7 @@ end
     (; n, r, p, A, E, V, R) = r
 
     _n = inv(n)
-
-    τ = A^(-_n) * signed_power(ε, _n) * f^(-r * _n) * d^(p * _n) * exp((E + P * V) / (n * R * T))
+    τ = A^(-_n) * ε^_n * f^(-r * _n) * d^(p * _n) * exp((E + P * V) / (n * R * T))
 
     return τ
 end
