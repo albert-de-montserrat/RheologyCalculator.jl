@@ -1,4 +1,4 @@
-using RheologyCalculator, StaticArrays, ForwardDiff
+using RheologyCalculator, StaticArrays, ForwardDiff, Chairmarks
 import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 using DifferentiationInterface
 import ForwardDiff: ForwardDiff
@@ -24,7 +24,7 @@ include("tensor_helpers.jl")
     xnorm   = normalisation_x(c, char_τ, char_ε)
 
     τII = solve(c, x, vars, others, verbose=false, xnorm0=xnorm)[1]
-    τᵢⱼ = elastic_stress_history_2D(c, τII, vars.ε, τ0ᵢⱼ, others)
+    τᵢⱼ = elastic_stress_history_2D(c, τII, vars.ε, τ0ᵢⱼ, others)[1]
     return SVector{3}(τᵢⱼ)
 end
 
@@ -44,7 +44,7 @@ end
     xnorm   = normalisation_x(c, char_τ, char_ε)
 
     τII = solve(c, x, vars, others, verbose=false, xnorm0=xnorm)[1]
-    τᵢⱼ = elastic_stress_history_2D(c, τII, vars.ε, τ0ᵢⱼ, others)[index]
+    τᵢⱼ = elastic_stress_history_2D(c, τII, vars.ε, τ0ᵢⱼ, others)[1][index]
 end
 
 @inline function ∇σij(εxx, εyy, εxy, c, index)

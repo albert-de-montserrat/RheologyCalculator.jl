@@ -10,7 +10,7 @@ for composite model `c` or equation tuple `eqs`.
 Stress-like unknowns (`τ`, `P`, `λ`) use `char_τ`; strain-rate-like unknowns
 (`ε`, `θ`, plastic strain rates) use `char_ε`.
 """
-function normalisation_x(c::AbstractCompositeModel, char_τ::T = 1.0, char_ε::T = 1.0) where T
+function normalisation_x(c::AbstractCompositeModel, char_τ = 1.0, char_ε = 1.0)
     eqs = generate_equations(c)
     x0 = normalisation_x(eqs, char_τ, char_ε)
     return SA[x0...]
