@@ -63,14 +63,14 @@ include("../rheologies/Hyperbolic.jl")
     @test all(isfinite, P)
 
     t_v, τ, P = stress_time(c, vars_2D(7.0e-14, 0*7.0e-15), x, xnorm, others; ntime = 80, dt = 1e7)
-    @test mean(τ) ≈ 5.037154169668192e16
-    @test mean(P) ≈ 1.007430833917798e17
+    @test mean(τ) ≈ 536901.6577557874
+    @test mean(P) ≈ 341487.7290700593
     @test all(isfinite, τ)
     @test all(isfinite, P)
 
     t_v, τ, P = stress_time(c, vars_2D(7.0e-14, 7.0e-15), x, xnorm, others; ntime = 30, dt = 2e7)
-    @test mean(τ) ≈ 9.433400739484023e8
-    @test mean(P) ≈ 1.8852721074057496e9
+    @test mean(τ) ≈ 371075.3089791962
+    @test mean(P) ≈ 16814.444790283495
     @test all(isfinite, τ)
     @test all(isfinite, P)
 

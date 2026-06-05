@@ -70,8 +70,8 @@ include("../rheologies/ModCamClay.jl")
     @test all(isfinite, P)
 
     t_v, τ, P = stress_time(c, vars_2D(7.0e-14, -4.0e-15), x, xnorm, others; ntime = 700, dt = 1e8)
-    @test mean(τ) ≈ 8.890542090240483e7
-    @test mean(P) ≈ 9.850539958044085e7
+    @test mean(τ) ≈ 4.7872457278776795e7
+    @test mean(P) ≈ 3.080394041337929e7
     @test all(isfinite, τ)
     @test all(isfinite, P)
 

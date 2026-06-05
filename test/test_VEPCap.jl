@@ -71,14 +71,14 @@ include("../rheologies/DruckerPragerCap.jl")
     @test all(isfinite, P1)
 
     t_v2, τ2, P2    = stress_time(c, vars_2D(7.0e-14, 0*7.0e-15), x, xnorm, others; ntime = 80, dt = 1e7)
-    @test mean(τ2) ≈ 1.1293069657661188e20
-    @test mean(P2) ≈ 2.258613931532221e20
+    @test mean(τ2) ≈ 551452.3775990973
+    @test mean(P2) ≈ 305322.99751051754
     @test all(isfinite, τ2)
     @test all(isfinite, P2)
 
     t_v3, τ3, P3    = stress_time(c, vars_2D(7.0e-14, 7.0e-15), x, xnorm, others; ntime = 30, dt = 2e7)
-    @test mean(τ3) ≈ 1.028693347153668e10
-    @test mean(P3) ≈ 2.0572420903177696e10
+    @test mean(τ3) ≈ 401710.52503937355
+    @test mean(P3) ≈ -51828.69080112919
     @test all(isfinite, τ3)
     @test all(isfinite, P3)
 

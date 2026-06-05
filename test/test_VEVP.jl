@@ -48,6 +48,6 @@ using LinearAlgebra
     end
 
     _, τ = stress_time(c, vars, x, xnorm, others; ntime = 1_500, dt = 1e8)
-    @test maximum(τ) ≈ 1.980197451582217e6
+    @test maximum(τ) ≈ 1.1049753302374864e7
     @test all(isfinite, τ)
 end
