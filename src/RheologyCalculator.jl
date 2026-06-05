@@ -1,3 +1,15 @@
+"""
+    RheologyCalculator
+
+Build and solve local rheological models assembled from viscous, elastic, and
+plastic elements.
+
+The package core provides the composite containers (`SeriesModel`,
+`ParallelModel`), equation generation, solver utilities, and the state-function
+interface that concrete rheologies extend. Example rheology definitions live in
+the repository's `rheologies/` directory and can be used as templates for
+application-specific material laws.
+"""
 module RheologyCalculator
 
 using DifferentiationInterface, StaticArrays, LinearAlgebra

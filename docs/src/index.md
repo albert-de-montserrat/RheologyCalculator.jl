@@ -1,17 +1,28 @@
 # RheologyCalculator.jl
 
+```@docs
+RheologyCalculator
+```
+
 `RheologyCalculator.jl` builds and solves local rheological models from small
 viscous, elastic, and plastic building blocks. Rheologies can be composed in
 series, in parallel, or in nested hybrid networks, then converted into a
 nonlinear residual system solved with Newton iterations.
 
+The computational core is intentionally separate from any particular material
+catalogue. The repository's `rheologies/` directory contains example concrete
+laws such as `LinearViscosity`, `Elasticity`, and `DruckerPrager`; project code
+can define its own types by extending the same state-function interface.
+
 The typical workflow is:
 
 1. Define rheological elements, such as viscosity, elasticity, or plasticity.
 2. Compose them with [`SeriesModel`](@ref) and [`ParallelModel`](@ref).
-3. Build an initial solver vector with [`initial_guess_x`](@ref).
-4. Solve with [`solve`](@ref).
-5. Update elastic history with
+3. Provide prescribed inputs in `vars`, initial unknown estimates in `args`,
+   and auxiliary/history values in `others`.
+4. Build an initial solver vector with [`initial_guess_x`](@ref).
+5. Solve with [`solve`](@ref).
+6. Update elastic history with
    [`compute_stress_elastic`](@ref RheologyCalculator.compute_stress_elastic)
    and [`compute_pressure_elastic`](@ref RheologyCalculator.compute_pressure_elastic),
    when needed.
@@ -33,5 +44,10 @@ x = initial_guess_x(c, vars, args, others)
 x = solve(c, x, vars, others)
 ```
 
-See [Composites](@ref composites) for model construction and [API](@ref) for the public
-package interface.
+Here `vars` contains prescribed rates (`ε`, `θ`), `args` seeds the solver
+unknowns (`τ`, `P`, and any branch-local unknowns), and `others` carries values
+that are not differentiated by the local Newton solve (`dt`, elastic history,
+grain size, temperature, pressure-dependent parameters, and similar fields).
+
+See [Composites](@ref composites) for model construction, [Rheologies](@ref) for
+the element interface, and [API](@ref) for the generated reference.

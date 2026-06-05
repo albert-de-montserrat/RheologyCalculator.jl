@@ -7,6 +7,12 @@ The two main constructors are [`SeriesModel`](@ref) and [`ParallelModel`](@ref).
 Both store direct rheology elements as `leafs` and nested composites as
 `branches`; this is the structure used internally by [`generate_equations`](@ref).
 
+In a series model, compatible strain-rate contributions are summed and compared
+with the prescribed strain-rate input. In a parallel model, compatible stress
+contributions are summed and compared with the parent stress. Nested composites
+alternate those roles recursively, which is how Maxwell, Kelvin-Voigt, Burgers,
+and more general visco-elasto-plastic networks are represented.
+
 ## Material with a configuration in series
 
 Example of a Maxwell visco-elastic model, with a viscous damper of viscosity
@@ -55,3 +61,8 @@ The resulting equation layout can be inspected with:
 eqs = generate_equations(Burgers_material)
 x_keys(Burgers_material)
 ```
+
+`generate_equations` returns the generated residual equations in solver-vector
+order. `x_keys` returns the corresponding unknown names, which is useful when
+choosing an initial `args` tuple or a normalization vector with
+[`normalisation_x`](@ref).
