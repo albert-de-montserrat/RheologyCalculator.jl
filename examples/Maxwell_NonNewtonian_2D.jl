@@ -76,24 +76,3 @@ fig,ax,li = lines(t_v, τ_an/1e6)
 scatter!(t_v, τ/1e6)
 
 display(fig)
-
-viscous = LinearViscosity(1e22)
-elastic = IncompressibleElasticity(10e9)
-
-disl = DislocationCreep(
-    3.5, # n power-law exponent
-    0e0, # r exponent of water-fugacity
-    1e-17, # A material specific rheological parameter
-    530e3, # E activation energy
-    2e-6, # V activation volume
-    8.314, # R universal gas constant
-)
-
-diff = DiffusionCreep(
-    1, # d The grain size.
-    , # p The grain size exponent.
-    , # A The material-specific rheological parameter.
-    , # E The activation energy.
-    , # V The activation volume.
-    , # R The universal gas constant.
-)
