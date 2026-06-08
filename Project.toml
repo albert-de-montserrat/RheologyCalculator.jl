@@ -4,7 +4,6 @@ authors = ["albert-de-montserrat <albert.de.montserrat@gmail.com>"]
 version = "0.1.0"
 
 [deps]
-Chairmarks = "0ca39b1e-fe0b-4e98-acfc-b1656634c4de"
 DifferentiationInterface = "a0c0ee7d-e4b9-4e03-894e-1c5f64a51d63"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"

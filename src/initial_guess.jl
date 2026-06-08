@@ -216,6 +216,7 @@ Reduce tensor components to their scalar second invariant, dispatching on the ty
 |:-------------------------------------|:-------------------------------------------------------------------|
 | `NTuple{N, Real}`                    | Returns `second_invariant(x...)` — scalar invariant of a flat component tuple (e.g. `(τxx, τyy, τxy)`). |
 | `NTuple{N1, NTuple{N2, Real}}`       | Applies `tensor2invariant` element-wise; returns an `NTuple{N1}` of invariants, one per inner tuple. |
+| `Tuple{}`                            | Returned unchanged.                                                 |
 | `Number`                             | Returned unchanged; already a scalar.                              |
 | `NamedTuple`                         | Applies `tensor2invariant` to every field value and reconstructs a `NamedTuple` with the same keys. |
 
@@ -225,6 +226,7 @@ Reduce tensor components to their scalar second invariant, dispatching on the ty
 # Returns
 - A scalar, tuple of scalars, or `NamedTuple` of scalars depending on the input type.
 """
+@inline tensor2invariant(A::Tuple{}) = A
 @inline tensor2invariant(A::NTuple{N, Real}) where N = second_invariant(A...)
 @generated function tensor2invariant(A::NTuple{N1, NTuple{N2, Real}}) where {N1, N2} 
     quote 
