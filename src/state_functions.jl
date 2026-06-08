@@ -1,157 +1,145 @@
+fns_state = (
+    :compute_strain_rate,
+    :compute_stress,
+    :compute_volumetric_strain_rate,
+    :compute_pressure,
+    :compute_lambda,
+    :compute_lambda_parallel,
+    :compute_plastic_strain_rate,
+    :compute_volumetric_plastic_strain_rate,
+    :compute_plastic_stress,
+    :compute_viscosity,
+    :compute_viscosity_series,
+    :compute_viscosity_parallel,
+)
+
 # ================================================================================================
 # ABSTRACT RHEOLOGY (FALLBACK METHODS)
 # ================================================================================================
-
-@inline compute_strain_rate(r::AbstractRheology; kwargs...) = 0.0e0 # for any other rheology that doesnt need this method
-@inline compute_stress(r::AbstractRheology; kwargs...) = 0.0e0 # for any other rheology that doesnt need this method
-@inline compute_volumetric_strain_rate(r::AbstractRheology; kwargs...) = 0.0e0 # for any other rheology that doesnt need this method
-@inline compute_pressure(r::AbstractRheology; kwargs...) = 0.0e0 # for any other rheology that doesnt need this method
-@inline compute_lambda(r::AbstractRheology; kwargs...) = 0.0e0 # for any other rheology that doesnt need this method
-@inline compute_lambda_parallel(r::AbstractRheology; kwargs...) = 0.0e0
-@inline compute_plastic_strain_rate(r::AbstractRheology; kwargs...) = 0.0e0 # for any other rheology that doesnt need this method
-@inline compute_volumetric_plastic_strain_rate(r::AbstractRheology; kwargs...) = 0.0e0 # for any other rheology that doesnt need this method
-@inline compute_plastic_stress(r::AbstractRheology; kwargs...) = 0.0e0 # for any other rheology that doesnt need this method
-
-# ================================================================================================
-# LINEAR VISCOSITY
-# ================================================================================================
-
-# @inline compute_strain_rate(r::LinearViscosity; τ = 0, kwargs...) = τ / (2 * r.η)
-# @inline compute_stress(r::LinearViscosity; ε = 0, kwargs...) = ε * 2 * r.η
-
-# ================================================================================================
-# LINEAR VISCOSITY STRESS
-# ================================================================================================
-
-# @inline compute_stress(r::LinearViscosityStress; ε = 0, kwargs...) = ε * 2 * r.η
-
-# ================================================================================================
-# POWER LAW VISCOSITY
-# ================================================================================================
-
-# @inline compute_strain_rate(r::PowerLawViscosity; τ = 0, kwargs...) = τ^r.n / (2 * r.η)
-# @inline compute_stress(r::PowerLawViscosity; ε = 0, kwargs...) = ε^(1 / r.n) * (2 * r.η)^(1 / r.n)
-
-# ================================================================================================
-# LTP VISCOSITY
-# ================================================================================================
-
-# @inline compute_strain_rate(r::LTPViscosity; τ = 0, kwargs...) = max(r.ε0 * sinh(r.Q * (τ - r.σb) / r.σr), 0.0)
-# # @inline compute_strain_rate(r::LTPViscosity; τ = 0, kwargs...) = r.ε0 * sinh(r.Q * (τ - r.σb) / r.σr)
-# @inline compute_stress(r::LTPViscosity; ε = 0, kwargs...) = r.σr / r.Q * asinh(ε / r.ε0) + r.σb
-
-# ================================================================================================
-# DIFFUSION CREEP
-# ================================================================================================
-
-# @inline function compute_strain_rate(r::DiffusionCreep; τ = 0, T = 0, P = 0, f = 0, args...)
-#     (; n, r, p, A, E, V, R) = r
-
-#     Q = 52
-#     ε = A * τ^n * exp(-Q)
-#     # ε = A * TauII ^n * exp(-(E + P * V) / (R * T))
-#     return ε
-# end
-
-# ================================================================================================
-# DISLOCATION CREEP
-# ================================================================================================
-
-# @inline function compute_strain_rate(r::DislocationCreep; τ = 0, T = 0, P = 0, f = 0, args...)
-#     (; n, r, A, E, V, R) = r
-#     Q = 73
-#     ε = A * τ^n * f^r * exp(-Q)
-#     # ε = A * τ^n * f^r * exp(-(E + P * V) / (R * T))
-#     return ε
-# end
-
-# ================================================================================================
-# BULK VISCOSITY
-# ================================================================================================
-
-# @inline compute_volumetric_strain_rate(r::BulkViscosity; P = 0, kwargs...) = P / r.χ
-# @inline compute_pressure(r::BulkViscosity; θ = 0, kwargs...) = θ * r.χ
-
-# ================================================================================================
-# ELASTICITY
-# ================================================================================================
-
-# @inline compute_strain_rate(r::Elasticity; τ = 0, τ0 = 0, dt = 0, kwargs...) = (τ - τ0) / (2 * r.G * dt)
-# @inline compute_stress(r::Elasticity; ε = 0, τ0 = 0, dt = 0, kwargs...) = τ0 + 2 * r.G * dt * ε
-# @inline compute_volumetric_strain_rate(r::Elasticity; P = 0, P0 = 0, dt = 0, kwargs...) = (P - P0) / (r.K * dt)
-# @inline compute_pressure(r::Elasticity; θ = 0, P0 = 0, dt = 0, kwargs...) = P0 + r.K * dt * θ
-
-# ================================================================================================
-# INCOMPRESSIBLE ELASTICITY
-# ================================================================================================
-
-# @inline compute_strain_rate(r::IncompressibleElasticity; τ = 0, τ0 = 0, dt = 0, kwargs...) = (τ - τ0) / (2 * r.G * dt)
-# @inline compute_stress(r::IncompressibleElasticity; ε = 0, τ0 = 0, dt = 0, kwargs...) = τ0 + 2 * r.G * dt * ε
-
-# ================================================================================================
-# BULK ELASTICITY
-# ================================================================================================
-
-# @inline compute_volumetric_strain_rate(r::BulkElasticity; P = 0, P0 = 0, dt = 0, kwargs...) = (P - P0) / (r.K * dt)
-# @inline compute_pressure(r::BulkElasticity; θ = 0, P0 = 0, dt = 0, kwargs...) = P0 + r.K * dt * θ
-
-# ================================================================================================
-# DRUCKER PRAGER
-# ================================================================================================
-
-# @inline function compute_strain_rate(r::DruckerPrager; τ = 0, λ = 0, P_pl = 0, kwargs...)
-#     ε_pl = compute_plastic_strain_rate(r::DruckerPrager; τ_pl = τ, λ = λ, P_pl = P_pl, kwargs...)
-#     return ε_pl
-# end
-
-# @inline compute_stress(r::DruckerPrager; τ_pl = 0, kwargs...) = τ_pl
-
-# @inline function compute_volumetric_strain_rate(r::DruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)
-#     return λ * ForwardDiff.derivative(x -> compute_Q(r, τ, x), P) # perhaps this derivative needs to be hardcoded
-# end
-
-# @inline compute_pressure(r::DruckerPrager; P_pl = 0, kwargs...) = P_pl
-
-# @inline function compute_lambda(r::DruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)
-#     F = compute_F(r, τ, P)
-#     η_χ = 1.0  # Lagrange multiplier, value doesn't matter
-#     return F - λ * η_χ * (F < 0)
-# end
-
-# @inline function compute_lambda_parallel(r::DruckerPrager; τ_pl = 0, λ = 0, P = 0, kwargs...)
-#     F = compute_F(r, τ_pl, P)
-#     η_χ = 1.0  # Lagrange multiplier, value doesn't matter
-#     return F - λ * η_χ * (F < 0)
-# end
-
-# @inline function compute_plastic_strain_rate(r::DruckerPrager; τ_pl = 0, λ = 0, P_pl = 0, ε = 0, kwargs...)
-#     return λ / 2 * ForwardDiff.derivative(x -> compute_Q(r, x, P_pl), τ_pl) # perhaps this derivative needs to be hardcoded
-# end
-
-# @inline function compute_volumetric_plastic_strain_rate(r::DruckerPrager; τ_pl = 0, λ = 0, P_pl = 0, θ = 0, kwargs...)
-#     return λ * ForwardDiff.derivative(x -> compute_Q(r, τ_pl, x), P_pl) # perhaps this derivative needs to be hardcoded
-# end
-
-# @inline compute_plastic_stress(r::DruckerPrager; τ_pl = 0, kwargs...) = τ_pl
-
-# # Helper functions for DruckerPrager
-# function compute_F(r::DruckerPrager, τ, P)
-#     F = (τ - P * sind(r.ϕ) - r.C * cosd(r.ϕ))
-#     return F * (F > 0)
-# end
-# compute_Q(r::DruckerPrager, τ, P) = τ - P * sind(r.ψ)
+for fn in fns_state
+    @eval @inline $fn(r::AbstractRheology; kwargs...) = 0.0e0
+end
 
 # ================================================================================================
 # WRAPPER FUNCTIONS (for NamedTuple arguments)
 # ================================================================================================
+for fn in fns_state
+    @eval @inline $fn(r::AbstractRheology, kwargs::NamedTuple) = $fn(r; kwargs...)
+end
 
-# splatter wrappers
-@inline compute_strain_rate(r::AbstractRheology, kwargs::NamedTuple) = compute_strain_rate(r; kwargs...)
-@inline compute_stress(r::AbstractRheology, kwargs::NamedTuple) = compute_stress(r; kwargs...)
-@inline compute_volumetric_strain_rate(r::AbstractRheology, kwargs::NamedTuple) = compute_volumetric_strain_rate(r; kwargs...)
-@inline compute_pressure(r::AbstractRheology, kwargs::NamedTuple) = compute_pressure(r; kwargs...)
-@inline compute_lambda(r::AbstractRheology, kwargs::NamedTuple) = compute_lambda(r; kwargs...)
-@inline compute_lambda_parallel(r::AbstractRheology, kwargs::NamedTuple) = compute_lambda_parallel(r; kwargs...)
-@inline compute_plastic_strain_rate(r::AbstractRheology, kwargs::NamedTuple) = compute_plastic_strain_rate(r; kwargs...)
-@inline compute_volumetric_plastic_strain_rate(r::AbstractRheology, kwargs::NamedTuple) = compute_volumetric_plastic_strain_rate(r; kwargs...)
-@inline compute_plastic_stress(r::AbstractRheology, kwargs::NamedTuple) = compute_plastic_stress(r; kwargs...)
+@doc """
+    compute_strain_rate(r; τ, kwargs...)
+    compute_strain_rate(r, kwargs::NamedTuple)
+
+Return the deviatoric strain-rate contribution of rheology `r` for the supplied
+stress-like arguments. Series composites use this as a global/state equation:
+the solver finds the stress unknowns whose summed element strain rate matches
+the prescribed input `vars.ε`.
+
+Concrete rheologies usually specialize the keyword method. The `NamedTuple`
+method forwards to the keyword method and is used by generated residual code.
+""" compute_strain_rate
+
+@doc """
+    compute_stress(r; ε, kwargs...)
+    compute_stress(r, kwargs::NamedTuple)
+
+Return the deviatoric stress contribution of rheology `r` for the supplied
+strain-rate-like arguments. Parallel composites use this as a global/state
+equation: the solver finds the local strain-rate unknowns whose summed element
+stress matches the parent stress.
+
+Concrete rheologies usually specialize the keyword method. The `NamedTuple`
+method forwards to the keyword method and is used by generated residual code.
+""" compute_stress
+
+@doc """
+    compute_volumetric_strain_rate(r; P, kwargs...)
+    compute_volumetric_strain_rate(r, kwargs::NamedTuple)
+
+Return the volumetric strain-rate contribution of rheology `r` for the supplied
+pressure-like arguments. Volumetric equations are generated only when a
+rheology or composite reports volumetric behavior through `_isvolumetric`.
+""" compute_volumetric_strain_rate
+
+@doc """
+    compute_pressure(r; θ, kwargs...)
+    compute_pressure(r, kwargs::NamedTuple)
+
+Return the pressure contribution of rheology `r` for the supplied volumetric
+strain-rate-like arguments. This is the volumetric counterpart of
+`compute_stress` for parallel composition.
+""" compute_pressure
+
+@doc """
+    compute_lambda(r; τ, P, λ, kwargs...)
+    compute_lambda(r, kwargs::NamedTuple)
+
+Return the local consistency equation for a plastic multiplier `λ` in series
+composition. Plastic rheologies specialize this method to connect the yield
+function, flow rule, and multiplier unknown.
+""" compute_lambda
+
+@doc """
+    compute_lambda_parallel(r; τ_pl, P, λ, kwargs...)
+    compute_lambda_parallel(r, kwargs::NamedTuple)
+
+Return the local consistency equation for a plastic multiplier `λ` in parallel
+composition, usually using branch-local plastic stress variables such as
+`τ_pl`.
+""" compute_lambda_parallel
+
+@doc """
+    compute_plastic_strain_rate(r; τ_pl, λ, P_pl, kwargs...)
+    compute_plastic_strain_rate(r, kwargs::NamedTuple)
+
+Return the deviatoric plastic strain-rate residual or contribution for
+plastic rheology `r`. The solver treats the associated unknown as `τ_pl`.
+""" compute_plastic_strain_rate
+
+@doc """
+    compute_volumetric_plastic_strain_rate(r; τ_pl, P_pl, λ, kwargs...)
+    compute_volumetric_plastic_strain_rate(r, kwargs::NamedTuple)
+
+Return the volumetric plastic strain-rate residual or contribution for plastic
+rheology `r`. This is used by dilatant or volumetric plastic models.
+""" compute_volumetric_plastic_strain_rate
+
+@doc """
+    compute_plastic_stress(r; τ_pl, kwargs...)
+    compute_plastic_stress(r, kwargs::NamedTuple)
+
+Return the stress carried by the plastic branch variable. Plastic rheologies
+can specialize this when branch-local plastic stress differs from `τ_pl`
+itself.
+""" compute_plastic_stress
+
+@doc """
+    compute_viscosity(r; kwargs...)
+    compute_viscosity(r, kwargs::NamedTuple)
+
+Return an effective viscosity for rheology `r` under the supplied local state.
+This helper is used by elastic strain-rate corrections and by user code that
+needs a scalar effective viscosity.
+""" compute_viscosity
+
+@doc """
+    compute_viscosity_series(r; kwargs...)
+    compute_viscosity_series(r, kwargs::NamedTuple)
+
+Return an effective viscosity appropriate for series-style aggregation.
+Concrete rheologies may specialize this separately from `compute_viscosity`
+when the effective-viscosity estimate depends on composition.
+""" compute_viscosity_series
+
+@doc """
+    compute_viscosity_parallel(r; kwargs...)
+    compute_viscosity_parallel(r, kwargs::NamedTuple)
+
+Return an effective viscosity appropriate for parallel-style aggregation.
+Concrete rheologies may specialize this separately from `compute_viscosity`
+when the effective-viscosity estimate depends on composition.
+""" compute_viscosity_parallel
+
+# NOTE: for user defined new functions, add the template below to the appropriate rheology type file (e.g., RheologyDefinitions.jl)
+# compute_variable(r::AbstractRheology, kwargs::NamedTuple) = compute_variable(r; kwargs...)

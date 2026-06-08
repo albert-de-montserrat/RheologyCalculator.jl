@@ -12,6 +12,7 @@ using GLMakie
 import Statistics: mean
 
 include("../rheologies/RheologyDefinitions.jl")
+include("tensor_helpers.jl")
 
 # This implements rate & state in an explicit manner, where "state" is not included in the local iterations
 include("../rheologies/RateState_HypoPlastic.jl")
@@ -95,7 +96,7 @@ function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1e6, dt_max=1e
     t_v  = zeros(ntime)
     V_v  = zeros(ntime)
     τ_e  = others.τ0
-    τ[1]  = τ_e[1]
+    τ[1]  = second_invariant_2D(τ_e[1])
     τy[1] = others.P[1] .* (c[1].μ₀ .+ c[1].b * 0)
     P_e   = others.P
     Ω   = 0.0;
@@ -104,11 +105,11 @@ function stress_time(c, vars, x, xnorm, others; ntime = 200, dt = 1e6, dt_max=1e
         others = (; dt = dt, τ0 = τ_e, Ω_old=Ω, P0 = P_e, P=(50e6,))       # other non-differentiable variables needed to evaluate the state functions
 
         # solve
-        x = solve(c, x, vars, others, verbose = true, xnorm=xnorm)
+        x = solve(c, x, vars, others, verbose = true, xnorm0=xnorm)
         t += others.dt
 
         ε_ratestate = compute_strain_rate(c[1]; τ = x[1], Ω_old=others.Ω_old, P=others.P[1], dt=others.dt)
-        τ_e = compute_stress_elastic(c, x, others)
+        τ_e = elastic_stress_history_2D(c, x[1], vars.ε, τ_e, others)
         Vp = 2.0 * c[1].D * ε_ratestate                 # slip velocity
         
         Ω =  update_Ω(c[1]; ε=ε_ratestate, others...)   # update state variable
@@ -149,13 +150,13 @@ c, x, xnorm, vars, args, others = let
     
     platerate = 4e-9
 
-    vars   = (; ε = platerate/D/2, θ = 1.0e-20)          # input variables (constant)
+    vars   = vars_2D(platerate / D / 2, 1.0e-20)          # input variables (constant)
     args   = (; τ = 2.0e1, P = 50.0e6)                    # guess variables (we solve for these, differentiable)
-    others = (; dt = 1.1e-2, τ0 = (2e7, ), P0 = (0.0, ), P=(50e6,)) # other non-differentiable variables needed to evaluate the state functions
+    others = (; dt = 1.1e-2, τ0 = (stress_tensor_from_invariant_2D(2e7, vars.ε),), P0 = (0.0, ), P=(50e6,)) # other non-differentiable variables needed to evaluate the state functions
 
     x = initial_guess_x(c, vars, args, others)
     char_τ  = 1e6
-    char_ε  = vars.ε+vars.θ
+    char_ε  = second_invariant_2D(vars.ε) + abs(vars.θ)
     xnorm   = normalisation_x(c, char_τ, char_ε)
 
     c, x, xnorm, vars, args, others

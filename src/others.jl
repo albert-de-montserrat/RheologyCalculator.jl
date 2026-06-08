@@ -1,8 +1,19 @@
-# complete flatten a tuple
+"""
+    superflatten(x)
+
+Recursively flatten nested tuples and return a single flat tuple. Non-tuple
+values are wrapped as one-element tuples.
+"""
 @inline superflatten(t::NTuple{N, Any}) where {N} = superflatten(first(t))..., superflatten(Base.tail(t))...
 @inline superflatten(::Tuple{}) = ()
 @inline superflatten(x) = (x,)
 
+"""
+    isvolumetric(c)
+
+Return `Val(true)` if a rheology or composite contains any volumetric state
+functions, otherwise `Val(false)`.
+"""
 isvolumetric(c::AbstractCompositeModel) = Val(_isvolumetric(c))
 isvolumetric(c::AbstractRheology) = Val(_isvolumetric(c))
 

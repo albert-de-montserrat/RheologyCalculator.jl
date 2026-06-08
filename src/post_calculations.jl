@@ -5,9 +5,16 @@ is_eq_elastic(::AbstractElasticity) = true
 is_eq_elastic(::T) where {T} = false
 
 """
-    τ_elastic = compute_stress_elastic(eqs::NTuple{N, CompositeEquation}, xnew, others)
+    compute_stress_elastic(c, xnew, others)
+    compute_stress_elastic(eqs, xnew, others)
 
-Returns stress of the elastic elements
+Return a flat tuple with the updated stresses of all elastic elements present in
+`c` or equation tuple `eqs`.
+
+This is a post-processing helper for advancing elastic history fields after a
+successful solve. For equations written in strain-rate form, the corresponding
+entry of `xnew` is returned; for equations written in stress form, the elastic
+state function is evaluated from the local arguments.
 """
 compute_stress_elastic(c::AbstractCompositeModel, xnew, others) = compute_stress_elastic(generate_equations(c), xnew, others)
 
@@ -54,9 +61,14 @@ function _compute_stress_elastic1(r::AbstractElasticity, self, fn::F, number, xn
 end
 
 """
-    P_elastic = compute_pressure_elastic(eqs::NTuple{N, CompositeEquation}, xnew, others)
+    compute_pressure_elastic(c, xnew, others)
+    compute_pressure_elastic(eqs, xnew, others)
 
-Returns pressure of the elastic elements
+Return a flat tuple with the updated pressures of all elastic elements present
+in `c` or equation tuple `eqs`.
+
+This is the volumetric counterpart of `compute_stress_elastic` and is intended
+for updating pressure history after a successful solve.
 """
 @generated function compute_pressure_elastic(eqs::NTuple{N, CompositeEquation}, xnew, others) where {N}
     return quote

@@ -1,5 +1,15 @@
 # include("recursion.jl")
 
+"""
+    CompositeEquation
+
+Internal representation of one residual equation generated from a composite
+rheology model.
+
+Fields store the equation index (`self`), parent equation index, child equation
+indices, state function `fn`, rheology tuple, input-variable index, and
+type-local element numbering for history lookup.
+"""
 struct CompositeEquation{IsGlobal, T, F, R, RT}
     parent::Int64       # i-th element of x to be substracted
     child::T            # i-th element of x to be added
@@ -16,6 +26,13 @@ struct CompositeEquation{IsGlobal, T, F, R, RT}
     end
 end
 
+"""
+    generate_equations(c::AbstractCompositeModel)
+
+Generate the tuple of `CompositeEquation`s that defines the residual system for
+composite model `c`. The length of this tuple is the expected length of the
+solver vector `x`.
+"""
 @inline generate_equations(c::AbstractCompositeModel) = generate_equations(c, global_series_functions(c))
 
 @generated function generate_equations(c::AbstractCompositeModel, fns::NTuple{N, Any}) where {N}
@@ -336,6 +353,14 @@ add_local_equation(::Any, ::Any, ::Any, ::typeof(compute_lambda), ::typeof(compu
     end
 end
 
+"""
+    generate_args_template(eqs)
+    generate_args_template(eqs, x, others)
+
+Build `NamedTuple` argument templates for each equation. With `x` and `others`,
+the returned tuple contains the differentiable value for the equation itself
+plus all other differentiable values and nondifferentiable auxiliary fields.
+"""
 @generated function generate_args_template(eqs::NTuple{N, CompositeEquation}) where {N}
     return quote
         args = Base.@ntuple $N i -> differentiable_kwargs(eqs[i].fn)
@@ -350,8 +375,6 @@ end
             name = keys(args_template[i])
             merge(NamedTuple{name}(x[i]), others)
         end
-        # args_merged = merge(args...)
-        # Base.@ntuple $N i -> args_merged
 
         Base.@ntuple $N i -> begin
             diffs = Base.@ntuple $N j -> begin
@@ -363,14 +386,20 @@ end
     end
 end
 
-# extracts local kwargs when the args is a tuple, and it is listed
-# julia> others      = (; dt = 1e10, τ0 = (1.1, 3.0), d = (4, 2))
-# julia> extract_local_kwargs(others, (:τ0,), 2)
-# (dt = 1.0e10, τ0 = 3.0, d = 4)
-# julia> extract_local_kwargs(others, (:d,), 2)
-# (dt = 1.0e10, τ0 = 1.1, d = 2)
-# julia> extract_local_kwargs(others, (:τ0,:d), 2)
-# (dt = 1.0e10, τ0 = 3.0, d = 2)
+"""
+    extract_local_kwargs(others, keys_hist, n)
+
+Return `others` with history fields indexed to element `n`. Fields whose names
+appear in `keys_hist` are treated as element-local tuples; tuple-valued fields
+not listed in `keys_hist` use their first entry.
+
+# Example
+```julia
+others = (; dt = 1e10, τ0 = (1.1, 3.0), d = (4, 2))
+extract_local_kwargs(others, (:τ0,), 2) # τ0 = 3.0, d = 4
+extract_local_kwargs(others, (:d,), 2)  # τ0 = 1.1, d = 2
+```
+"""
 function extract_local_kwargs(others::NamedTuple, keys_hist::NTuple{M, Symbol}, n::Int64) where {M}
     vals_new = extract_local_kwargs(keys(others), values(others), keys_hist, n)
     return NamedTuple{keys(others)}(vals_new)
@@ -389,8 +418,14 @@ Base.@propagate_inbounds @inline _extract_local_kwargs(vals_args::Tuple, name, k
 
 @inline ismember(name::Symbol, keys_hist::NTuple{N, Symbol}) where {N} = name in keys_hist
 
+"""
+    evaluate_state_function(eq, args, others)
+    evaluate_state_functions(eqs, args, others)
 
-# @inline evaluate_state_functions(eqs::NTuple{N, CompositeEquation}, args) where N = promote(ntuple(i -> evaluate_state_function(eqs[i], args[i]), Val(N))...)
+Evaluate one equation, or all equations, by calling each equation's state
+function on its rheology elements and summing the element contributions.
+Element-local history fields are extracted from `others` before dispatch.
+"""
 @generated function evaluate_state_functions(eqs::NTuple{N, CompositeEquation}, args, others) where {N}
     return quote
         @inline
@@ -398,6 +433,13 @@ Base.@propagate_inbounds @inline _extract_local_kwargs(vals_args::Tuple, name, k
     end
 end
 
+"""
+    evaluate_state_function(eq, args, others)
+
+Evaluate one equation by calling its state function on each rheology element and
+summing the element contributions. Element-local history fields are extracted
+from `others` before dispatch.
+"""
 @inline function evaluate_state_function(eq::CompositeEquation, args, others)
     (; fn, rheology, el_number) = eq
     return evaluate_state_function(fn, rheology, args, others, el_number)
@@ -444,10 +486,8 @@ add_child(::SVector{N, T}, ::CompositeEquation{A, B, typeof(compute_lambda_paral
 add_child(::SVector{N, T}, ::CompositeEquation{A, B, typeof(compute_plastic_strain_rate)}, eq_ind) where {N, A, B, T} = zero(T)
 # add_child(::SVector{Any, T}, ::CompositeEquation{Any, Any, typeof(compute_plastic_strain_rate)}, eq_ind) where T = zero(T)
 
-
 add_child(::SVector, ::Tuple{}) = 0.0e0
 add_child(::SVector, ::NTuple{N, CompositeEquation}, ::Tuple{}) where {N} = 0.0e0
-
 
 # if global, subtract the variables
 @generated function subtract_parent(residual::NTuple{N, Any}, x, eqs::NTuple{N, CompositeEquation}, vars) where {N}
@@ -467,6 +507,14 @@ end
 
 subtract_parent(residual::Number, x::SVector, eq::CompositeEquation, vars) = residual - subtract_parent(x, eq, vars)
 
+"""
+    compute_residual(c, x, vars, others)
+
+Evaluate the residual vector for composite model `c` at solver vector `x`.
+`vars` contains prescribed inputs such as strain-rate invariants; `others`
+contains nondifferentiable auxiliary fields such as `dt`, `τ0`, `P0`, or other
+history/state parameters.
+"""
 function compute_residual(c, x::SVector{N, T}, vars, others) where {N, T}
 
     eqs = generate_equations(c)
@@ -489,8 +537,8 @@ function compute_residual(c, x::SVector{N, T}, vars, others, ::Int64, ::Int64) w
     # evaluates the self-components of the residual
     eq = first(eqs)
     residual = evaluate_state_function(eq, args_all, others)
-    residual = add_children(residual1, x, eq)
-    residual = subtract_parent(residual2, x, eq, vars)
+    residual = add_children(residual, x, eq)
+    residual = subtract_parent(residual, x, eq, vars)
 
     return residual
 end

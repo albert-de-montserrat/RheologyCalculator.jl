@@ -1,18 +1,19 @@
 using ForwardDiff, RheologyCalculator
 import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 
-include("RheologyDefinitions.jl")
+include("../rheologies/RheologyDefinitions.jl")
+include("tensor_helpers.jl")
 
 using GLMakie
 
 function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
-    # Extract elastic stresses/pressure from solutio vector
+    # Extract elastic stresses/pressure from solution vector
     τ1 = zeros(ntime)
     τ2 = zeros(ntime)
     P1 = zeros(ntime)
     P2 = zeros(ntime)
     t_v = zeros(ntime)
-    τ_e = (0.0, 0.0)
+    τ_e = (zero_stress_tensor_2D(), zero_stress_tensor_2D())
     P_e = (0.0, 0.0)
     t = 0.0
     for i in 2:ntime
@@ -20,13 +21,13 @@ function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
         others = (; dt = dt, τ0 = τ_e, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
 
         x = solve(c, x, vars, others)
-        τ_e = compute_stress_elastic(c, x, others)
+        τ_e = elastic_stress_history_2D(c, x, vars.ε, τ_e, others)
         P_e = compute_pressure_elastic(c, x, others)
 
-        @inbounds τ1[i] = τ_e[1]
+        @inbounds τ1[i] = second_invariant_2D(τ_e[1])
         @inbounds P1[i] = P_e[1]
         # if length(τ_e) > 1
-            @inbounds τ2[i] = τ_e[2]
+            @inbounds τ2[i] = second_invariant_2D(τ_e[2])
             @inbounds P2[i] = P_e[2]
         # end
         t += others.dt
@@ -57,24 +58,25 @@ function simulate_series_Burgers_model(E1, η1, E2, η2, ε̇, N, dt)
     return t, σ, σ_spring
 end
 
-viscous1 = LinearViscosity(5.0e19)
-viscous2 = LinearViscosity(1.0e20)
-elastic = Elasticity(1.0e10, 3.0e10)
-elastic1 = Elasticity(1.0e10, 4.0e10)
 
 c, x, vars, args, others = let
+
     # Burger's model
     #      elastic - viscous -    parallel
     #                                |
     #                   elastic --- viscous
+    viscous1 = LinearViscosity(5.0e19)
+    viscous2 = LinearViscosity(1.0e20)
+    elastic = Elasticity(1.0e10, 3.0e10)
+    elastic1 = Elasticity(1.0e10, 4.0e10)
 
     p = ParallelModel(viscous2, elastic)
     viscous3 = LinearViscosity(1.0e21)
     c = SeriesModel(viscous3, elastic1, p)
 
-    vars = (; ε = 1.0e-15, θ = 1.0e-20)         # input variables (constant)
+    vars = vars_2D(1.0e-15, 1.0e-20)         # input variables (constant)
     args = (; τ = 2.0e3, P = 1.0e6)             # guess variables (we solve for these, differentiable)
-    others = (; dt = 1.0e10, τ0 = (1.0, 2.0), P0 = (0.0, 0.1))       # other non-differentiable variables needed to evaluate the state functions
+    others = (; dt = 1.0e10, τ0 = (stress_tensor_from_invariant_2D(1.0, vars.ε), stress_tensor_from_invariant_2D(2.0, vars.ε)), P0 = (0.0, 0.1))       # other non-differentiable variables needed to evaluate the state functions
 
     x = initial_guess_x(c, vars, args, others)
 
@@ -100,7 +102,7 @@ let
         for it in eachindex(dt)
             # Burgers model, numerics
             t_v, τ1, τ2, P1, P2, x1 = stress_time(c, vars, x; ntime = Int64(nt[it]), dt = dt[it]);
-            t_anal, τ1_anal, τ2_anal = simulate_series_Burgers_model(G1, η1, G2, η2, vars.ε, Int64(nt[it]),  dt[it]);
+            t_anal, τ1_anal, τ2_anal = simulate_series_Burgers_model(G1, η1, G2, η2, second_invariant_2D(vars.ε), Int64(nt[it]),  dt[it]);
             ϵ[it] = maximum(abs.(τ1 .- τ1_anal))
 
             # Order
@@ -130,3 +132,25 @@ let
     with_theme(figure, theme_latexfonts())
 end
 
+
+Base.@kwdef mutable struct Foo
+    type   ::Union{String, Missing}          = missing
+    nel    ::Union{Int64,  Missing}          = missing
+    nf     ::Union{Int64,  Missing}          = missing
+    nv     ::Union{Int64,  Missing}          = missing
+    nn_el  ::Union{Int64,  Missing}          = missing
+    nf_el  ::Union{Int64,  Missing}          = missing
+end
+
+a=Foo(nel=20)
+@b $a.nel
+
+function foo(x; a=1, b=2, kwargs...)
+    x + a + b
+end
+
+foo(x, kwargs) = foo(x; kwargs...)
+
+args = (; a=1, b=2, c=3)
+
+foo(1, args)

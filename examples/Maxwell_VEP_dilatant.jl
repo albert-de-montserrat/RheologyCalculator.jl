@@ -4,6 +4,7 @@ import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
 using GLMakie
 
 include("../rheologies/RheologyDefinitions.jl")
+include("tensor_helpers.jl")
 
 analytical_solution(ϵ, t, G, η) = 2 * ϵ * η * (1 - exp(-G * t / η))
 
@@ -16,17 +17,18 @@ function stress_time(c, vars, x, others; ntime = 200, dt = 1.0e8)
     # P1 = zeros(ntime)
     # P2 = zeros(ntime)
     t_v = zeros(ntime)
-    τ_e = 0.0
-    P_e = 0.0
+    τ_e = (zero_stress_tensor_2D(),)
+    P_e = (0.0,)
     t = 0.0
+    εII = second_invariant_2D(vars.ε)
     for i in 2:ntime
         others = (; dt = dt, τ0 = τ_e, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
 
         x        = solve(c, x, vars, others, verbose = true)
         τ1[i]    = x[1]
         t       += others.dt
-        τ_an[i]  = analytical_solution(vars.ε, t, c.leafs[2].G, c.leafs[1].η)
-        τ_e      = compute_stress_elastic(c, x, others)
+        τ_an[i]  = analytical_solution(εII, t, c.leafs[2].G, c.leafs[1].η)
+        τ_e      = elastic_stress_history_2D(c, x[1], vars.ε, τ_e, others)
         P_e      = compute_pressure_elastic(c, x, others)
         t_v[i]   = t
     end
@@ -46,11 +48,13 @@ c, x, vars, args, others = let
     c  = SeriesModel(viscous, elastic, plastic)
     
     # input variables (constant)
-    vars   = (; ε = 1.0e-14, θ = 1.0e-20)
+    εᵢⱼ    = tensor_strain_rate_2D(1.0e-14)
+    τ0ᵢⱼ   = (zero_stress_tensor_2D(),)
+    vars   = (; ε = εᵢⱼ, θ = 1.0e-20)
     # guess variables (we solve for these, differentiable)
     args   = (; τ = 0e0, P = 1.0e6, λ = 0)
     # other non-differentiable variables needed to evaluate the state functions
-    others = (; dt = 1.0e8, τ0 = 0e0, P0 = 0.0)
+    others = (; dt = 1.0e8, τ0 = τ0ᵢⱼ, P0 = (0.0,))
 
     x = initial_guess_x(c, vars, args, others)
 

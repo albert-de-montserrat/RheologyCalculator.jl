@@ -31,6 +31,13 @@ and the initial guess of the variables we want to solve for:
 ```julia
 args = (; τ = 1.0e3, P = 1.0e6) 
 ```
+The auxiliary variables are collected in `others`. These values are passed to
+state functions but are not differentiated by the Newton solve:
+
+```julia
+others = (; dt = 1.0e9, τ0 = (0.0, 0.0), P0 = (0.0, 0.0))
+```
+
 and we build the solution vector `x` that contains the initial guess for the variables we want to solve for:
 ```julia
 x   = initial_guess_x(c, vars, args, others)
@@ -39,8 +46,6 @@ x   = initial_guess_x(c, vars, args, others)
 Now we are ready to compute the time evolution of the stress tensor, with some aid from a helper function
 ```julia
 function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
-    ntime = 200
-    dt    = 1.0e9
     τ     = zeros(ntime)
     t_v   = zeros(ntime)
     τ_e   = (0.0, 0.0)
@@ -110,4 +115,4 @@ ax.ylabel = L"\tau [MPa]"
 display(fig)
 ```
 
-![](../assets/Burgers_model.png)
+![](https://raw.githubusercontent.com/albert-de-montserrat/RheologyCalculator.jl/main/docs/assets/Burgers_model.png)

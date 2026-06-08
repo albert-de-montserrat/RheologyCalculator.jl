@@ -12,17 +12,18 @@ using LinearAlgebra
         τ1   = zeros(ntime)
         τ_an = zeros(ntime)
         t_v  = zeros(ntime)
-        τ_e  = 0.0
-        P_e  = 0.0
+        τ_e  = (zero_stress_tensor_2D(),)
+        P_e  = (0.0,)
         t    = 0.0
+        εII  = second_invariant_2D(vars.ε)
         for i in 2:ntime
             others = (; dt = dt, τ0 = τ_e, P = others.P, P0 = P_e)       # other non-differentiable variables needed to evaluate the state functions
 
-            x       = solve(c, x, vars, others, verbose = false, xnorm=xnorm)
+            x       = solve(c, x, vars, others, verbose = false, xnorm0=xnorm)
             τ1[i]   = x[1]
             t      += others.dt
-            τ_an[i] = analytical_solution(vars.ε, t, c.leafs[2].G, c.leafs[1].η, c.leafs[3].C, c.leafs[3].ϕ, others.P)
-            τ_e     = compute_stress_elastic(c, x, others)
+            τ_an[i] = analytical_solution(εII, t, c.leafs[2].G, c.leafs[1].η, c.leafs[3].C, c.leafs[3].ϕ, others.P)
+            τ_e     = elastic_stress_history_2D(c, x[1], vars.ε, τ_e, others)
             t_v[i]  = t
         end
 
@@ -41,15 +42,15 @@ using LinearAlgebra
         c = SeriesModel(viscous, elastic, plastic)
         
         # input variables (constant)
-        vars   = (; ε = 1.0e-14, θ = 1.0e-20)
+        vars   = vars_2D(1.0e-14, 1.0e-20)
         # guess variables (we solve for these, differentiable)
         args   = (; τ = 0e0, λ = 0)
         # other non-differentiable variables needed to evaluate the state functions
-        others = (; dt = 1.0e8, P = 1.0e6, τ0 = 0e0, P0 = 0.0)
+        others = (; dt = 1.0e8, P = 1.0e6, τ0 = (zero_stress_tensor_2D(),), P0 = (0.0,))
 
         x       = initial_guess_x(c, vars, args, others)
         char_τ  = 1e6
-        char_ε  = vars.ε 
+        char_ε  = second_invariant_2D(vars.ε)
         xnorm   = normalisation_x(c, char_τ, char_ε)
 
         c, x, xnorm, vars, args, others
@@ -57,5 +58,5 @@ using LinearAlgebra
 
     _, τ, τ_an = stress_time(c, vars, x, xnorm, others; ntime = 1_500, dt = 1e8)
     @test error = norm((abs.(τ_an .- τ) ./ τ_an)[2:end]) < 0.0015
-    @test any(!isnan, τ)
+    @test all(isfinite, τ)
 end
