@@ -5,7 +5,7 @@ fns_state = (
     :compute_pressure,
     :compute_pressure_pore,
     :compute_pressure_fluid,
-    :compute_porosity,
+    :compute_porosity_rate,
     :compute_lambda,
     :compute_lambda_parallel,
     :compute_plastic_strain_rate,
@@ -16,17 +16,15 @@ fns_state = (
     :compute_viscosity_parallel,
 )
 
-# ================================================================================================
-# ABSTRACT RHEOLOGY (FALLBACK METHODS)
-# ================================================================================================
-for fn in fns_state
-    @eval @inline $fn(r::AbstractRheology; kwargs...) = 0.0e0
-end
 
-# ================================================================================================
-# WRAPPER FUNCTIONS (for NamedTuple arguments)
-# ================================================================================================
 for fn in fns_state
+    # ================================================================================================
+    # ABSTRACT RHEOLOGY (FALLBACK METHODS)
+    # ================================================================================================
+    @eval @inline $fn(r::AbstractRheology; kwargs...) = 0.0e0
+    # ================================================================================================
+    # WRAPPER FUNCTIONS (for NamedTuple arguments)
+    # ================================================================================================
     @eval @inline $fn(r::AbstractRheology, kwargs::NamedTuple) = $fn(r; kwargs...)
 end
 
@@ -100,8 +98,8 @@ residual code.
 """ compute_pressure_fluid
 
 @doc """
-    compute_porosity(r; kwargs...)
-    compute_porosity(r, kwargs::NamedTuple)
+    compute_porosity_rate(r; kwargs...)
+    compute_porosity_rate(r, kwargs::NamedTuple)
 
 Return the porosity-rate contribution or porosity update associated with
 rheology `r` for the supplied local state. Porous rheologies can specialize this
@@ -110,7 +108,7 @@ state equation coupled to pore and fluid pressures.
 
 The `NamedTuple` method forwards to the keyword method and is used by generated
 residual code.
-""" compute_porosity
+""" compute_porosity_rate
 
 @doc """
     compute_lambda(r; τ, P, λ, kwargs...)

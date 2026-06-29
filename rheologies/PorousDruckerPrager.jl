@@ -56,7 +56,7 @@ end
     return θ_pl* (F > -1e-8) # perhaps this derivative needs to be hardcoded
 end
 
-@inline compute_porosity(r::PorousDruckerPrager; λ = 0, kwargs...) = λ * r.sinψ
+@inline compute_porosity_rate(r::PorousDruckerPrager; λ = 0, kwargs...) = λ * r.sinψ
 
 @inline function compute_lambda(r::PorousDruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)
     F = compute_F(r, τ, P)

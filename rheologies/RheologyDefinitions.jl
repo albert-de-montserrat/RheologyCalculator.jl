@@ -107,7 +107,7 @@ end
 @inline compute_viscosity_series(r::Poroviscosity; ε = 0, kwargs...)   = compute_stress(r; ε = ε, kwargs...)/(2*ε)
 @inline compute_viscosity_parallel(r::Poroviscosity; τ = 0, kwargs...) = τ / (2 * compute_strain_rate(r; τ = τ, kwargs...))
 
-@inline compute_porosity(r::Poroviscosity; pf = 0, p̄ = 0, kwargs...) = (pf - p̄) / r.ηΦ
+@inline compute_porosity_rate(r::Poroviscosity; pf = 0, p̄ = 0, kwargs...) = (pf - p̄) / r.ηΦ
 
 
 # Poroelasticity ---------------------------------------------------------
@@ -139,7 +139,7 @@ end
 @info "Warning: There is no closed form for pressure as there are 2 pressures"
 # @inline compute_pressure(r::Poroelasticity; θ = 0, P0 = 0, dt = 0, kwargs...) = P0 - r.K * dt * θ
 
-@inline function compute_porosity(r::Poroelasticity; pf = 0, p̄ = 0, pf0 = 0, p̄0 = 0, dt = Inf, kwargs...) 
+@inline function compute_porosity_rate(r::Poroelasticity; pf = 0, p̄ = 0, pf0 = 0, p̄0 = 0, dt = Inf, kwargs...) 
     dp̄dt  = (p̄ - p̄0) / dt
     dpfdt = (pf - pf0) / dt
     dΦdt  = (dpfdt - dp̄dt) / r.KΦ

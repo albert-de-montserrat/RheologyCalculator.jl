@@ -53,7 +53,6 @@ struct SeriesModel{L, B} <: AbstractCompositeModel # not 100% about the subtypin
     end
 end
 
-
 for fun in (:compute_strain_rate, :compute_volumetric_strain_rate)
     @eval @inline _local_series_state_functions(::typeof($fun)) = ()
     @eval @inline _global_series_state_functions(fn::typeof($fun)) = (fn,)

@@ -46,6 +46,9 @@ export solve
 include("strain_rate_correction.jl")
 export effective_strain_rate_correction
 
+include("porosity.jl")
+export compute_porosity
+
 include("print_rheology.jl")
 
 end # module Rheology
