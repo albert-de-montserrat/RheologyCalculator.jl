@@ -3,6 +3,9 @@ fns_state = (
     :compute_stress,
     :compute_volumetric_strain_rate,
     :compute_pressure,
+    :compute_pressure_pore,
+    :compute_pressure_fluid,
+    :compute_porosity,
     :compute_lambda,
     :compute_lambda_parallel,
     :compute_plastic_strain_rate,
@@ -70,6 +73,44 @@ Return the pressure contribution of rheology `r` for the supplied volumetric
 strain-rate-like arguments. This is the volumetric counterpart of
 `compute_stress` for parallel composition.
 """ compute_pressure
+
+@doc """
+    compute_pressure_pore(r; θ, kwargs...)
+    compute_pressure_pore(r, kwargs::NamedTuple)
+
+Return the pore-pressure contribution of rheology `r` for porous or two-pressure
+formulations. Rheologies that distinguish a pore-volume pressure from a fluid
+pressure can specialize this method to provide the pore-pressure equation used
+by generated residuals.
+
+The `NamedTuple` method forwards to the keyword method and is used by generated
+residual code.
+""" compute_pressure_pore
+
+@doc """
+    compute_pressure_fluid(r; θ, kwargs...)
+    compute_pressure_fluid(r, kwargs::NamedTuple)
+
+Return the fluid-pressure contribution of rheology `r` for porous or
+two-pressure formulations. Rheologies that solve separate pore and fluid
+pressure equations can specialize this method for the fluid-pressure branch.
+
+The `NamedTuple` method forwards to the keyword method and is used by generated
+residual code.
+""" compute_pressure_fluid
+
+@doc """
+    compute_porosity(r; kwargs...)
+    compute_porosity(r, kwargs::NamedTuple)
+
+Return the porosity-rate contribution or porosity update associated with
+rheology `r` for the supplied local state. Porous rheologies can specialize this
+method to expose pore-volume changes during post-processing or as an additional
+state equation coupled to pore and fluid pressures.
+
+The `NamedTuple` method forwards to the keyword method and is used by generated
+residual code.
+""" compute_porosity
 
 @doc """
     compute_lambda(r; τ, P, λ, kwargs...)

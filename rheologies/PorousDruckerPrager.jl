@@ -49,11 +49,14 @@ end
     F = compute_F(r, τ, P)
     return ε_pl/2* (F > -1e-8)
 end
+
 @inline function compute_volumetric_strain_rate(r::PorousDruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)
     θ_pl = compute_volumetric_plastic_strain_rate(r::PorousDruckerPrager; τ_pl = τ, λ = λ, P_pl = P, θ = 0, kwargs...)
     F    = compute_F(r, τ, P)
     return θ_pl* (F > -1e-8) # perhaps this derivative needs to be hardcoded
 end
+
+@inline compute_porosity(r::PorousDruckerPrager; λ = 0, kwargs...) = λ * r.sinψ
 
 @inline function compute_lambda(r::PorousDruckerPrager; τ = 0, λ = 0, P = 0, kwargs...)
     F = compute_F(r, τ, P)
