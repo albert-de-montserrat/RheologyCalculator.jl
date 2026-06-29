@@ -1,5 +1,3 @@
-# include("recursion.jl")
-
 """
     CompositeEquation
 
@@ -68,7 +66,6 @@ function generate_equations(c::AbstractCompositeModel, fns_own_global::F, ind_in
     local_el = el_num[1]
 
     _, fns_own_local = get_own_functions(c)
-    # fns_branches_global,_ = get_own_functions(branches)
 
     nown = 1 # length(fns_own_global)
     nlocal = length(fns_own_local)
@@ -78,10 +75,6 @@ function generate_equations(c::AbstractCompositeModel, fns_own_global::F, ind_in
     offsets_parallel = generate_offsets_parallel(branches)
     iparallel_childs = generate_iparallel_childs(iself, nlocal, nown, offsets_parallel, branches)
 
-    # ichildren = (ilocal_childs..., iparallel_childs...)
-    # add globals
-    # iself_ref[] += 1
-    # global_eqs   = CompositeEquation(iparent, iparallel_childs, iself_ref[], fns_own_global, leafs, Val(false))
     isGlobal = Val(B)
     global_eqs0 = add_global_equations(iparent, ilocal_childs, iparallel_childs, iself_ref, fns_own_global, leafs, branches, ind_input, isGlobal, Val(1), local_el)
     local_eqs = add_local_equations(global_eqs0.self, (), iself_ref, fns_own_local, fns_own_global, leafs, Nlocal, local_el)
@@ -91,7 +84,6 @@ function generate_equations(c::AbstractCompositeModel, fns_own_global::F, ind_in
     fn = counterpart(fns_own_global)
     parallel_eqs = generate_equations_unroller(branches, fn, el_num, global_eqs, iself_ref)
 
-    # return  global_eqs, parallel_eqs
     return (global_eqs, local_eqs..., parallel_eqs...) |> superflatten
 end
 
@@ -179,38 +171,6 @@ end
 end
 
 get_own_functions(::Tuple{}) = (), ()
-# get_own_functions(::Tuple{}) = compute_strain_rate, ()
-
-# # Number the rheological elements sequantially
-# function global_el_numbering(c::NTuple{N, AbstractCompositeModel}, v=0) where N
-#     # This allocates
-#     n = ();
-#     for i=1:N
-#         nmax = maximum(superflatten(n), init=v)
-#         loc_num = global_el_numbering(c[i], nmax)
-#         n = (n..., loc_num)
-#     end
-
-#    return n
-# end
-
-# @generated function global_el_numbering(c::NTuple{N, AbstractRheology}, v=0) where N
-#     #N = ntuple(i -> i + v, Val(N))
-#     quote
-#         Base.@ntuple $N i-> begin
-#             @inline
-#                 i + v
-#         end
-#     end
-# end
-
-
-# function global_el_numbering(c::AbstractCompositeModel,v=0)
-#     num_leafs    = global_el_numbering(c.leafs,v)
-#     num_branches = global_el_numbering(c.branches,maximum(num_leafs, init=v))
-#     return num_leafs, num_branches
-# end
-# global_el_numbering(::Tuple{},v=0) = ()
 
 @inline global_el_numbering(c::AbstractCompositeModel) = global_el_numbering(c, Ref(0))
 
@@ -264,7 +224,6 @@ global_eltype_numbering(c::AbstractViscosity, counter_v::Base.RefValue, counter_
 global_eltype_numbering(c::AbstractElasticity, counter_v::Base.RefValue, counter_el::Base.RefValue, counter_pl::Base.RefValue) = counter_el[] += 1
 global_eltype_numbering(c::AbstractPlasticity, counter_v::Base.RefValue, counter_el::Base.RefValue, counter_pl::Base.RefValue) = counter_pl[] += 1
 
-#get_local_functions(c::NTuple{N, AbstractCompositeModel}) where N = ntuple(i -> get_own_functions(c[i]), Val(N))
 function get_local_functions(c::SeriesModel)
     fns_own_all = series_state_functions(c.leafs)
     return local_series_state_functions(fns_own_all)
@@ -336,12 +295,6 @@ add_local_equations(::Any, ::Any, ::Any, ::F, ::F, ::Any, ::Any, ::Any) where {F
 function add_local_equation(iparent, ilocal_childs, iself_ref, fns_own_local::F1, ::F2, leafs, num, ::Val{B}, el_number) where {F1 <: Function, F2 <: Function, B}
     return CompositeEquation(iparent, ilocal_childs, iself_ref, fns_own_local, leafs, num, Val(B), el_number)
 end
-
-## Exceptions
-# lambda has no children or parent equations
-# function add_local_equation(iparent, ilocal_childs, iself_ref, fns_own_local::typeof(compute_lambda), ::F, leafs, num, ::Val{B}, el_number) where {F<:Function, B}
-#     CompositeEquation(0, (), iself_ref, fns_own_local, leafs, num, Val(true), el_number)
-# end
 
 add_local_equation(::Any, ::Any, ::Any, ::typeof(compute_lambda), ::typeof(compute_volumetric_strain_rate), ::Any, ::Any, ::Val{B}, ::Any) where {B} = ()
 
@@ -490,7 +443,6 @@ add_child(x, ::CompositeEquation, eq_ind) = x[eq_ind]
 add_child(::SVector{N, T}, ::CompositeEquation{A, B, typeof(compute_lambda)}, eq_ind) where {N, A, B, T} = zero(T)
 add_child(::SVector{N, T}, ::CompositeEquation{A, B, typeof(compute_lambda_parallel)}, eq_ind) where {N, A, B, T} = zero(T)
 add_child(::SVector{N, T}, ::CompositeEquation{A, B, typeof(compute_plastic_strain_rate)}, eq_ind) where {N, A, B, T} = zero(T)
-# add_child(::SVector{Any, T}, ::CompositeEquation{Any, Any, typeof(compute_plastic_strain_rate)}, eq_ind) where T = zero(T)
 
 add_child(::SVector, ::Tuple{}) = 0.0e0
 add_child(::SVector, ::NTuple{N, CompositeEquation}, ::Tuple{}) where {N} = 0.0e0

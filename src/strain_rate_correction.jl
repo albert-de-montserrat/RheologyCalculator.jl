@@ -34,12 +34,6 @@ others = (; dt = 1e10, τ0 = (0.0,), P0 = (0.0,))
 """
 effective_strain_rate_correction(c::SeriesModel, ε::NTuple, τ0::NTuple, others) = effective_strain_rate_correction(iselastic(c), c, ε, τ0, others)
 
-# @generated function effective_strain_rate_correction(::Val{true}, c::SeriesModel, ε::NTuple, τ0::NTuple{N}, others) where N
-#     quote
-#         @inline 
-#         Base.@ntuple $N i -> effective_strain_rate_correction(c, ε, τ0[i], others)
-#     end
-# end
 function effective_strain_rate_correction(::Val{true}, c::SeriesModel, ε::NTuple, τ0::NTuple, others)
     effective_strain_rate_correction(c.leafs, c.branches, ε, τ0, others)
 end
@@ -60,7 +54,6 @@ end
         Base.@nexprs $N j -> begin
             i = update_correction_index(leafs[j], i)
             if i > 0
-                # η = compute_viscosity(leafs[j], merge((; ε), others))
                 ε_elastic_cor = ε_elastic_cor .+ effective_strain_rate_correction(leafs[j], ε, τ0[i], others, i)
             end
         end
@@ -86,7 +79,6 @@ end
     quote
         η_eff = zero(eltype(ε))
         Base.@nexprs $N j -> begin
-            # compute local effect on strainrate tensor due to old elastic stresses
             η = compute_viscosity_parallel(branches[j], merge((; ε, τ), others))
             η_eff += 1 / η
         end
@@ -99,7 +91,6 @@ end
     quote
         η_eff = zero(eltype(ε))
         Base.@nexprs $N j -> begin
-            # compute local effect on strainrate tensor due to old elastic stresses
             η = compute_viscosity_series(branches[j], merge((; ε, τ), others))
             η_eff += 1 / η
         end
