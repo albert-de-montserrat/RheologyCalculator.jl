@@ -8,13 +8,19 @@ is_eq_elastic(::T) where {T} = false
     compute_stress_elastic(c, xnew, others)
     compute_stress_elastic(eqs, xnew, others)
 
-Return a flat tuple with the updated stresses of all elastic elements present in
-`c` or equation tuple `eqs`.
+Return a flat tuple of updated elastic stresses for all elastic elements in `c`
+after a successful [`solve`](@ref) call.
 
-This is a post-processing helper for advancing elastic history fields after a
-successful solve. For equations written in strain-rate form, the corresponding
-entry of `xnew` is returned; for equations written in stress form, the elastic
-state function is evaluated from the local arguments.
+This extracts the elastic history that must be stored in `others.τ0` for the next
+timestep. For strain-rate-form elastic elements the corresponding entry of `xnew`
+is returned directly; for stress-form elements the elastic state function is
+re-evaluated from the local arguments.
+
+# Example
+```julia
+x    = solve(c, x, vars, others)
+τ_el = compute_stress_elastic(c, x, others)   # pass as τ0 in the next step
+```
 """
 compute_stress_elastic(c::AbstractCompositeModel, xnew, others) = compute_stress_elastic(generate_equations(c), xnew, others)
 
@@ -64,11 +70,17 @@ end
     compute_pressure_elastic(c, xnew, others)
     compute_pressure_elastic(eqs, xnew, others)
 
-Return a flat tuple with the updated pressures of all elastic elements present
-in `c` or equation tuple `eqs`.
+Return a flat tuple of updated elastic pressures for all elastic elements in `c`
+after a successful [`solve`](@ref) call.
 
-This is the volumetric counterpart of `compute_stress_elastic` and is intended
-for updating pressure history after a successful solve.
+Volumetric counterpart of [`compute_stress_elastic`](@ref). The result should be
+stored in `others.P0` for the next timestep.
+
+# Example
+```julia
+x    = solve(c, x, vars, others)
+P_el = compute_pressure_elastic(c, x, others)   # pass as P0 in the next step
+```
 """
 @generated function compute_pressure_elastic(eqs::NTuple{N, CompositeEquation}, xnew, others) where {N}
     return quote

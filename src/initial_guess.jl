@@ -1,24 +1,30 @@
 # Initial guess for the local solution vector
 
 """
-    x0 = initial_guess_x(c, vars, args, others)
+    initial_guess_x(c, vars, args, others)
 
-Compute the initial guess `x0` for the non-linear solver given the composite rheology
-model `c`. Internally generates the equation set from `c` and delegates to the
-`NTuple{N, CompositeEquation}` method.
+Return an `SVector` initial guess for the Newton solver given composite model `c`.
+
+Internally calls [`generate_equations`](@ref) on `c` then estimates each unknown
+independently.
 
 # Arguments
-- `c::AbstractCompositeModel`: composite rheology model (e.g. `SeriesModel`, `ParallelModel`).
-- `vars::NamedTuple`: kinematic input variables held constant during the solve
-  (e.g. `(; ε = εᵢⱼ, θ = θ)` for deviatoric and volumetric strain-rate components).
-- `args::NamedTuple`: current values of the differentiable unknowns that the solver
-  iterates on (e.g. `(; τ = τ, P = P)`).
-- `others::NamedTuple`: non-differentiable auxiliary variables required by the state
-  functions, such as the time step `dt`, previous elastic stresses `τ0`, previous
-  elastic pressure `P0`, or grain size `d`.
+- `c::AbstractCompositeModel`: composite rheology model (e.g. [`SeriesModel`](@ref), [`ParallelModel`](@ref)).
+- `vars::NamedTuple`: kinematic inputs held constant during the solve
+  (e.g. `(; ε = 1e-15)` for prescribed deviatoric strain rate).
+- `args::NamedTuple`: initial estimates for the differentiable unknowns
+  (e.g. `(; τ = 1e3)` for stress).
+- `others::NamedTuple`: nondifferentiable auxiliary fields required by state
+  functions, such as `dt`, `τ0`, `P0`, or grain size `d`.
 
-# Returns
-- `x0::SVector`: static vector of initial guesses, one entry per equation in `c`.
+# Example
+```julia
+c      = SeriesModel(LinearViscosity(1e22), IncompressibleElasticity(1e10))
+vars   = (; ε = 1e-15)
+args   = (; τ = 0.0)
+others = (; dt = 1e10, τ0 = (0.0,), P0 = (0.0,))
+x      = initial_guess_x(c, vars, args, others)
+```
 """
 function initial_guess_x(c, vars, args, others)
     eqs = generate_equations(c)
@@ -52,33 +58,27 @@ Compute the initial guess for the local solution vector `x` given a tuple `eqs` 
 end
 
 """
-    x_keys = x_keys(c::AbstractCompositeModel)
+    x_keys(c::AbstractCompositeModel)
 
-Return the keys of the local solution vector `x` for the composite model `c`.
-Keys correspond to the differentiable unknowns and may be repeated when multiple
-equations share the same physical unknown (e.g. `τ` appearing in both deviatoric
-and volumetric equations).
+Return the tuple of `Symbol`s identifying each entry of the solver vector `x` for
+composite model `c`. The ordering matches [`generate_equations`](@ref).
 
-# Arguments
-- `c::AbstractCompositeModel`: composite rheology model.
+Keys may repeat when multiple equations solve for the same physical unknown type
+(e.g. two separate `:τ` entries in a model with nested plasticity).
 
-# Returns
-- Flattened `NTuple` of `Symbol`s (e.g. `(:τ, :P, :ε, ...)`), one per equation.
+# Example
+```julia
+c = SeriesModel(LinearViscosity(1e22), IncompressibleElasticity(1e10))
+x_keys(c)  # (:τ,)
+```
 """
 x_keys(c::AbstractCompositeModel) = x_keys(generate_equations(c))
 
 """
-    x_keys = x_keys(eqs::NTuple{N, CompositeEquation})
+    x_keys(eqs::NTuple{N, CompositeEquation})
 
-Return a flattened tuple of `Symbol`s corresponding to the differentiable keyword argument
-keys of each equation in `eqs`. Keys may be repeated when multiple equations share the
-same unknown.
-
-# Arguments
-- `eqs::NTuple{N, CompositeEquation}`: equations generated from an `AbstractCompositeModel`.
-
-# Returns
-- Flattened `NTuple` of `Symbol`s (e.g. `(:τ, :P, :ε, ...)`), one per equation.
+Return the per-equation differentiable-keyword keys for an equation tuple. Internal
+overload used when the equations have already been generated.
 """
 @generated function x_keys(eqs::NTuple{N, CompositeEquation}) where {N}
     return quote

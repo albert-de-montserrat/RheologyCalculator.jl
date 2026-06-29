@@ -29,9 +29,15 @@ end
 """
     generate_equations(c::AbstractCompositeModel)
 
-Generate the tuple of `CompositeEquation`s that defines the residual system for
-composite model `c`. The length of this tuple is the expected length of the
+Generate the tuple of [`CompositeEquation`](@ref)s that defines the residual system for
+composite model `c`. The length of this tuple equals the expected length of the
 solver vector `x`.
+
+# Example
+```julia
+c   = SeriesModel(LinearViscosity(1e22), IncompressibleElasticity(1e10))
+eqs = generate_equations(c)
+```
 """
 @inline generate_equations(c::AbstractCompositeModel) = generate_equations(c, global_series_functions(c))
 

@@ -15,9 +15,22 @@ symmetric deviatoric tensor stored in Voigt-like component order.
 """
     effective_strain_rate_correction(c, ε, τ0, others)
 
-Compute the effective strain-rate correction induced by previous elastic stress
-history in composite `c`. Elastic elements contribute `τ0 / (2η)` using their
+Return the strain-rate correction due to previous elastic stress history in
+composite `c`. Each elastic element contributes `τ0 / (2η)` evaluated at the
 current effective viscosity; non-elastic elements contribute zero.
+
+For tensor strain-rate inputs, `ε` and the return value are `NTuple`s in Voigt
+order. For a scalar input, the return value is a scalar. [`solve`](@ref) applies
+this correction automatically before Newton iteration; call it directly only when
+you need the raw correction value.
+
+# Example
+```julia
+c      = SeriesModel(LinearViscosity(1e22), IncompressibleElasticity(1e10))
+ε      = (1e-15, -1e-15, 0.0)            # 2-D Voigt deviatoric tensor
+others = (; dt = 1e10, τ0 = (0.0,), P0 = (0.0,))
+δε     = effective_strain_rate_correction(c, ε, others.τ0, others)
+```
 """
 effective_strain_rate_correction(c::SeriesModel, ε::NTuple, τ0::NTuple, others) = effective_strain_rate_correction(iselastic(c), c, ε, τ0, others)
 
