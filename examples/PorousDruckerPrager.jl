@@ -157,7 +157,6 @@ function stress_time(c, vars, x, xnorm, others; ntime = 30, dt = 1.0e10)
 
         @show "Step $(i)"
         nr0 = 1.0
-        # x = x/3
         for iter=1:10
             r  = residual_two_phase_trial(x, ε̇II_eff, divVs, divqD, p̄0, pf0, Φ0, c, dt)
             nr = norm(r)
@@ -176,7 +175,7 @@ function stress_time(c, vars, x, xnorm, others; ntime = 30, dt = 1.0e10)
         λ̇1[i] = x[4]
         Φ1[i] = x[5]
 
-        # In case posoristy is post-processes (if eliminated from local iterations)
+        # In case porosity is post-processed (if eliminated from local iterations)
         # Gs, Ks, KΦ, Kf = c.leafs[end-1].Gs, c.leafs[end-1].Ks , c.leafs[end-1].KΦ ,c.leafs[end-1].Kf  
         # ηs, ηΦ = c.leafs[end-2].ηs, c.leafs[end-2].ηΦ
         # C, sinϕ, cosϕ, sinψ, ηvp = c.leafs[end].C, c.leafs[end].sinϕ, c.leafs[end].cosϕ, c.leafs[end].sinΨ, c.leafs[end].η_vp
@@ -186,6 +185,7 @@ function stress_time(c, vars, x, xnorm, others; ntime = 30, dt = 1.0e10)
         τ_e  = (ε̇_eff.*τ1[i]./ε̇II_eff, )
         p̄_e  = (p̄1[i],)
         pᶠ_e = (p̄ᶠ1[i],)
+        Φ_e  = (Φ1[i],)
         # τ_e   = elastic_stress_history_2D(c, x[1], vars.ε, τ_e, others)
         # P_e   = compute_pressure_elastic(c, x, others)
         # τ1[i] = second_invariant_2D(τ_e[1])
