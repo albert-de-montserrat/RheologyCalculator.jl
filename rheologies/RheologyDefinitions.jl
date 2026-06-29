@@ -79,6 +79,63 @@ end
 @inline compute_viscosity_parallel(r::PowerLawViscosity; τ = 0, kwargs...) = τ / (2 * compute_strain_rate(r; τ = τ, kwargs...))
 # --------------------------------------------------------------------
 
+# Poroviscosity ---------------------------------------------------------
+"""
+    Poroviscosity{T} <: AbstractViscosity
+
+Represents elastic deformation with both shear and bulk components.
+
+# Fields
+- `ηs::T`: The solid shear viscosity.
+- `ηΦ::T`: The pore bulk  viscosity.
+"""
+struct Poroviscosity{T} <: AbstractViscosity
+    ηs::T
+    ηΦ::T
+end
+@inline series_state_functions(::Poroviscosity) = (compute_strain_rate,)
+@inline parallel_state_functions(::Poroviscosity) = (compute_stress,)
+
+@inline compute_strain_rate(r::Poroviscosity; τ = 0, kwargs...) = τ / (2 * r.ηs)
+@inline compute_stress(r::Poroviscosity; ε = 0, kwargs...) = ε * (2 * r.ηs)
+@inline compute_volumetric_strain_rate(r::Poroviscosity; p̄ = 0, pᶠ = 0, dt = 0, kwargs...) = -(p̄ - pᶠ) / (r.ηΦ)
+# There is no closed form for pressure as there are 2 pressures
+@info "Warning: There is no closed form for pressure as there are 2 pressures"
+# @inline compute_pressure(r::Poroviscosity; θ = 0, P0 = 0, dt = 0, kwargs...) = P0 - r.K * dt * θ
+
+@inline compute_viscosity(r::Poroviscosity; ε = 0, kwargs...)   = compute_stress(r; ε = ε, kwargs...)/(2*ε)
+@inline compute_viscosity_series(r::Poroviscosity; ε = 0, kwargs...)   = compute_stress(r; ε = ε, kwargs...)/(2*ε)
+@inline compute_viscosity_parallel(r::Poroviscosity; τ = 0, kwargs...) = τ / (2 * compute_strain_rate(r; τ = τ, kwargs...))
+
+# Poroelasticity ---------------------------------------------------------
+"""
+    Poroelasticity{T} <: AbstractElasticity
+
+Represents elastic deformation with both shear and bulk components.
+
+# Fields
+- `Gs::T`: The solid shear modulus.
+- `Ks::T`: The solid bulk modulus.
+- `KΦ::T`: The pore bulk  modulus.
+- `Kf::T`: The fluid bulk modulus.
+"""
+struct Poroelasticity{T} <: AbstractElasticity
+    Gs::T
+    Ks::T
+    KΦ::T
+    Kf::T
+end
+@inline _isvolumetric(::Poroelasticity) = true
+@inline series_state_functions(::Poroelasticity) = (compute_strain_rate, compute_volumetric_strain_rate)
+@inline parallel_state_functions(::Poroelasticity) = (compute_stress, compute_pressure)
+
+@inline compute_strain_rate(r::Poroelasticity; τ = 0, τ0 = 0, dt = 0, kwargs...) = τ / (2 * r.G * dt)
+@inline compute_volumetric_strain_rate(r::Poroelasticity; p̄ = 0, p̄0 = 0, pᶠ = 0, pᶠ0 = 0, dt = 0, kwargs...) = -( (p̄-p̄0) - (pᶠ-pᶠ0)) / (r.KΦ * dt)
+@inline compute_stress(r::Poroelasticity; ε = 0, τ0 = 0, dt = 0, kwargs...) = 2 * r.G * dt * ε
+# There is no closed form for pressure as there are 2 pressures
+@info "Warning: There is no closed form for pressure as there are 2 pressures"
+# @inline compute_pressure(r::Poroelasticity; θ = 0, P0 = 0, dt = 0, kwargs...) = P0 - r.K * dt * θ
+
 # Elasticity ---------------------------------------------------------
 """
     Elasticity{T} <: AbstractElasticity
