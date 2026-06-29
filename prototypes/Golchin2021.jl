@@ -1,6 +1,6 @@
 using GLMakie
 
-yield(p, q, A, B, C, β) = (p-C)^2/A^2 + (q'-β*p)^2/B^2 - 1
+yield(p, q, A, B, C, β) = B*(p-C)^2/A + A*(q'-β*p)^2/B - A*B
 
 Af(p, pc, pt, γ) = (pc - pt)/(2*π) *(2*atan(γ*(pc+pt-2p)/(2*pc))+π)
 
@@ -36,17 +36,21 @@ function main()
 
     ###################################
 
-    M  = 0.6 
-    @show ϕ  = asind(3*M/(6+M))
-    @show 6*sind(ϕ) / (3 - sind(ϕ))
+
+    N = zeros(size(p))
+    N .= @. M  -  (M-N)/4*exp( -(p - (pt+pc)/2)^2 / ((pt-pc)/4)^2 )
+    
+    # N  = 0.6 
+    # @show ϕ  = asind(3*N/(6+N))
+    # @show 6*sind(ϕ) / (3 - sind(ϕ))
 
     C = Cf.(pc, pt, γ)
-    B = Bf.(p, pc, pt, M, C, α)
+    B = Bf.(p, pc, pt, N, C, α)
     A = Af.(p, pc, pt, γ)
     g = yield.(p, q', A, B, C, β)
     @show extrema(g)
 
-    ###################################
+    # ###################################
 
     fig = Figure()
     ax = Axis(fig[1,1], aspect=DataAspect())
@@ -54,6 +58,9 @@ function main()
     contour!(ax, p./pc, q./pc, f, levels=[0])
     contour!(ax, p./pc, q./pc, g, levels=[0], linestyle=:dash)
     # ylims!(ax, 0, 0.8)
+    ax = Axis(fig[2,1])
+    lines!(ax, p./pc, N)
+
     display(fig)
 end
 

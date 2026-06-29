@@ -72,7 +72,7 @@ yield(τII, Pt, Pf, λ̇, c, sinϕ, cosϕ, ηvp) = τII - (Pt - Pf)*sinϕ - c*co
 
 function residual_two_phase_trial(x, ε̇II_eff, divVs, divqD, p̄0, pf0, Φ0, c, Δt)
 
-    τII, p̄, pf, λ̇, Φ = x[1], x[2], x[3], x[4], x[5]
+    τII, p̄, pf, λ̇ = x[1], x[2], x[3], x[4]
     Gs, Ks, KΦ, Kf = c.leafs[end-1].Gs, c.leafs[end-1].Ks , c.leafs[end-1].KΦ ,c.leafs[end-1].Kf  
     ηs, ηΦ = c.leafs[end-2].ηs, c.leafs[end-2].ηΦ
     C, sinϕ, cosϕ, sinψ, ηvp = c.leafs[end].C, c.leafs[end].sinϕ, c.leafs[end].cosϕ, c.leafs[end].sinΨ, c.leafs[end].η_vp
@@ -85,6 +85,9 @@ function residual_two_phase_trial(x, ε̇II_eff, divVs, divqD, p̄0, pf0, Φ0, c
 
     # Porosity rate
     dΦdt    = porosity_rate(p̄, pf, λ̇, p̄0, pf0, KΦ, ηΦ, sinψ, Δt)
+
+    # Porosity implicitely updated
+    Φ       = (Φ0 + dΦdt*Δt)
 
     # Form 3
     dpfdt   = (pf - pf0) / Δt
@@ -103,7 +106,6 @@ function residual_two_phase_trial(x, ε̇II_eff, divVs, divqD, p̄0, pf0, Φ0, c
         rp̄,
         rpf,
         (f - ηvp*λ̇)*(f>=eps) +  λ̇*(f<eps),
-        Φ    - (Φ0 + dΦdt*Δt),
     ]
 end
 
@@ -125,7 +127,7 @@ function stress_time(c, vars, x, xnorm, others; ntime = 30, dt = 1.0e10)
     p̄1[1]   = p̄_e[1]
     p̄ᶠ1[1]  = pᶠ_e[1]
     τ1[1]   = second_invariant_2D(τ_e[1])
-    x       = SA[τ1[1],0, p̄1[1], p̄ᶠ1[1], Φ1[1]]
+    x       = SA[τ1[1],0, p̄1[1], p̄ᶠ1[1]]#, Φ1[1]]
     t       = 0.0
     for i in 2:ntime
         others = (; dt = dt, τ0 = τ_e, p̄0 = p̄_e, pᶠ0 = pᶠ_e, Φ0 = Φ_e)       # other non-differentiable variables needed to evaluate the state functions
@@ -160,14 +162,14 @@ function stress_time(c, vars, x, xnorm, others; ntime = 30, dt = 1.0e10)
         p̄1[i] = x[2]
         p̄ᶠ1[i] = x[3]
         λ̇1[i] = x[4]
-        Φ1[i] = x[5]
+        # Φ1[i] = x[5]
 
         # In case porosity is post-processed (if eliminated from local iterations)
-        # Gs, Ks, KΦ, Kf = c.leafs[end-1].Gs, c.leafs[end-1].Ks , c.leafs[end-1].KΦ ,c.leafs[end-1].Kf  
-        # ηs, ηΦ = c.leafs[end-2].ηs, c.leafs[end-2].ηΦ
-        # C, sinϕ, cosϕ, sinψ, ηvp = c.leafs[end].C, c.leafs[end].sinϕ, c.leafs[end].cosϕ, c.leafs[end].sinΨ, c.leafs[end].η_vp
-        # dΦdt = porosity_rate(p̄1[i], p̄ᶠ1[i], λ̇1[i], p̄0, pf0, KΦ, ηΦ, sinψ, dt)[1]
-        # Φ1[i] = Φ0 + dΦdt*dt 
+        Gs, Ks, KΦ, Kf = c.leafs[end-1].Gs, c.leafs[end-1].Ks , c.leafs[end-1].KΦ ,c.leafs[end-1].Kf  
+        ηs, ηΦ = c.leafs[end-2].ηs, c.leafs[end-2].ηΦ
+        C, sinϕ, cosϕ, sinψ, ηvp = c.leafs[end].C, c.leafs[end].sinϕ, c.leafs[end].cosϕ, c.leafs[end].sinΨ, c.leafs[end].η_vp
+        dΦdt = porosity_rate(p̄1[i], p̄ᶠ1[i], λ̇1[i], p̄0, pf0, KΦ, ηΦ, sinψ, dt)[1]
+        Φ1[i] = Φ0 + dΦdt*dt 
         
         τ_e  = (ε̇_eff.*τ1[i]./ε̇II_eff, )
         p̄_e  = (p̄1[i],)
