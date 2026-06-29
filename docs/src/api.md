@@ -16,6 +16,7 @@ x_keys
 initial_guess_x
 normalisation_x
 solve
+RheologyCalculator.solve_timed
 effective_strain_rate_correction
 RheologyCalculator.second_invariant
 ```
