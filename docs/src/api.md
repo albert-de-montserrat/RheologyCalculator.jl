@@ -55,6 +55,7 @@ RheologyCalculator.extract_local_kwargs
 ```@docs
 RheologyCalculator.compute_stress_elastic
 RheologyCalculator.compute_pressure_elastic
+RheologyCalculator.compute_porosity
 ```
 
 ## Internals

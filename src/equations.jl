@@ -460,6 +460,20 @@ end
     end
 end
 
+# especial case for porosity equation
+@generated function evaluate_state_function(fn::Type{compute_porosity_rate}, rheology::NTuple{N, AbstractRheology}, args, others, el_number) where {N}
+    return quote
+        @inline
+        dΦᵢdt = Base.@ntuple $N i -> begin
+            keys_hist = history_kwargs(rheology[i])
+            args_local = extract_local_kwargs(others, keys_hist, el_number[i])
+            args_combined = merge(args, args_local)
+            fn(rheology[i], args_combined)
+        end
+        return args.Φ0 + sum(dΦᵢdt) * args.dt
+    end
+end
+
 @inline evaluate_state_function(fn::F, rheology::Tuple{}, args, others) where {F} = 0.0e0
 
 @generated function add_children(residual::NTuple{N, Any}, x::SVector{N}, eqs::NTuple{N, CompositeEquation}) where {N}
