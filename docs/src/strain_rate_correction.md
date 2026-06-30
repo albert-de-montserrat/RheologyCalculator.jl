@@ -162,6 +162,83 @@ The weighting factor ``\eta^{\star}_M \in (0, 1)`` attenuates the backstress:
 - **Soft spring** (``G \to 0``): ``\eta^{\star}_M \to 1`` — full backstress, elastic history dominates.
 - **Stiff spring** (``G \to \infty``): ``\eta^{\star}_M \to 0`` — backstress vanishes, element behaves as a pure dashpot.
 
+### Example
+
+Under a constant deviatoric strain rate ``\dot{\varepsilon}`` starting from zero stress, this
+model obeys a linear first-order ODE whose exact solution is
+
+```math
+\tau(t)
+= \tau_\infty - \bigl(\tau_\infty - \tau_0\bigr)\,e^{-t/t_{\mathrm{relax}}}
+```
+
+with
+
+```math
+\tau_0 = \frac{2\eta_1\eta_2}{\eta_1+\eta_2}\,\dot{\varepsilon}
+\qquad\text{(initial stress — spring unloaded)}
+```
+
+```math
+\tau_\infty = \frac{2\eta_1(\eta_2+\eta_3)}{\eta_1+\eta_2+\eta_3}\,\dot{\varepsilon}
+\qquad\text{(long-time equilibrium)}
+```
+
+```math
+t_{\mathrm{relax}} = \frac{(\eta_1+\eta_2)\,\eta_3}{G\,(\eta_1+\eta_2+\eta_3)}
+\qquad\text{(relaxation timescale)}
+```
+
+At ``t=0`` the spring carries no backstress so only the viscous elements ``\eta_1`` and
+``\eta_2`` resist deformation; as ``t \to \infty`` the inner Maxwell dashpot reaches its
+steady-state load and ``\tau`` approaches the higher value ``\tau_\infty``.
+
+The full runnable example with convergence plot is in `examples/Maxwell_KV_Maxwell.jl`.
+The essential time-stepping structure below follows the same 2D tensor conventions used
+throughout the other examples (load `rheologies/RheologyDefinitions.jl` and
+`examples/tensor_helpers.jl` before running):
+
+```julia
+using RheologyCalculator
+import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
+
+η1 = LinearViscosity(1e22)
+η2 = LinearViscosity(1e21)
+η3 = LinearViscosity(1e21)
+el = IncompressibleElasticity(1e10)
+
+c = SeriesModel(η1, ParallelModel(η2, SeriesModel(η3, el)))
+
+εII    = 1.0e-14
+vars   = vars_2D(εII)
+args   = (; τ = 2.0e7, P = 0.0)
+others = (; dt = 1.0e9, τ0 = (zero_stress_tensor_2D(),), P0 = (0.0,))
+
+x = initial_guess_x(c, vars, args, others)
+
+τ_char = 2η1.η * (η2.η + η3.η) / (η1.η + η2.η + η3.η) * εII
+xnorm  = normalisation_x(c, τ_char, εII)
+
+τ_e = (zero_stress_tensor_2D(),)
+P_e = (0.0,)
+t   = 0.0
+for _ in 1:1_000
+    others = (; dt = 1.0e9, τ0 = τ_e, P0 = P_e)
+    x      = solve(c, x, vars, others; xnorm0 = xnorm)
+    # pass the full x SVector — the elastic element is nested inside SeriesModel(η₃, G)
+    # so compute_stress_elastic must look at x[3], not x[1]
+    τ_e    = elastic_stress_history_2D(c, x, vars.ε, τ_e, others)
+    t     += 1.0e9
+end
+```
+
+`x_keys(c)` returns `(:τ, :ε, :τ)` for this composite — the three unknowns are the
+global stress, the strain rate entering the parallel branch, and the stress inside the
+inner Maxwell element. Because the elastic element is nested two levels deep,
+`elastic_stress_history_2D` receives the full `x` SVector (not just `x[1]`) so that
+`compute_stress_elastic` can locate the spring stress at index 3 and return the correct
+backstress for the next step.
+
 ---
 
 ## Generalized Maxwell body
