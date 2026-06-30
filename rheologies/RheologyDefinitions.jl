@@ -9,9 +9,6 @@ import RheologyCalculator: compute_plastic_strain_rate, compute_plastic_stress, 
 import RheologyCalculator: compute_viscosity, compute_viscosity_series, compute_viscosity_parallel
 import RheologyCalculator: _isvolumetric
 
-@inline stress_history_invariant(τ0::Number) = τ0
-@inline stress_history_invariant(τ0::NTuple{3, Any}) = sqrt((τ0[1]^2 + τ0[2]^2) / 2 + τ0[3]^2)
-@inline stress_history_invariant(τ0::NTuple{6, Any}) = sqrt(0.5 * (τ0[1]^2 + τ0[2]^2 + τ0[3]^2) + τ0[4]^2 + τ0[5]^2 + τ0[6]^2)
 @inline signed_power(x, n) = sign(x) * abs(x)^n
 
 # Linear Viscosity ---------------------------------------------------
@@ -161,10 +158,8 @@ end
 @inline series_state_functions(::IncompressibleElasticity) = (compute_strain_rate,)
 @inline parallel_state_functions(::IncompressibleElasticity) = (compute_stress,)
 
-# @inline compute_strain_rate(r::IncompressibleElasticity; τ = 0, τ0 = 0, dt = 0, kwargs...) = (τ - τ0) / (2 * r.G * dt)
-# @inline compute_stress(r::IncompressibleElasticity; ε = 0, τ0 = 0, dt = 0, kwargs...) = 2 * r.G * dt * ε + τ0
 @inline compute_strain_rate(r::IncompressibleElasticity; τ = 0, τ0 = 0, dt = 0, kwargs...) = τ / (2 * r.G * dt)
-@inline compute_stress(r::IncompressibleElasticity; ε = 0, τ0 = 0, dt = 0, kwargs...) = 2 * r.G * dt * ε 
+@inline compute_stress(r::IncompressibleElasticity; ε = 0, τ0 = 0, dt = 0, kwargs...) = 2 * r.G * dt * ε
 
 @inline compute_viscosity(r::IncompressibleElasticity; dt = 0, kwargs...)          = r.G * dt
 @inline compute_viscosity_series(r::IncompressibleElasticity; dt = 0, kwargs...)   = r.G * dt
