@@ -1,5 +1,3 @@
-# include("recursion.jl")
-
 """
     CompositeEquation
 
@@ -183,62 +181,6 @@ end
 end
 
 get_own_functions(::Tuple{}) = (), ()
-# get_own_functions(::Tuple{}) = compute_strain_rate, ()
-
-# # Number the rheological elements sequantially
-# function global_el_numbering(c::NTuple{N, AbstractCompositeModel}, v=0) where N
-#     # This allocates
-#     n = ();
-#     for i=1:N
-#         nmax = maximum(superflatten(n), init=v)
-#         loc_num = global_el_numbering(c[i], nmax)
-#         n = (n..., loc_num)
-#     end
-
-#    return n
-# end
-
-# @generated function global_el_numbering(c::NTuple{N, AbstractRheology}, v=0) where N
-#     #N = ntuple(i -> i + v, Val(N))
-#     quote
-#         Base.@ntuple $N i-> begin
-#             @inline
-#                 i + v
-#         end
-#     end
-# end
-
-
-# function global_el_numbering(c::AbstractCompositeModel,v=0)
-#     num_leafs    = global_el_numbering(c.leafs,v)
-#     num_branches = global_el_numbering(c.branches,maximum(num_leafs, init=v))
-#     return num_leafs, num_branches
-# end
-# global_el_numbering(::Tuple{},v=0) = ()
-
-@inline global_el_numbering(c::AbstractCompositeModel) = global_el_numbering(c, Ref(0))
-
-@inline function global_el_numbering(c::AbstractCompositeModel, counter::Base.RefValue)
-    n1 = global_el_numbering(c.leafs, counter)
-    n2 = global_el_numbering(c.branches, counter)
-    return (n1, n2)
-end
-
-@generated function global_el_numbering(::NTuple{N, AbstractRheology}, counter::Base.RefValue) where {N}
-    return quote
-        @inline
-        Base.@ntuple $N i -> counter[] += 1
-    end
-end
-
-@generated function global_el_numbering(c::NTuple{N, AbstractCompositeModel}, counter::Base.RefValue) where {N}
-    return quote
-        @inline
-        Base.@ntuple $N i -> global_el_numbering(c[i], counter)
-    end
-end
-
-@inline global_el_numbering(::Tuple{}, ::Base.RefValue) = ()
 
 @inline global_eltype_numbering(c::AbstractCompositeModel) = global_eltype_numbering(c, Ref(0), Ref(0), Ref(0))
 
@@ -267,17 +209,6 @@ end
 global_eltype_numbering(c::AbstractViscosity, counter_v::Base.RefValue, counter_el::Base.RefValue, counter_pl::Base.RefValue) = counter_v[] += 1
 global_eltype_numbering(c::AbstractElasticity, counter_v::Base.RefValue, counter_el::Base.RefValue, counter_pl::Base.RefValue) = counter_el[] += 1
 global_eltype_numbering(c::AbstractPlasticity, counter_v::Base.RefValue, counter_el::Base.RefValue, counter_pl::Base.RefValue) = counter_pl[] += 1
-
-#get_local_functions(c::NTuple{N, AbstractCompositeModel}) where N = ntuple(i -> get_own_functions(c[i]), Val(N))
-function get_local_functions(c::SeriesModel)
-    fns_own_all = series_state_functions(c.leafs)
-    return local_series_state_functions(fns_own_all)
-end
-
-function get_local_functions(c::ParallelModel)
-    fns_own_all = parallel_state_functions(c.leafs)
-    return local_parallel_state_functions(fns_own_all)
-end
 
 @inline has_children(::F, branch) where {F} = Val(true)
 @inline has_children(::typeof(compute_pressure), branch) = isvolumetric(branch)
@@ -348,20 +279,6 @@ end
 # end
 
 add_local_equation(::Any, ::Any, ::Any, ::typeof(compute_lambda), ::typeof(compute_volumetric_strain_rate), ::Any, ::Any, ::Val{B}, ::Any) where {B} = ()
-
-@generated function add_parallel_equations(global_eqs::NTuple{N1, Any}, branches::NTuple{N2, AbstractCompositeModel}, iself_ref, fns_own_global::NTuple{N1, Any}) where {N1, N2}
-    return quote
-        Base.@ntuple $N1 j -> begin
-            @inline
-            iparent_new = global_eqs[j].self
-            fn = counterpart(fns_own_global[j])
-            Base.@ntuple $N2 i -> begin
-                @inline
-                generate_equations(branches[i], fn, isvolumetric(branches[i]); iparent = iparent_new, iself = iself_ref[])
-            end
-        end
-    end
-end
 
 """
     generate_args_template(eqs)
