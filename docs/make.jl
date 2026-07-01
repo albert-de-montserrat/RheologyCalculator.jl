@@ -22,6 +22,7 @@ makedocs(;
         "Composites" => "composites.md",
         "Rheology" => "rheology.md",
         "Solving" => "stress.md",
+        "Elastic correction" => "strain_rate_correction.md",
         "API" => "api.md",
     ],
 )

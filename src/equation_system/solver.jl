@@ -1,44 +1,3 @@
-using TimerOutputs
-# function solve(c::AbstractCompositeModel, x::SVector, vars, others; xnorm0=nothing, atol::Float64 = 1.0e-9, rtol::Float64 = 1.0e-9, itermax = 1.0e4, verbose::Bool = false, elastic_correction=true)
-   
-#     # if elastic_correction
-#     #     ε_correction = effective_strain_rate_correction(c, vars, others)
-#     #     vars = merge(vars, (; ε = vars.ε + ε_correction))
-#     # end
-
-#     xnorm = correct_xnorm(x, xnorm0)
-#     #xnorm = xnorm0 === nothing ? ones(size(x)) : xnorm0
-    
-#     r   = compute_residual(c, x, vars, others)   # initial residual
-#     it  = 0
-#     er  = Inf
-#     er0 = mynorm(r, xnorm)
-
-#     local α
-#     while er > atol #|| (er > rtol * er0 && it>1)
-#         it += 1
-
-#         J = ForwardDiff.jacobian(y -> compute_residual(c, y, vars, others), x)
-#         Δx = J \ -r
-#         #α = bt_line_search_armijo(Δx, J, x, xnorm, c, vars, others, α_min = 1.0e-8, c=0.9)
-#         α = bt_line_search(Δx, x, c, vars, others, xnorm; α = 1.0, ρ = 0.5, lstol = 0.95, α_min = 0.1)
-#         x += α .* Δx
-
-#         # check convergence
-#         r = compute_residual(c, x, vars, others)
-#         er = mynorm(r, xnorm)
-
-#         it > itermax && break
-#         #if verbose
-#         #    println("Iterations: $it, Error: $er, α = $α")
-#         #end
-#     end
-#     if verbose
-#         println("Iterations: $it, Error: $er, α = $α")
-#     end
-#     return x
-# end
-
 """
     solve(c::AbstractCompositeModel, x::SVector, vars, others; xnorm0=nothing,
           atol=1.0e-12, rtol=1.0e-12, itermax=1.0e4, verbose=false)
@@ -63,13 +22,16 @@ of the corrected effective strain-rate tensor.
 """
 function solve(c::AbstractCompositeModel, x::SVector, vars0, others; xnorm0=nothing, atol::Float64 = 1.0e-12, rtol::Float64 = 1.0e-12, itermax = 1.0e4, verbose::Bool = false)
    
-    ε_corr = effective_strain_rate_correction(c, vars0.ε, others.τ0, others)
-    ε_eff = vars0.ε .+ ε_corr
-    εII   = second_invariant_value(ε_eff)
-    
-    # NOTE: be careful with the order of variables here
-    # as the effective strain rate IS ALWAYS THE FIRST
-    vars = merge(vars0, (; ε = εII))
+    # Pre-correct ONLY the direct elastic leafs of the outer composite
+    # (simple Maxwell backstress).  Tensor arithmetic is used here so that
+    # second_invariant(ε + τ0/(2G·dt)) is evaluated correctly even for
+    # non-coaxial ε/τ0 pairs.
+    # ParallelModel branch corrections are handled implicitly inside
+    # compute_residual via subtract_elastic_correction, so they must NOT be
+    # included here to avoid double-counting.
+    ε_corr = _direct_leaf_elastic_correction(c, vars0.ε, others)
+    εII    = second_invariant_value(vars0.ε .+ ε_corr)
+    vars   = merge(vars0, (; ε = εII))
 
     # vars = merge((; ε = εII), vars0)
     xnorm = correct_xnorm(x, xnorm0)
@@ -108,65 +70,6 @@ function solve(c::AbstractCompositeModel, x::SVector, vars0, others; xnorm0=noth
     end
     return x
 end
-
-"""
-    solve_timed(c, x, vars, others; tol=1.0e-9, itermax=1.0e4, verbose=false)
-
-Debugging variant of `solve` that records coarse timing information with
-`TimerOutputs` and displays the timing table before returning the final `x`.
-"""
-function solve_timed(c::AbstractCompositeModel, x::SVector, vars, others; tol::Float64 = 1.0e-9, itermax = 1.0e4, verbose::Bool = false)
-
-    it = 0
-    er = Inf
-    local α
-    to = TimerOutput()
-    @timeit to "Newton-Raphson Iterations" while er > tol
-        it += 1
-        @timeit to "residual" r = compute_residual(c, x, vars, others)
-        @timeit to "jacobian" J = ForwardDiff.jacobian(y -> compute_residual(c, y, vars, others), x)
-        @timeit to "backlash" Δx = J \ r
-        @timeit to "line search" α = bt_line_search(Δx, J, x, r, c, vars, others)
-        @timeit to "update solution" x -= α .* Δx
-        # check convergence
-        @timeit to "convergence check" er = mynorm(Δx, x)
-        if verbose
-            println("Iterations: $it, Error: $er, α = $α")
-        end
-        it > itermax && break
-    end
-    display(to)
-    if verbose
-        println("Iterations: $it, Error: $er, α = $α")
-    end
-    return x
-end
-
-"""
-    bt_line_search_armijo(Δx, J, x, xnorm, composite, vars, others; α=1.0, ρ=0.5, c=1.0e-4, α_min=1.0e-8)
-
-Backtracking line search using an Armijo-style sufficient decrease condition for
-the residual norm.
-"""
-function bt_line_search_armijo(Δx, J, x, xnorm, composite, vars, others; α = 1.0, ρ = 0.5, c = 1.0e-4, α_min = 1.0e-8)
-
-    r = compute_residual(composite, x, vars, others)
-    rnorm = mynorm(r, xnorm)
-    J_times_Δx = J * Δx
-    while α > α_min
-        perturbed_x = @. x + α * Δx
-
-        perturbed_r = compute_residual(composite, perturbed_x, vars, others)
-        perturbed_rnorm = mynorm(perturbed_r, xnorm)
-
-        armijo_condition = perturbed_rnorm^2 ≤ rnorm^2 + c * α * (J_times_Δx ⋅ Δx)
-        armijo_condition && break
-
-        α *= ρ
-    end
-    return α
-end
-
 
 """
     bt_line_search(Δx, x, composite, vars, others, xnorm; α=1.0, ρ=0.5, lstol=0.9, α_min=1.0e-8)

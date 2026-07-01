@@ -17,35 +17,35 @@ import ForwardDiff: ForwardDiff
 
 import Base.IteratorsMD.flatten
 
-include("rheology_types.jl")
+include("core/rheology_types.jl")
 export AbstractViscosity, AbstractPlasticity, AbstractElasticity
 
-include("state_functions.jl")
+include("core/state_functions.jl")
 
-include("composite.jl")
+include("core/composite.jl")
 export CompositeModel, SeriesModel, ParallelModel
 
-include("kwargs.jl")
+include("core/kwargs.jl")
 
-include("equations.jl")
+include("equation_system/equations.jl")
 export generate_equations
 
-include("others.jl")
+include("core/others.jl")
 
-include("post_calculations.jl")
+include("postprocessing/post_calculations.jl")
 
-include("initial_guess.jl")
+include("equation_system/initial_guess.jl")
 export initial_guess_x, x_keys
 
-include("normalize_x.jl")
+include("equation_system/normalize_x.jl")
 export normalisation_x
 
-include("solver.jl")
+include("equation_system/solver.jl")
 export solve
 
-include("strain_rate_correction.jl")
+include("postprocessing/strain_rate_correction.jl")
 export effective_strain_rate_correction
 
-include("print_rheology.jl")
+include("display/print_rheology.jl")
 
 end # module Rheology
