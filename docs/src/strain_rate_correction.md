@@ -201,6 +201,11 @@ At ``t=0`` the spring carries no backstress so only the viscous elements ``\eta_
 steady-state load and ``\tau`` approaches the higher value ``\tau_\infty``.
 
 The full runnable example with convergence plot is in `examples/Maxwell_KV_Maxwell.jl`.
+The lower panel reports the mean relative stress error in percent, skipping the
+artificial zero-stress point at the start of the time series.
+
+![Mixed Kelvin-Voigt and Maxwell numerical result](https://raw.githubusercontent.com/albert-de-montserrat/RheologyCalculator.jl/main/docs/assets/Maxwell_KV_Maxwell.png)
+
 The essential time-stepping structure below follows the same 2D tensor conventions used
 throughout the other examples (load `rheologies/RheologyDefinitions.jl` and
 `examples/tensor_helpers.jl` before running):
