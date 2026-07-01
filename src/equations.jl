@@ -97,6 +97,16 @@ end
             num = el_num[2][i]
             isvol = isvolumetric(b)
             eqs = generate_equations(b, fn, 0, Val(false), isvol, num; iparent = global_eqs.self, iself = iself_ref[])
+            # generate_equations creates its own *local* Ref for `b`'s subtree, so
+            # the running counter must be threaded back here explicitly, otherwise
+            # every sibling branch starts numbering its own equations from the same
+            # base and their `.self` values collide (see CLAUDE.md: equation
+            # position is assumed to equal `.self` throughout the residual
+            # assembly). A branch can legitimately contribute zero equations for
+            # a given global function (e.g. a non-volumetric branch during the
+            # volumetric pass), in which case the counter is left untouched.
+            isempty(eqs) || (iself_ref[] = eqs[end].self)
+            eqs
         end
     end
 end

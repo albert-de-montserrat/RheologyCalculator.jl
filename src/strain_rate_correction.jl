@@ -272,6 +272,44 @@ function _n_elastic_in_parallel(::Type{ParallelModel{L,B}}) where {L,B}
     return n_leafs + n_subs
 end
 
+# Recursively check, at the type level, whether a nested rheology/composite
+# type contains any `AbstractElasticity` element anywhere in its subtree.
+_type_has_elastic(::Type{<:AbstractElasticity}) = true
+_type_has_elastic(::Type{<:AbstractRheology}) = false
+function _type_has_elastic(::Type{<:Union{SeriesModel{L,B},ParallelModel{L,B}}}) where {L,B}
+    any(_type_has_elastic, L.parameters) || any(_type_has_elastic, B.parameters)
+end
+
+"""
+    _assert_kv_nesting_supported(::Type{ParallelModel{L, B}})
+
+The `_η_KV`/`_η_eff_maxwell`/`_weighted_backstress`/`_n_elastic_in_parallel`
+formulas (see `tensor_reduction.typ`) are derived for a `ParallelModel` branch
+whose `SeriesModel` sub-branches contain plain rheology leafs only -- i.e. at
+most one level of Series/Parallel alternation. They do not account for a
+`SeriesModel` sub-branch that itself contains a further nested `ParallelModel`.
+
+Raise a clear error at specialisation time if such nesting contains an
+elastic element, rather than silently under-counting or omitting its
+backstress contribution (that element's `iselastic` still returns `true`, so
+the correction would otherwise be silently incomplete instead of zero/absent).
+"""
+function _assert_kv_nesting_supported(::Type{ParallelModel{L,B}}) where {L,B}
+    for S in B.parameters
+        sub_branches = S.parameters[2]  # SeriesModel sub-branch's own `branches` field type
+        for nested in sub_branches.parameters
+            _type_has_elastic(nested) && error(
+                "Generalized Maxwell / Kelvin-Voigt correction: an elastic element is nested " *
+                "inside a ParallelModel more than one level deep inside a branch ($nested). " *
+                "This is not supported by the current _η_KV / _weighted_backstress formulas, " *
+                "which are only derived for a branch whose SeriesModel sub-branches contain " *
+                "plain rheology leafs (see tensor_reduction.typ)."
+            )
+        end
+    end
+    return nothing
+end
+
 """
     _kv_corrections(branches, ε, τ0, others, offset)
 
@@ -290,6 +328,7 @@ allocation-free, branch-free runtime code.
     branches::NTuple{Nb,Any}, ε, τ0, others, offset
 ) where Nb
     # --- compile-time: compute per-branch elastic counts and cumulative offsets ---
+    foreach(_assert_kv_nesting_supported, branches.parameters)
     # How many τ0 entries does each branch own? Determined by type inspection of
     # the branch's leaf tuple (via _n_elastic_in_parallel).
     counts  = [_n_elastic_in_parallel(branches.parameters[i]) for i in 1:Nb]
@@ -542,48 +581,57 @@ end
     return quote @inline; $(stmts...) end
 end
 
+# Return the position within `positions` (in order) of the i-th entry whose
+# `mask` is true. `positions`/`mask` are small homogeneous tuples (Int/Bool),
+# so this is fully type-stable regardless of how heterogeneous the underlying
+# `eqs::NTuple{N, CompositeEquation}` tuple is.
+@inline function _nth_true_position(mask::NTuple{M, Bool}, positions::NTuple{M, Int}, i::Int) where {M}
+    c = 0
+    for j in 1:M
+        if mask[j]
+            c += 1
+            c == i && return positions[j]
+        end
+    end
+    error("_nth_true_position: found fewer than $i matching branch equations (found $c)")
+end
+
 # Accumulate the implicit KV/Maxwell branch corrections across all branches.
-# At specialisation time, branch_eq_positions[i] gives the position (= self-index)
-# of the i-th branch's *own* compute_stress equation inside the eqs NTuple, which
-# equals the x-index for that branch's local strain rate.
 #
-# CompositeEquation{IsGlobal, T, F, R, RT}: F (fn type) is parameter index 3, R
-# (rheology-tuple type) is parameter index 4. A branch's own compute_stress
-# equation is identified by matching both `fn` and its rheology type against
-# `branches[i].leafs`'s type, taking the earliest unused match: equations are
-# emitted parent-before-children (see `generate_equations`/`superflatten`), so a
-# branch's own equation always precedes any compute_stress equations belonging
-# to ParallelModels nested further inside it — this keeps deeper nesting (e.g. a
-# ParallelModel nested more than one level inside a branch) from being mistaken
-# for that branch's own equation.
+# A top-level branch's *own* compute_stress equation is uniquely identified by
+# `eq.parent == eqs[1].self` (the outer SeriesModel's own equation is always
+# the first equation emitted, self = 1) combined with `fn === compute_stress`:
+# only a branch's own equation is a *direct* child of the outer equation;
+# anything nested further inside that branch (e.g. a ParallelModel nested more
+# than one level deep, or another branch's own sub-structure) has `.parent`
+# pointing at its own enclosing equation instead. This correctly disambiguates
+# branches from each other and from their own nested sub-structure regardless
+# of nesting depth or whether rheology types collide anywhere in the tree —
+# unlike matching on rheology type alone, which can be fooled by a *different*
+# branch's nested equation sharing the same leaf type.
+#
+# `.parent`/`.self` are runtime Int64 fields (not part of `CompositeEquation`'s
+# type), so this match can't be resolved at `@generated` specialisation time;
+# only the `fn === compute_stress` pre-filter can (CompositeEquation{IsGlobal,
+# T, F, R, RT}: F is parameter index 3). The pre-filtered candidate positions
+# are baked in as literals, and the final `.parent` comparisons run once per
+# branch at call time via `_nth_true_position` above.
 @generated function _kv_implicit_corrections_scalar(
     branches::NTuple{Nb, Any}, eqs::NTuple{N, Any}, x, τ0, others, offset
 ) where {Nb, N}
-    is_stress_eq = Bool[eqs.parameters[k].parameters[3] === typeof(compute_stress) for k in 1:N]
-    used = falses(N)
-    branch_eq_positions = Vector{Int}(undef, Nb)
-    for i in 1:Nb
-        leafs_type = branches.parameters[i].parameters[1]
-        pos = findfirst(k -> !used[k] && is_stress_eq[k] && eqs.parameters[k].parameters[4] === leafs_type, 1:N)
-        pos === nothing && error(
-            "_kv_implicit_corrections_scalar: could not locate the compute_stress equation " *
-            "for branch $i (leaf type $leafs_type). This can happen when a ParallelModel is " *
-            "nested more than one level deep inside a branch, which the implicit elastic " *
-            "correction does not currently support."
-        )
-        used[pos] = true
-        branch_eq_positions[i] = pos
-    end
+    foreach(_assert_kv_nesting_supported, branches.parameters)
+    stress_positions = Tuple(k for k in 1:N if eqs.parameters[k].parameters[3] === typeof(compute_stress))
+    mask_expr = Expr(:tuple, (:(eqs[$k].parent == outer_self) for k in stress_positions)...)
 
     counts  = [_n_elastic_in_parallel(branches.parameters[i]) for i in 1:Nb]
     offsets = cumsum([0; counts[1:(end - 1)]])
 
-    stmts = Any[:(cor = 0.0)]
+    stmts = Any[:(cor = 0.0), :(outer_self = eqs[1].self), :(mask = $mask_expr)]
     for i in 1:Nb
-        bpos = branch_eq_positions[i]   # compile-time literal; eqs[bpos].self == bpos
         push!(stmts, quote
+            bpos = _nth_true_position(mask, $stress_positions, $i)
             cor += _kv_implicit_branch_correction_scalar(
-                branches[$i], x[$bpos], τ0, others, offset + $(offsets[i])
+                branches[$i], x[bpos], τ0, others, offset + $(offsets[i])
             )
         end)
     end

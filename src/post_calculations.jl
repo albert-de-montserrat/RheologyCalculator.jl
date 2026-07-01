@@ -178,6 +178,7 @@ branches. Per-branch τ0 offsets are computed at specialisation time via
 @generated function _kv_corrections_elastic_stress(branches::NTuple{Nb, Any}, τ_shared, others, offset) where {Nb}
     # Compile-time: count elastic elements in each branch so we can compute
     # the cumulative τ0 index offset for each one without any runtime bookkeeping.
+    foreach(_assert_kv_nesting_supported, branches.parameters)
     counts  = [_n_elastic_in_parallel(branches.parameters[i]) for i in 1:Nb]
     # offsets[i] = number of elastic elements consumed by branches 1 … i-1.
     offsets = cumsum([0; counts[1:(end - 1)]])
