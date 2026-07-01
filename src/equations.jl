@@ -529,6 +529,35 @@ function compute_residual(c, x::SVector{N, T}, vars, others) where {N, T}
     return SA[residual...]
 end
 
+# SeriesModel specialisation: subtracts the implicit elastic backstress correction
+# from the global equation residual. For non-elastic composites the fallback in
+# subtract_elastic_correction is a no-op, so there is no overhead.
+function compute_residual(c::SeriesModel, x::SVector{N, T}, vars, others) where {N, T}
+
+    eqs = generate_equations(c)
+    @assert length(eqs) == length(x)
+    args_all = generate_args_template(eqs, x, others)
+
+    residual = evaluate_state_functions(eqs, args_all, others)
+    residual = add_children(residual, x, eqs)
+    residual = subtract_parent(residual, x, eqs, vars)
+    residual = subtract_elastic_correction(c, eqs, residual, x, others)
+
+    return SA[residual...]
+end
+
+# Subtract the implicit elastic correction from the first (global) residual entry.
+# The correction is a scalar function of x (through the branch strain rates), so
+# ForwardDiff differentiates through it automatically.
+@inline function subtract_elastic_correction(c::SeriesModel, eqs, residual::NTuple{N}, x::SVector{N}, others) where {N}
+    iselastic(c) == Val(false) && return residual
+    cor = _implicit_elastic_correction(c, eqs, x, others)
+    return _subtract_first(residual, cor)
+end
+
+# Return a new NTuple with the first entry decreased by `cor`.
+@inline _subtract_first(r::NTuple{N}, cor) where {N} = (r[1] - cor, Base.tail(r)...)
+
 function compute_residual(c, x::SVector{N, T}, vars, others, ::Int64, ::Int64) where {N, T}
 
     eqs = generate_equations(c)

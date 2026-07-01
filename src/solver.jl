@@ -63,13 +63,16 @@ of the corrected effective strain-rate tensor.
 """
 function solve(c::AbstractCompositeModel, x::SVector, vars0, others; xnorm0=nothing, atol::Float64 = 1.0e-12, rtol::Float64 = 1.0e-12, itermax = 1.0e4, verbose::Bool = false)
    
-    ε_corr = effective_strain_rate_correction(c, vars0.ε, others.τ0, others)
-    ε_eff = vars0.ε .+ ε_corr
-    εII   = second_invariant_value(ε_eff)
-    
-    # NOTE: be careful with the order of variables here
-    # as the effective strain rate IS ALWAYS THE FIRST
-    vars = merge(vars0, (; ε = εII))
+    # Pre-correct ONLY the direct elastic leafs of the outer composite
+    # (simple Maxwell backstress).  Tensor arithmetic is used here so that
+    # second_invariant(ε + τ0/(2G·dt)) is evaluated correctly even for
+    # non-coaxial ε/τ0 pairs.
+    # ParallelModel branch corrections are handled implicitly inside
+    # compute_residual via subtract_elastic_correction, so they must NOT be
+    # included here to avoid double-counting.
+    ε_corr = _direct_leaf_elastic_correction(c, vars0.ε, others)
+    εII    = second_invariant_value(vars0.ε .+ ε_corr)
+    vars   = merge(vars0, (; ε = εII))
 
     # vars = merge((; ε = εII), vars0)
     xnorm = correct_xnorm(x, xnorm0)
