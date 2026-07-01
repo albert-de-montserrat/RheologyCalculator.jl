@@ -1,7 +1,7 @@
 name = "RheologyCalculator"
 uuid = "62cdc9a2-0e94-40de-8fb5-c079398d65d0"
 authors = ["albert-de-montserrat <albert.de.montserrat@gmail.com>"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 DifferentiationInterface = "a0c0ee7d-e4b9-4e03-894e-1c5f64a51d63"
