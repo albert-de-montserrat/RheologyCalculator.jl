@@ -67,16 +67,13 @@ function _compute_stress_elastic1(r::AbstractElasticity, self, fn::F, number, xn
         return ()
     end
 
+    # compute_stress is never IsGlobal: the outer composite is always a
+    # SeriesModel, whose global equations are compute_strain_rate /
+    # compute_volumetric_strain_rate; compute_stress equations only arise
+    # inside ParallelModel branches, which are never IsGlobal = true. Falls
+    # through to the generic fallback above for both Val{true} and Val{false}.
     @inline function f(::typeof(compute_stress), r, others, args, number, self, xnew, ::Val{false})
         return ()
-    end
-
-    @inline function f(::typeof(compute_stress), r, others, args, number, self, xnew, ::Val{true})
-        keys_hist = history_kwargs(r)
-        args_local = extract_local_kwargs(others, keys_hist, number)
-        args_combined = merge(args, args_local)
-        τ0_II = second_invariant_value(args_local.τ0)
-        return compute_stress(r, args_combined) + τ0_II
     end
 
     return f(fn, r, others, args, number, self, xnew, eqglobal)
