@@ -27,4 +27,8 @@ makedocs(;
     ],
 )
 
-deploydocs(; repo="https://github.com/albert-de-montserrat/RheologyCalculator.jl", devbranch="main")
+deploydocs(;
+    repo = "github.com/albert-de-montserrat/RheologyCalculator.jl.git",
+    branch = "gh-pages",
+    devbranch = "main",
+)
