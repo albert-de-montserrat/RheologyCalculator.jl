@@ -544,14 +544,36 @@ end
 
 # Accumulate the implicit KV/Maxwell branch corrections across all branches.
 # At specialisation time, branch_eq_positions[i] gives the position (= self-index)
-# of the i-th branch's compute_stress equation inside the eqs NTuple, which equals
-# the x-index for that branch's local strain rate.
+# of the i-th branch's *own* compute_stress equation inside the eqs NTuple, which
+# equals the x-index for that branch's local strain rate.
+#
+# CompositeEquation{IsGlobal, T, F, R, RT}: F (fn type) is parameter index 3, R
+# (rheology-tuple type) is parameter index 4. A branch's own compute_stress
+# equation is identified by matching both `fn` and its rheology type against
+# `branches[i].leafs`'s type, taking the earliest unused match: equations are
+# emitted parent-before-children (see `generate_equations`/`superflatten`), so a
+# branch's own equation always precedes any compute_stress equations belonging
+# to ParallelModels nested further inside it — this keeps deeper nesting (e.g. a
+# ParallelModel nested more than one level inside a branch) from being mistaken
+# for that branch's own equation.
 @generated function _kv_implicit_corrections_scalar(
     branches::NTuple{Nb, Any}, eqs::NTuple{N, Any}, x, τ0, others, offset
 ) where {Nb, N}
-    # CompositeEquation{IsGlobal, T, F, R, RT}: F is parameter index 3.
-    branch_eq_positions = [k for k in 1:N
-        if eqs.parameters[k].parameters[3] === typeof(compute_stress)]
+    is_stress_eq = Bool[eqs.parameters[k].parameters[3] === typeof(compute_stress) for k in 1:N]
+    used = falses(N)
+    branch_eq_positions = Vector{Int}(undef, Nb)
+    for i in 1:Nb
+        leafs_type = branches.parameters[i].parameters[1]
+        pos = findfirst(k -> !used[k] && is_stress_eq[k] && eqs.parameters[k].parameters[4] === leafs_type, 1:N)
+        pos === nothing && error(
+            "_kv_implicit_corrections_scalar: could not locate the compute_stress equation " *
+            "for branch $i (leaf type $leafs_type). This can happen when a ParallelModel is " *
+            "nested more than one level deep inside a branch, which the implicit elastic " *
+            "correction does not currently support."
+        )
+        used[pos] = true
+        branch_eq_positions[i] = pos
+    end
 
     counts  = [_n_elastic_in_parallel(branches.parameters[i]) for i in 1:Nb]
     offsets = cumsum([0; counts[1:(end - 1)]])

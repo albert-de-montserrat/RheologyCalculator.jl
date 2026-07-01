@@ -2,10 +2,10 @@
 
 When a composite model contains elastic elements, the constitutive equations
 include backstress history terms (the stress carried by each spring at the
-*previous* time step, ``\boldsymbol{\tau}^o``).  Before passing the prescribed
-strain rate ``\boldsymbol{\varepsilon}`` to the Newton-Raphson solver it is
+*previous* time step, $\boldsymbol{\tau}^o$).  Before passing the prescribed
+strain rate $\boldsymbol{\varepsilon}$ to the Newton-Raphson solver it is
 convenient to absorb those terms into an *effective* strain rate
-``\boldsymbol{\varepsilon}^{\mathrm{eff}}``, so that the solver always works
+$\boldsymbol{\varepsilon}^{\mathrm{eff}}$, so that the solver always works
 with equations of the canonical form
 
 ```math
@@ -13,7 +13,7 @@ with equations of the canonical form
 ```
 
 The function `effective_strain_rate_correction` builds
-``\boldsymbol{\varepsilon}^{\mathrm{eff}}`` for any composite.  During
+$\boldsymbol{\varepsilon}^{\mathrm{eff}}$ for any composite.  During
 `solve`, the same algebra is split in two: direct elastic leafs of the outer
 `SeriesModel` are applied as a tensor correction before the Newton loop, while
 elastic corrections inside `ParallelModel` branches are subtracted from the
@@ -27,7 +27,7 @@ All elastic elements use a backward-Euler update:
 \boldsymbol{\tau}^{\mathrm{el}} = \boldsymbol{\tau}^o + 2G\,\Delta t\,\boldsymbol{\varepsilon}^{\mathrm{el}}
 ```
 
-so the elastic strain rate is ``(\boldsymbol{\tau}^{\mathrm{el}} - \boldsymbol{\tau}^o)/(2G\Delta t)``.
+so the elastic strain rate is $(\boldsymbol{\tau}^{\mathrm{el}} - \boldsymbol{\tau}^o)/(2G\Delta t)$.
 
 ---
 
@@ -43,7 +43,7 @@ In a series model strain rates add:
 ```
 
 Moving the backstress term to the left-hand side so that the right-hand side
-depends only on ``\boldsymbol{\tau}``:
+depends only on $\boldsymbol{\tau}$:
 
 ```math
 \underbrace{\boldsymbol{\varepsilon} + \frac{\boldsymbol{\tau}^o}{2G\Delta t}}
@@ -53,14 +53,14 @@ depends only on ``\boldsymbol{\tau}``:
              _{1/(2\eta^{\mathrm{eff}})}
 ```
 
-The Maxwell effective viscosity is the harmonic mean of ``\eta`` and
-``G\Delta t``:
+The Maxwell effective viscosity is the harmonic mean of $\eta$ and
+$G\Delta t$:
 
 ```math
 \eta^{\mathrm{eff}}_M = \frac{1}{1/\eta + 1/(G\Delta t)}
 ```
 
-The strain-rate correction is simply ``\boldsymbol{\tau}^o/(2G\Delta t)`` —
+The strain-rate correction is simply $\boldsymbol{\tau}^o/(2G\Delta t)$ —
 the elastic backstress divided by the elastic stiffness.  In code this is
 handled by the specialisation of `effective_strain_rate_correction` for
 `AbstractElasticity` leafs of the outer `SeriesModel`.
@@ -85,8 +85,8 @@ Inside the parallel (Kelvin-Voigt) branch stresses add:
 = (2\eta_2 + 2G\Delta t)\,\boldsymbol{\varepsilon}^p + \boldsymbol{\tau}^o
 ```
 
-Defining the Kelvin-Voigt effective viscosity ``\eta^{\mathrm{eff}}_{\mathrm{KV}} = \eta_2 + G\Delta t``
-and solving for ``\boldsymbol{\varepsilon}^p``:
+Defining the Kelvin-Voigt effective viscosity $\eta^{\mathrm{eff}}_{\mathrm{KV}} = \eta_2 + G\Delta t$
+and solving for $\boldsymbol{\varepsilon}^p$:
 
 ```math
 \boldsymbol{\varepsilon}^p = \frac{\boldsymbol{\tau} - \boldsymbol{\tau}^o}{2\eta^{\mathrm{eff}}_{\mathrm{KV}}}
@@ -101,9 +101,9 @@ rate:
 = \boldsymbol{\tau}\!\left(\frac{1}{2\eta_1} + \frac{1}{2\eta^{\mathrm{eff}}_{\mathrm{KV}}}\right)
 ```
 
-The correction now scales with ``\eta^{\mathrm{eff}}_{\mathrm{KV}}`` rather than
-``G\Delta t`` alone, because the elastic backstress must be *distributed across
-the stiffness of the whole parallel branch*.  For ``N`` parallel elements the
+The correction now scales with $\eta^{\mathrm{eff}}_{\mathrm{KV}}$ rather than
+$G\Delta t$ alone, because the elastic backstress must be *distributed across
+the stiffness of the whole parallel branch*.  For $N$ parallel elements the
 KV effective viscosity generalises to an arithmetic sum of branch effective
 viscosities:
 
@@ -118,8 +118,8 @@ viscosities:
 **Model:** `SeriesModel(η₁, ParallelModel(η₂, SeriesModel(η₃, Elasticity(G))))`.
 
 The inner `SeriesModel(η₃, Elasticity(G))` is itself a Maxwell element with
-its own effective viscosity ``\eta^{\mathrm{eff}}_M = 1/(1/\eta_3 + 1/(G\Delta t))``.
-Its strain rate equals the branch strain rate ``\boldsymbol{\varepsilon}^p`` of
+its own effective viscosity $\eta^{\mathrm{eff}}_M = 1/(1/\eta_3 + 1/(G\Delta t))$.
+Its strain rate equals the branch strain rate $\boldsymbol{\varepsilon}^p$ of
 the outer parallel block:
 
 ```math
@@ -136,8 +136,8 @@ The parallel stress balance is:
 \boldsymbol{\tau} = 2\eta_2\,\boldsymbol{\varepsilon}^p + \boldsymbol{\tau}^{\mathrm{Max}}
 ```
 
-Substituting ``\boldsymbol{\tau}^{\mathrm{Max}}`` and collecting
-``\boldsymbol{\varepsilon}^p``:
+Substituting $\boldsymbol{\tau}^{\mathrm{Max}}$ and collecting
+$\boldsymbol{\varepsilon}^p$:
 
 ```math
 \boldsymbol{\tau}
@@ -164,14 +164,14 @@ Substituting back into the outer series equation, the effective strain rate is:
 = \boldsymbol{\tau}\!\left(\frac{1}{2\eta_1} + \frac{1}{2\eta^{\mathrm{eff}}_{\mathrm{KV}}}\right)
 ```
 
-The weighting factor ``\eta^{\star}_M \in (0, 1)`` attenuates the backstress:
+The weighting factor $\eta^{\star}_M \in (0, 1)$ attenuates the backstress:
 
-- **Soft spring** (``G \to 0``): ``\eta^{\star}_M \to 1`` — full backstress, elastic history dominates.
-- **Stiff spring** (``G \to \infty``): ``\eta^{\star}_M \to 0`` — backstress vanishes, element behaves as a pure dashpot.
+- **Soft spring** ($G \to 0$): $\eta^{\star}_M \to 1$ — full backstress, elastic history dominates.
+- **Stiff spring** ($G \to \infty$): $\eta^{\star}_M \to 0$ — backstress vanishes, element behaves as a pure dashpot.
 
 ### Example
 
-Under a constant deviatoric strain rate ``\dot{\varepsilon}`` starting from zero stress, this
+Under a constant deviatoric strain rate $\dot{\varepsilon}$ starting from zero stress, this
 model obeys a linear first-order ODE whose exact solution is
 
 ```math
@@ -196,9 +196,9 @@ t_{\mathrm{relax}} = \frac{(\eta_1+\eta_2)\,\eta_3}{G\,(\eta_1+\eta_2+\eta_3)}
 \qquad\text{(relaxation timescale)}
 ```
 
-At ``t=0`` the spring carries no backstress so only the viscous elements ``\eta_1`` and
-``\eta_2`` resist deformation; as ``t \to \infty`` the inner Maxwell dashpot reaches its
-steady-state load and ``\tau`` approaches the higher value ``\tau_\infty``.
+At $t=0$ the spring carries no backstress so only the viscous elements $\eta_1$ and
+$\eta_2$ resist deformation; as $t \to \infty$ the inner Maxwell dashpot reaches its
+steady-state load and $\tau$ approaches the higher value $\tau_\infty$.
 
 The full runnable example with convergence plot is in `examples/Maxwell_KV_Maxwell.jl`.
 The lower panel reports the mean relative stress error in percent, skipping the
@@ -269,9 +269,9 @@ can be written as:
 ```
 
 The left-hand side is the effective strain rate of the parallel block, and
-``\boldsymbol{\varepsilon}^p`` is the unknown branch strain rate.  The sum
+$\boldsymbol{\varepsilon}^p$ is the unknown branch strain rate.  The sum
 collects every elastic history term in that block, each weighted by
-``\eta^{\star}_i``.  Equivalently, the effective strain-rate correction
+$\eta^{\star}_i$.  Equivalently, the effective strain-rate correction
 contributed by the block is:
 
 ```math
@@ -293,7 +293,7 @@ contributed by the block is:
 \end{cases}
 ```
 
-For a purely viscous branch ``\eta^{\star} = 1`` but ``\boldsymbol{\tau}^o = 0``
+For a purely viscous branch $\eta^{\star} = 1$ but $\boldsymbol{\tau}^o = 0$
 (no elastic history), so its contribution vanishes automatically.
 
 Substituting the reduced parallel-block equation into the outer series equation
@@ -323,12 +323,12 @@ The correction is computed by `effective_strain_rate_correction` (defined in
 | `effective_strain_rate_correction(leafs, (), ε, τ0, others)` | Maxwell correction for direct elastic leafs |
 | `_kv_corrections(branches, ε, τ0, others, offset)` | KV / generalized Maxwell correction for all `ParallelModel` branches |
 | `_kv_branch_correction(branch, ε, τ0, others, el_idx_start)` | Correction for one `ParallelModel` branch |
-| `_η_KV(leafs, subs, args)` | ``\eta_{\mathrm{KV}} = \sum \eta^{\mathrm{eff}}_i`` for one branch |
-| `_η_eff_maxwell(leafs, args)` | ``\eta^{\mathrm{eff}}_M`` (harmonic mean) for a Maxwell sub-branch |
-| `_η_eff_elastic(leafs, args)` | ``G\,\Delta t`` for the elastic leaf of a sub-branch |
-| `_weighted_backstress(leafs, subs, ε, τ0, args, el_idx_start)` | ``\sum \eta^{\star}_i\,\boldsymbol{\tau}^o_i`` for one branch |
+| `_η_KV(leafs, subs, args)` | $\eta_{\mathrm{KV}} = \sum \eta^{\mathrm{eff}}_i$ for one branch |
+| `_η_eff_maxwell(leafs, args)` | $\eta^{\mathrm{eff}}_M$ (harmonic mean) for a Maxwell sub-branch |
+| `_η_eff_elastic(leafs, args)` | $G\,\Delta t$ for the elastic leaf of a sub-branch |
+| `_weighted_backstress(leafs, subs, ε, τ0, args, el_idx_start)` | $\sum \eta^{\star}_i\,\boldsymbol{\tau}^o_i$ for one branch |
 
-All τ0 index arithmetic and ``\eta^{\star}`` factors are resolved at
+All τ0 index arithmetic and $\eta^{\star}$ factors are resolved at
 *compile time* via `@generated` functions, so the emitted code is a flat
 sequence of multiply-adds with no runtime dispatch or branching.
 
@@ -352,14 +352,14 @@ viscosities.  For linear viscosities this implicit residual form is
 algebraically identical to applying the full correction before the solve.
 
 Once the corrected residual has been formed, Newton-Raphson solves
-``\boldsymbol{r}=\dot{\boldsymbol{\varepsilon}}-f(\boldsymbol{\tau})=0`` with
+$\boldsymbol{r}=\dot{\boldsymbol{\varepsilon}}-f(\boldsymbol{\tau})=0$ with
 
 ```math
 \boldsymbol{\tau}^{n+1}
 = \boldsymbol{\tau}^{n} - J^{-1}\boldsymbol{r}.
 ```
 
-Here ``J`` is the consistent tangent.  For tensor-valued strain rates and
+Here $J$ is the consistent tangent.  For tensor-valued strain rates and
 stresses, the fully general tangent is a fourth-order tensor: it maps a
 second-order strain-rate increment to a second-order stress increment.
 
