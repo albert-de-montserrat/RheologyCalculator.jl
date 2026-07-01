@@ -46,7 +46,6 @@ function solve(c::AbstractCompositeModel, x::SVector, vars0, others; xnorm0=noth
         it += 1
 
         J = ForwardDiff.jacobian(y -> compute_residual(c, y, vars, others), x)
-        # r, J = value_and_jacobian(y -> compute_residual(c, y, vars, others), AutoForwardDiff(), x)
         Δx = backsolve(J, r)
         if it > 1 
             α = bt_line_search(Δx, x, c, vars, others, xnorm; α = 1.0, ρ = 0.5, lstol = 0.95, α_min = 0.1)
