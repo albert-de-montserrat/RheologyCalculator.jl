@@ -1,6 +1,5 @@
 using RheologyCalculator, StaticArrays, ForwardDiff, Chairmarks
 import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
-using DifferentiationInterface
 import ForwardDiff: ForwardDiff
 
 include("../rheologies/RheologyDefinitions.jl")
@@ -48,9 +47,9 @@ end
 end
 
 @inline function ∇σij(εxx, εyy, εxy, c, index)
-    ∂σij∂εxx = derivative(εxx -> compute_stress_tensor(SA[εxx, εyy, εxy], c, index), AutoForwardDiff(), εxx)
-    ∂σij∂εyy = derivative(εyy -> compute_stress_tensor(SA[εxx, εyy, εxy], c, index), AutoForwardDiff(), εyy)
-    ∂σij∂εxy = derivative(εxy -> compute_stress_tensor(SA[εxx, εyy, εxy], c, index), AutoForwardDiff(), εxy)
+    ∂σij∂εxx = ForwardDiff.derivative(εxx -> compute_stress_tensor(SA[εxx, εyy, εxy], c, index), εxx)
+    ∂σij∂εyy = ForwardDiff.derivative(εyy -> compute_stress_tensor(SA[εxx, εyy, εxy], c, index), εyy)
+    ∂σij∂εxy = ForwardDiff.derivative(εxy -> compute_stress_tensor(SA[εxx, εyy, εxy], c, index), εxy)
     return ∂σij∂εxx, ∂σij∂εyy, ∂σij∂εxy
 end
  
@@ -71,9 +70,9 @@ end
 
 @inline function tangent_operator_diagonal(εxx, εyy, εxy, c)
 
-    ∂σxx∂εxx = derivative(εxx -> compute_stress_tensor(SA[εxx, εyy, εxy], c, 1), AutoForwardDiff(), εxx)
-    ∂σyy∂εyy = derivative(εyy -> compute_stress_tensor(SA[εxx, εyy, εxy], c, 2), AutoForwardDiff(), εyy)
-    ∂σxy∂εxy = derivative(εxy -> compute_stress_tensor(SA[εxx, εyy, εxy], c, 3), AutoForwardDiff(), εxy)
+    ∂σxx∂εxx = ForwardDiff.derivative(εxx -> compute_stress_tensor(SA[εxx, εyy, εxy], c, 1), εxx)
+    ∂σyy∂εyy = ForwardDiff.derivative(εyy -> compute_stress_tensor(SA[εxx, εyy, εxy], c, 2), εyy)
+    ∂σxy∂εxy = ForwardDiff.derivative(εxy -> compute_stress_tensor(SA[εxx, εyy, εxy], c, 3), εxy)
 
     return SA[
         ∂σxx∂εxx  0e0       0e0

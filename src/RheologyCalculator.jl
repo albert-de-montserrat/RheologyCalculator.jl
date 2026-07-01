@@ -12,7 +12,7 @@ application-specific material laws.
 """
 module RheologyCalculator
 
-using DifferentiationInterface, StaticArrays, LinearAlgebra
+using StaticArrays, LinearAlgebra
 import ForwardDiff: ForwardDiff
 
 import Base.IteratorsMD.flatten
