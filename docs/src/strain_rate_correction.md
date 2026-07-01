@@ -12,10 +12,14 @@ with equations of the canonical form
 \boldsymbol{\varepsilon}^{\mathrm{eff}} = \frac{\boldsymbol{\tau}}{2\eta^{\mathrm{eff}}}
 ```
 
-The function [`effective_strain_rate_correction`](@ref) builds
-``\boldsymbol{\varepsilon}^{\mathrm{eff}}`` automatically for any composite.
-This page explains the algebra behind it, starting from the simplest case and
-building up to the fully general treatment.
+The function `effective_strain_rate_correction` builds
+``\boldsymbol{\varepsilon}^{\mathrm{eff}}`` for any composite.  During
+`solve`, the same algebra is split in two: direct elastic leafs of the outer
+`SeriesModel` are applied as a tensor correction before the Newton loop, while
+elastic corrections inside `ParallelModel` branches are subtracted from the
+Newton residual so branch-dependent nonlinear viscosities are differentiated
+consistently.  This page explains the algebra behind both paths, starting from
+the simplest case and building up to the fully general treatment.
 
 All elastic elements use a backward-Euler update:
 
@@ -100,10 +104,11 @@ rate:
 The correction now scales with ``\eta^{\mathrm{eff}}_{\mathrm{KV}}`` rather than
 ``G\Delta t`` alone, because the elastic backstress must be *distributed across
 the stiffness of the whole parallel branch*.  For ``N`` parallel elements the
-KV effective viscosity generalises to an arithmetic sum:
+KV effective viscosity generalises to an arithmetic sum of branch effective
+viscosities:
 
 ```math
-\eta^{\mathrm{eff}}_{\mathrm{KV}} = \sum_{i=1}^N \eta_i
+\eta^{\mathrm{eff}}_{\mathrm{KV}} = \sum_{i=1}^N \eta^{\mathrm{eff}}_i
 ```
 
 ---
@@ -148,6 +153,7 @@ Substituting ``\boldsymbol{\tau}^{\mathrm{Max}}`` and collecting
 \eta^{\mathrm{eff}}_{\mathrm{KV}} = \eta_2 + \eta^{\mathrm{eff}}_M,
 \qquad
 \eta^{\star}_M = \frac{\eta^{\mathrm{eff}}_M}{G\Delta t}
+  = \frac{\eta_3}{\eta_3 + G\Delta t}
 ```
 
 Substituting back into the outer series equation, the effective strain rate is:
@@ -155,6 +161,7 @@ Substituting back into the outer series equation, the effective strain rate is:
 ```math
 \boldsymbol{\varepsilon}^{\mathrm{eff}}
 = \boldsymbol{\varepsilon} + \frac{\eta^{\star}_M\,\boldsymbol{\tau}^o}{2\eta^{\mathrm{eff}}_{\mathrm{KV}}}
+= \boldsymbol{\tau}\!\left(\frac{1}{2\eta_1} + \frac{1}{2\eta^{\mathrm{eff}}_{\mathrm{KV}}}\right)
 ```
 
 The weighting factor ``\eta^{\star}_M \in (0, 1)`` attenuates the backstress:
@@ -243,18 +250,29 @@ backstress for the next step.
 
 ## Generalized Maxwell body
 
-The two cases above are instances of a general pattern.  Consider any
-`SeriesModel` whose branches are `ParallelModel` blocks, each of which may
-itself contain Maxwell `SeriesModel` sub-branches.  The effective strain-rate
-correction contributed by one `ParallelModel` branch is:
+The cases above are instances of a general pattern.  Consider a `SeriesModel`
+with an outer series dashpot and one or more `ParallelModel` blocks.  Each
+parallel block may contain direct viscous or elastic leafs, and may also contain
+Maxwell `SeriesModel` sub-branches.  The reduced residual for one parallel block
+can be written as:
+
+```math
+\frac{\boldsymbol{\tau}}{2\eta_{\mathrm{KV}}}
+= \boldsymbol{\varepsilon}^p
+  + \frac{1}{2\eta_{\mathrm{KV}}}
+    \sum_i \eta^{\star}_i\,\boldsymbol{\tau}^o_i
+```
+
+The left-hand side is the effective strain rate of the parallel block, and
+``\boldsymbol{\varepsilon}^p`` is the unknown branch strain rate.  The sum
+collects every elastic history term in that block, each weighted by
+``\eta^{\star}_i``.  Equivalently, the effective strain-rate correction
+contributed by the block is:
 
 ```math
 \Delta\boldsymbol{\varepsilon}^{\mathrm{eff}}
 = \frac{1}{2\eta_{\mathrm{KV}}} \sum_{i} \eta^{\star}_i\,\boldsymbol{\tau}^o_i
 ```
-
-where the sum runs over every elastic source (direct elastic leaf or Maxwell
-sub-branch) inside the parallel block, and:
 
 ```math
 \eta_{\mathrm{KV}} = \sum_i \eta^{\mathrm{eff}}_i
@@ -273,8 +291,10 @@ sub-branch) inside the parallel block, and:
 For a purely viscous branch ``\eta^{\star} = 1`` but ``\boldsymbol{\tau}^o = 0``
 (no elastic history), so its contribution vanishes automatically.
 
-The total effective strain rate seen by the outer solver is the sum of the
-existing Maxwell-leaf correction and all branch corrections:
+Substituting the reduced parallel-block equation into the outer series equation
+and moving the backstress terms to the left-hand side gives the effective
+strain rate seen by the outer solver.  It is the sum of the direct Maxwell-leaf
+correction and all branch corrections:
 
 ```math
 \boldsymbol{\varepsilon}^{\mathrm{eff}}
@@ -290,16 +310,15 @@ existing Maxwell-leaf correction and all branch corrections:
 ## Implementation
 
 The correction is computed by `effective_strain_rate_correction` (defined in
-`src/strain_rate_correction.jl`) and called automatically by `solve` before
-each Newton step.  The decomposition into *leafs* and *branches* mirrors the
-internal structure of `SeriesModel`:
+`src/strain_rate_correction.jl`).  The decomposition into *leafs* and
+*branches* mirrors the internal structure of `SeriesModel`:
 
 | Function | Role |
 |---|---|
 | `effective_strain_rate_correction(leafs, (), ε, τ0, others)` | Maxwell correction for direct elastic leafs |
 | `_kv_corrections(branches, ε, τ0, others, offset)` | KV / generalized Maxwell correction for all `ParallelModel` branches |
 | `_kv_branch_correction(branch, ε, τ0, others, el_idx_start)` | Correction for one `ParallelModel` branch |
-| `_η_KV(leafs, subs, args)` | ``\eta_{\mathrm{KV}} = \sum \eta_i`` for one branch |
+| `_η_KV(leafs, subs, args)` | ``\eta_{\mathrm{KV}} = \sum \eta^{\mathrm{eff}}_i`` for one branch |
 | `_η_eff_maxwell(leafs, args)` | ``\eta^{\mathrm{eff}}_M`` (harmonic mean) for a Maxwell sub-branch |
 | `_η_eff_elastic(leafs, args)` | ``G\,\Delta t`` for the elastic leaf of a sub-branch |
 | `_weighted_backstress(leafs, subs, ε, τ0, args, el_idx_start)` | ``\sum \eta^{\star}_i\,\boldsymbol{\tau}^o_i`` for one branch |
@@ -307,6 +326,37 @@ internal structure of `SeriesModel`:
 All τ0 index arithmetic and ``\eta^{\star}`` factors are resolved at
 *compile time* via `@generated` functions, so the emitted code is a flat
 sequence of multiply-adds with no runtime dispatch or branching.
+
+The public `effective_strain_rate_correction` helper still returns the complete
+closed-form correction.  The solver uses a more implicit split for robustness:
+`_direct_leaf_elastic_correction` pre-corrects direct elastic leafs of the outer
+series using full tensor arithmetic, and `_implicit_elastic_correction`
+subtracts the branch correction from the global residual at each Newton
+iteration:
+
+```math
+R_1 \leftarrow R_1
+  - \sum_{\mathrm{branches}}
+      \frac{1}{2\eta_{\mathrm{KV}}(\varepsilon_{\mathrm{branch}})}
+      \sum_i \eta^\star_i(\varepsilon_{\mathrm{branch}})\,\tau^o_i
+```
+
+Because the branch term depends on the current Newton iterate, ForwardDiff sees
+that dependence and builds the consistent Jacobian for nonlinear branch
+viscosities.  For linear viscosities this implicit residual form is
+algebraically identical to applying the full correction before the solve.
+
+Once the corrected residual has been formed, Newton-Raphson solves
+``\boldsymbol{r}=\dot{\boldsymbol{\varepsilon}}-f(\boldsymbol{\tau})=0`` with
+
+```math
+\boldsymbol{\tau}^{n+1}
+= \boldsymbol{\tau}^{n} - J^{-1}\boldsymbol{r}.
+```
+
+Here ``J`` is the consistent tangent.  For tensor-valued strain rates and
+stresses, the fully general tangent is a fourth-order tensor: it maps a
+second-order strain-rate increment to a second-order stress increment.
 
 ### Worked example
 
