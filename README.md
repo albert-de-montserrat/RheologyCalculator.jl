@@ -1,6 +1,7 @@
 # RheologyCalculator.jl
 
 [![CI](https://github.com/albert-de-montserrat/RheologyCalculator.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/albert-de-montserrat/RheologyCalculator.jl/actions/workflows/ci.yml)
+[![Documentation](https://github.com/albert-de-montserrat/RheologyCalculator.jl/actions/workflows/docs.yml/badge.svg)](https://github.com/albert-de-montserrat/RheologyCalculator.jl/actions/workflows/docs.yml)
 [![Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://albert-de-montserrat.github.io/RheologyCalculator.jl/dev/)
 
 `RheologyCalculator.jl` builds and solves local rheological models from small
