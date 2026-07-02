@@ -13,13 +13,6 @@ symmetric deviatoric tensor stored in Voigt-like component order.
 @inline second_invariant_value(a::Number) = second_invariant(a)
 @inline second_invariant_value(a::NTuple) = second_invariant(a...)
 
-"""
-    effective_strain_rate_correction(c, ε, τ0, others)
-
-Compute the effective strain-rate correction induced by previous elastic stress
-history in composite `c`. Elastic elements contribute `τ0 / (2η)` using their
-current effective viscosity; non-elastic elements contribute zero.
-"""
 # -----------------------------------------------------------------------
 # effective_strain_rate_correction — public entry points
 # -----------------------------------------------------------------------
@@ -46,8 +39,13 @@ current effective viscosity; non-elastic elements contribute zero.
 end
 @inline _direct_leaf_elastic_correction(::AbstractCompositeModel, ε, others) = ε .* 0
 
-# Top-level entry point: dispatch on whether the composite contains any elastic
-# element at all (Val{false} → zero correction, avoids touching τ0 entirely).
+"""
+    effective_strain_rate_correction(c, ε, τ0, others)
+
+Compute the effective strain-rate correction induced by previous elastic stress
+history in composite `c`. Elastic elements contribute `τ0 / (2η)` using their
+current effective viscosity; non-elastic elements contribute zero.
+"""
 effective_strain_rate_correction(c::SeriesModel, ε::NTuple, τ0::NTuple, others) = effective_strain_rate_correction(iselastic(c), c, ε, τ0, others)
 
 # At least one elastic element exists: delegate to the (leafs, branches) decomposition.
@@ -160,15 +158,15 @@ end
     end
 end
 
+# Public wrapper: returns a Val so callers can dispatch on the result without
+# paying for a runtime branch (the Val is always resolved at compile time when
+# the concrete type of `r` is known, which it always is in @generated contexts).
 """
     iselastic(r)
 
 Return `Val(true)` when `r` is an elastic rheology or a composite containing an
 elastic rheology, otherwise `Val(false)`.
 """
-# Public wrapper: returns a Val so callers can dispatch on the result without
-# paying for a runtime branch (the Val is always resolved at compile time when
-# the concrete type of `r` is known, which it always is in @generated contexts).
 @inline iselastic(r::AbstractCompositeModel) = Val(_iselastic(r))
 @inline iselastic(::AbstractElasticity)      = Val(true)
 @inline iselastic(::AbstractRheology)        = Val(false)
