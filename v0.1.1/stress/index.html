@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Solving · RheologyCalculator.jl</title><meta name="title" content="Solving · RheologyCalculator.jl"/><meta property="og:title" content="Solving · RheologyCalculator.jl"/><meta property="twitter:title" content="Solving · RheologyCalculator.jl"/><meta name="description" content="Documentation for RheologyCalculator.jl."/><meta property="og:description" content="Documentation for RheologyCalculator.jl."/><meta property="twitter:description" content="Documentation for RheologyCalculator.jl."/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">RheologyCalculator.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../composites/">Composites</a></li><li><a class="tocitem" href="../rheology/">Rheology</a></li><li class="is-active"><a class="tocitem" href>Solving</a></li><li><a class="tocitem" href="../strain_rate_correction/">Elastic correction</a></li><li><a class="tocitem" href="../api/">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Solving</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Solving</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/albert-de-montserrat/RheologyCalculator.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Stress-time-curve-of-a-Burger&#39;s-material"><a class="docs-heading-anchor" href="#Stress-time-curve-of-a-Burger&#39;s-material">Stress-time curve of a Burger&#39;s material</a><a id="Stress-time-curve-of-a-Burger&#39;s-material-1"></a><a class="docs-heading-anchor-permalink" href="#Stress-time-curve-of-a-Burger&#39;s-material" title="Permalink"></a></h1><p>We start by defining the material properties </p><pre><code class="language-julia hljs">η1, η2, η3 = 5e19, 1e20, 1e21
+damper1    = LinearViscosity(η1)
+damper2    = LinearViscosity(η2)
+damper3    = LinearViscosity(η3)
+G, K1, K2  = 10e9, 46.67e9, 30e9
+spring1    = Elasticity(G, K1)
+spring2    = Elasticity(G, K2)</code></pre><p>and rheology model</p><pre><code class="language-julia-repl hljs">julia&gt; p = ParallelModel(damper2, spring1)
+|--⟦▪̲̅▫̲̅▫̲̅▫̲̅¹--|
+|--/\/\/¹--|
+
+julia&gt; c = SeriesModel(damper3, spring2, p)
+--⟦▪̲̅▫̲̅▫̲̅▫̲̅¹----/\/\/¹--|--⟦▪̲̅▫̲̅▫̲̅▫̲̅²--|
+                    |--/\/\/²--|</code></pre><p>Next, we define the input variables, which are the strain rate <code>ε</code> and the volumetric strain rate <code>θ</code></p><pre><code class="language-julia hljs">vars = (; ε = 1.0e-15, θ = 1.0e-20)  # input variables (constant)</code></pre><p>and the initial guess of the variables we want to solve for:</p><pre><code class="language-julia hljs">args = (; τ = 1.0e3, P = 1.0e6) </code></pre><p>The auxiliary variables are collected in <code>others</code>. These values are passed to state functions but are not differentiated by the Newton solve:</p><pre><code class="language-julia hljs">others = (; dt = 1.0e9, τ0 = (0.0, 0.0), P0 = (0.0, 0.0))</code></pre><p>and we build the solution vector <code>x</code> that contains the initial guess for the variables we want to solve for:</p><pre><code class="language-julia hljs">x   = initial_guess_x(c, vars, args, others)</code></pre><p>Now we are ready to compute the time evolution of the stress tensor, with some aid from a helper function</p><pre><code class="language-julia hljs">function stress_time(c, vars, x; ntime = 200, dt = 1.0e8)
+    τ     = zeros(ntime)
+    t_v   = zeros(ntime)
+    τ_e   = (0.0, 0.0)
+    P_e   = (0.0, 0.0)
+    t     = 0.0
+    for i in 2:ntime
+        # non-differentiable variables needed to evaluate the state functions
+        others = (; dt = dt, τ0 = τ_e, P0 = P_e) 
+        # solve the system of equations
+        x      = solve(c, x, vars, others)
+        # Post-process the results
+        τ_e    = compute_stress_elastic(c, x, others)   # elastic stress
+        P_e    = compute_pressure_elastic(c, x, others) # elastic pressure
+        # Store the results
+        τ[i]   = τ_e[1]
+        t     += others.dt
+        t_v[i] = t
+    end
+    return t_v, τ
+end
+
+t_v, τ = stress_time(c, vars, x; ntime = 25, dt = 1.0e9);</code></pre><p>We can finally compute the analytical solution of the stress time-evolution, and compare it against our results</p><pre><code class="language-julia hljs">using GLMakie
+
+function simulate_series_Burgers_model(E1, η1, E2, η2, ε̇, t_max, dt)
+    N    = Int(div(t_max, dt)) + 1
+    t    = range(0, step = dt, length = N)
+    σ    = zeros(N) # Stress
+    ε_KV = zeros(N) # Strain in Kelvin–Voigt element
+    σ_KV = zeros(N)
+    for i in 2:N
+        # Previous values
+        ε_KV_prev = ε_KV[i - 1]
+        σ_prev    = σ[i - 1]
+        dεKVdt    = (σ_prev - E2 * ε_KV_prev) / η2  # Kelvin–Voigt strain rate
+        ε_KV[i]   = ε_KV_prev + dt * dεKVdt         # Update ε_KV
+        dσdt      = E1 * (ε̇ - σ_prev / η1 - dεKVdt) # Stress rate from Maxwell element
+        σ[i]      = σ_prev + dt * dσdt              # Update stress
+        σ_KV[i]   = E2 * ε_KV[i] + η2 * dεKVdt      # Calculate σ_KV explicitly at this step
+    end
+    return t, σ
+end
+
+η1 = 2 * c.leafs[1].η
+η2 = 2 * c.branches[1].leafs[1].η
+G1 = 2 * c.leafs[2].G
+G2 = 2 * c.branches[1].leafs[2].G
+
+t_anal, τ_anal = simulate_series_Burgers_model(G1, η1, G2, η2, vars.ε, t_v[end], (t_v[2] - t_v[1]) / 10);
+
+# make figure
+SecYear = 3600 * 24 * 365.25
+fig     = Figure(fontsize = 30, size = (800, 600))
+ax      = Axis(fig[1, 1], title = &quot;Burgers model&quot;, xlabel = &quot;t [kyr]&quot;, ylabel = L&quot;\tau [MPa]&quot;)
+
+lines!(ax, t_anal / SecYear / 1.0e3, τ_anal / 1.0e6, label = &quot;analytical&quot;, linewidth = 5, color = :black)
+scatter!(ax, t_v / SecYear / 1.0e3, τ / 1.0e6, label = &quot;numerical&quot;, color = :red, markersize = 15)
+
+axislegend(ax, position = :rb)
+ax.xlabel = L&quot;t [kyr]&quot;
+ax.ylabel = L&quot;\tau [MPa]&quot;
+display(fig)</code></pre><p><img src="https://raw.githubusercontent.com/albert-de-montserrat/RheologyCalculator.jl/main/docs/assets/Burgers_model.png" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../rheology/">« Rheology</a><a class="docs-footer-nextpage" href="../strain_rate_correction/">Elastic correction »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Saturday 4 July 2026 20:41">Saturday 4 July 2026</span>. Using Julia version 1.11.9.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
