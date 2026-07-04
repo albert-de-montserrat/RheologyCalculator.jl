@@ -49,13 +49,16 @@ compile time and the resulting solver is allocation-free and type-stable. The
 Jacobian required by the Newton solver is obtained by automatic differentiation
 with `ForwardDiff.jl` [@Revels2016], and small fixed-size state vectors are
 represented with `StaticArrays.jl` [@StaticArrays], making the solver suitable
-for the hot inner loop of a Stokes solver. The computational core is
-deliberately independent of any particular material catalogue: concrete laws
-(e.g. linear and power-law viscosity, diffusion and dislocation creep,
-compressible and incompressible elasticity, Drucker–Prager and cap plasticity,
-modified Cam-Clay, and rate-and-state friction) are supplied as example
-definitions that extend a small state-function interface, and users can add
-their own laws the same way.
+for the hot inner loop of a Stokes solver. Both the deviatoric
+(stress/strain-rate) and volumetric (pressure/volumetric strain-rate) parts of
+the response are handled, and history-dependent quantities such as the elastic
+stress and pressure from the previous time-step are carried through the solve.
+The computational core is deliberately independent of any particular material
+catalogue: concrete laws (e.g. linear and power-law viscosity, diffusion and
+dislocation creep, compressible and incompressible elasticity, Drucker–Prager
+and cap plasticity, modified Cam-Clay, and rate-and-state friction) are supplied
+as example definitions that extend a small state-function interface, and users
+can add their own laws the same way.
 
 # Statement of need
 
@@ -76,7 +79,18 @@ automatic differentiation, and solves it to a prescribed tolerance. This
 decouples the *material catalogue* from the *solver machinery*: a new rheology is
 added by specialising two dispatch methods and implementing its state functions,
 after which it can be freely combined with any existing element in series or
-parallel. The package complements the Julia geodynamics ecosystem — such as
+parallel, and the number and identity of the unknowns are derived automatically
+from the composed model rather than fixed in advance.
+
+Because the residual and its Jacobian are generated and differentiated
+programmatically, the local solve is both consistent — the same equations are
+used to evaluate the residual and to build the tangent operator — and robust,
+which matters for the strongly nonlinear yielding and creep laws common in
+lithospheric-scale simulations. The same abstraction also lowers the barrier to
+methodological experimentation: comparing, for instance, a regularised versus an
+unregularised plastic element, or a Burgers against a generalized Maxwell body,
+requires only re-composing existing building blocks. The package complements the
+Julia geodynamics ecosystem — such as
 `GeoParams.jl` for material parameters [@GeoParams], and the `JustRelax.jl`
 [@JustRelax] and `LaMEM` [@Kaus2016] solvers — by providing a general, reusable
 engine for the point-wise nonlinear rheological problem that these solvers
@@ -104,8 +118,19 @@ x = solve(c, x, vars, others)              # Newton solve
 
 More elaborate networks — generalized Maxwell/Kelvin–Voigt bodies, Burgers
 models, and elastic elements embedded inside parallel branches — are built by
-nesting the same two constructors. The solver applies an elastic strain-rate
-correction to account for stress history before iterating, and post-processing
+nesting the same two constructors. Internally, `SeriesModel` and `ParallelModel`
+separate their arguments into direct elements and nested branches at construction
+time, and a compile-time routine traverses this tree to produce one residual
+equation per unknown. Each element declares which state functions it contributes
+through the `series_state_functions` and `parallel_state_functions` interface,
+and the equations are tagged as global (the top-level kinematic constraints) or
+local (element-level relations) so that the residual can be assembled with the
+correct coupling between parent and child equations. Prescribed kinematic inputs
+are passed differentiably, whereas non-differentiated auxiliary and history
+fields — time-step size, previous elastic stress and pressure, grain size,
+temperature — are routed to the elements that need them without entering the
+automatic-differentiation path. Before iterating, the solver applies an elastic
+strain-rate correction to account for stress history, and post-processing
 utilities recover the updated elastic stress and pressure from the converged
 solution vector.
 

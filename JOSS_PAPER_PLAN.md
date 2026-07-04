@@ -42,7 +42,7 @@ JOSS submission requirements, then writing `paper.md` + `paper.bib`.
       issue-reporting + support guidance. Repo has none → add a short
       `CONTRIBUTING.md` (or a README section) during execution.
 - [ ] Version tagged + archived (Zenodo DOI) — needed at submission time, not draft time.
-- [ ] Paper length 250–1000 words.
+- [ ] Paper length: target **around 1000 words** (JOSS accepts 250–1000; aim for ~950–1000 to use the full budget).
 
 ## `paper.md` structure
 
@@ -131,7 +131,7 @@ Prose sections:
 
 ## Verification
 
-- Word count of `paper.md` body is 250–1000 (`wc -w` excluding front-matter/bib).
+- Word count of `paper.md` body is **around 1000** (target ~950–1000, JOSS hard cap 1000; `wc -w` excluding front-matter/bib).
 - YAML front-matter parses (valid keys per JOSS schema; every `affiliation`
   index has a matching `affiliations` entry).
 - Every in-text `[@key]` citation resolves to an entry in `paper.bib` (grep keys).
