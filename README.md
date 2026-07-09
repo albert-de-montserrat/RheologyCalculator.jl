@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/albert-de-montserrat/RheologyCalculator.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/albert-de-montserrat/RheologyCalculator.jl/actions/workflows/ci.yml)
 [![Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://albert-de-montserrat.github.io/RheologyCalculator.jl/dev/)
+[![codecov](https://codecov.io/gh/albert-de-montserrat/RheologyCalculator.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/albert-de-montserrat/RheologyCalculator.jl)
+[![version](https://juliahub.com/docs/General/RheologyCalculator/stable/version.svg)](https://juliahub.com/ui/Packages/General/RheologyCalculator)
 
 `RheologyCalculator.jl` builds and solves local rheological models from small
 viscous, elastic, and plastic building blocks. Elements can be composed in
@@ -12,6 +14,35 @@ The package core is independent of any particular material catalogue. The
 example rheologies in [`rheologies/`](./rheologies) define common viscous,
 elastic, plastic, and pressure-dependent laws by extending the state-function
 interface.
+
+## Installation
+
+`RheologyCalculator.jl` is registered in the Julia General registry:
+
+```julia
+using Pkg
+Pkg.add("RheologyCalculator")
+```
+
+## Rheological element definitions
+
+The package exports the composition and solver machinery (`SeriesModel`,
+`ParallelModel`, `solve`, `initial_guess_x`, …) but **not** the concrete
+constitutive elements used throughout the examples (`LinearViscosity`,
+`Elasticity`, `DruckerPrager`, and the rest). Those are defined in
+[`rheologies/RheologyDefinitions.jl`](./rheologies/RheologyDefinitions.jl),
+which extends the package's state-function interface, and must be loaded
+explicitly:
+
+```julia
+using RheologyCalculator
+include("rheologies/RheologyDefinitions.jl")
+```
+
+The `include` path is relative to the current working directory, so the examples
+below assume a clone of this repository. When the package is installed with
+`Pkg.add`, `include` the file by an absolute path, or copy it (with any
+companion files from `rheologies/` that it needs) into your own project.
 
 ## Quick Start
 
