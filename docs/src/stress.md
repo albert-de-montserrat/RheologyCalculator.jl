@@ -1,5 +1,15 @@
 # Stress-time curve of a Burger's material
 
+The post-processing helpers [`compute_stress_elastic`](@ref RheologyCalculator.compute_stress_elastic)
+and [`compute_pressure_elastic`](@ref RheologyCalculator.compute_pressure_elastic)
+are not exported, so import them alongside the element definitions:
+
+```julia
+using RheologyCalculator
+import RheologyCalculator: compute_stress_elastic, compute_pressure_elastic
+include("rheologies/RheologyDefinitions.jl")
+```
+
 We start by defining the material properties 
 ```julia
 η1, η2, η3 = 5e19, 1e20, 1e21
