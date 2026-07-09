@@ -11,6 +11,18 @@ function equation_graph(c)
     end
 end
 
+@testset "parallel linear viscosity acts as lower cutoff" begin
+    ε = 1.0e-14
+    η_soft = 1.0e12
+    η_floor = 1.0e16
+    c = SeriesModel(ParallelModel(SeriesModel(LinearViscosity(η_soft)), LinearViscosity(η_floor)))
+    vars = (; ε)
+    x = initial_guess_x(c, vars, (; τ = 1.0), NamedTuple())
+    x = solve(c, x, vars, NamedTuple())
+
+    @test x[1] / (2 * ε) ≈ η_soft + η_floor
+end
+
 @testset "equation graphs for composite layouts" begin
     v1 = LinearViscosity(1.0)
     v2 = LinearViscosity(2.0)
