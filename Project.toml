@@ -5,7 +5,6 @@ authors = ["albert-de-montserrat <albert.de.montserrat@gmail.com>"]
 
 [deps]
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
-JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
 LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
@@ -14,7 +13,7 @@ TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 [compat]
 Aqua = "0.8.13"
 ForwardDiff = "1.4.1"
-JET = "0.11.5"
+JET = "0.9, 0.10, 0.11"
 LaTeXStrings = "1.4.0"
 LinearAlgebra = "1.10"
 StaticArrays = "1.9"
