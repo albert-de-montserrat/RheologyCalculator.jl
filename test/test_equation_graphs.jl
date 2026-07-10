@@ -81,9 +81,39 @@ end
             (; self = 3, parent = 1, child = (4,), fn = :compute_stress, ind_input = 0, el_number = (4,)),
             (; self = 4, parent = 3, child = (), fn = :compute_strain_rate, ind_input = 0, el_number = (5, 1)),
         ),
+        # first branch contributes 2 equations (nested SeriesModel), second branch contributes 1;
+        SeriesModel(ParallelModel(v1, SeriesModel(v1, v1)), ParallelModel(v1)) => (
+            (; self = 1, parent = 0, child = (2, 4), fn = :compute_strain_rate, ind_input = 1, el_number = ()),
+            (; self = 2, parent = 1, child = (3,), fn = :compute_stress, ind_input = 0, el_number = (1,)),
+            (; self = 3, parent = 2, child = (), fn = :compute_strain_rate, ind_input = 0, el_number = (2, 3)),
+            (; self = 4, parent = 1, child = (), fn = :compute_stress, ind_input = 0, el_number = (4,)),
+        ),
     )
 
     for (model, expected) in cases
         @test equation_graph(model) == expected
     end
+end
+
+@testset "branch-order equation wiring (multi-equation branch before another branch)" begin
+    # branch 1: v(1) ∥ [v(1) — v(1)]  -> contributes 2 equations
+    # branch 2: v(1) alone            -> contributes 1 equation
+    # the two branches are in series
+    c = SeriesModel(
+        ParallelModel(LinearViscosity(1.0), SeriesModel(LinearViscosity(1.0), LinearViscosity(1.0))),
+        ParallelModel(LinearViscosity(1.0)),
+    )
+
+    vars   = (; ε = 1.0)
+    others = (; dt = 1.0)
+
+    x0  = initial_guess_x(c, vars, (;), others)
+    sol = solve(c, x0, vars, others)
+
+    η_b1 = 1.0 + 1 / (1 / 1.0 + 1 / 1.0)
+    η_b2 = 1.0
+    η_tot = 1 / (1 / η_b1 + 1 / η_b2)
+    τ_analytic = 2 * η_tot * vars.ε
+
+    @test sol[1] ≈ τ_analytic
 end

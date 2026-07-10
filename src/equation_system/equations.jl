@@ -63,25 +63,25 @@ function generate_equations(c::AbstractCompositeModel, fns_own_global::F, ind_in
     # fns_branches_global,_ = get_own_functions(branches)
 
     nown = 1 # length(fns_own_global)
-    nlocal = length(fns_own_local)
     Nlocal = foo(fns_own_local)
 
     ilocal_childs = generate_ilocal_childs(iself, nown, fns_own_local)
-    offsets_parallel = generate_offsets_parallel(branches)
-    iparallel_childs = generate_iparallel_childs(iself, nlocal, nown, offsets_parallel, branches)
 
-    # ichildren = (ilocal_childs..., iparallel_childs...)
-    # add globals
-    # iself_ref[] += 1
-    # global_eqs   = CompositeEquation(iparent, iparallel_childs, iself_ref[], fns_own_global, leafs, Val(false))
+    # The equations contributed by each branch are not known yet: a branch's
+    # equation count depends on its own internal structure (e.g. a nested
+    # SeriesModel contributes more than one equation), not merely on the
+    # number of branches. The branch children are therefore left empty here
+    # and patched in below, once the branches' own equations have actually
+    # been generated (see attach_parallel_children).
     isGlobal = Val(B)
-    global_eqs0 = add_global_equations(iparent, ilocal_childs, iparallel_childs, iself_ref, fns_own_global, leafs, branches, ind_input, isGlobal, Val(1), local_el)
+    global_eqs0 = add_global_equations(iparent, ilocal_childs, iself_ref, fns_own_global, leafs, ind_input, isGlobal, Val(1), local_el)
     local_eqs = add_local_equations(global_eqs0.self, (), iself_ref, fns_own_local, fns_own_global, leafs, Nlocal, local_el)
     # need to correct the children of the global equations in absence of local equations (i.e. remove them)
-    global_eqs = correct_children(global_eqs0, local_eqs)
+    global_eqs1 = correct_children(global_eqs0, local_eqs)
 
     fn = counterpart(fns_own_global)
-    parallel_eqs = generate_equations_unroller(branches, fn, el_num, global_eqs, iself_ref)
+    parallel_eqs = generate_equations_unroller(branches, fn, el_num, global_eqs1, iself_ref)
+    global_eqs = attach_parallel_children(global_eqs1, parallel_eqs)
 
     # return  global_eqs, parallel_eqs
     return (global_eqs, local_eqs..., parallel_eqs...) |> superflatten
@@ -111,13 +111,6 @@ end
 
 generate_equations_unroller(::Tuple{}, ::F, el_num, global_eqs, iself_ref) where {F} = ()
 
-@generated function generate_iparallel_childs(iself, nlocal, nown, offsets_parallel, ::NTuple{N, Any}) where {N}
-    return quote
-        @inline
-        Base.@ntuple $N i -> iself + nlocal + offsets_parallel[i] + 1 + nown
-    end
-end
-
 @generated function generate_ilocal_childs(iself, nown, ::NTuple{N, Any}) where {N}
     return quote
         @inline
@@ -125,12 +118,28 @@ end
     end
 end
 
-@generated function generate_offsets_parallel(::NTuple{N, Any}) where {N}
+# A branch's own equations (`parallel_eqs[i]`) are generated after the parent
+# equation, so the parent's children referencing them cannot be computed
+# up-front from branch counts/offsets alone (a branch may contribute more
+# than one equation, e.g. a nested SeriesModel). Instead, once the branches'
+# equations exist, we patch the `.self` of each branch's top-level equation
+# into the parent's `child` tuple. A branch that contributed no equations
+# (e.g. not applicable to the current global function) is simply omitted.
+@inline first_self(::Tuple{}) = ()
+@inline first_self(eqs::Tuple) = (first(eqs).self,)
+
+@generated function collect_parallel_children(parallel_eqs::NTuple{N, Any}) where {N}
     return quote
         @inline
-        n = Base.@ntuple $N i -> i
-        (0, n...)
+        tops = Base.@ntuple $N i -> first_self(parallel_eqs[i])
+        superflatten(tops)
     end
+end
+
+function attach_parallel_children(eqs::CompositeEquation{IsGlobal, T, F, R, RT}, parallel_eqs) where {IsGlobal, T, F, R, RT}
+    (; parent, child, self, fn, rheology, ind_input, el_number) = eqs
+    children = (child..., collect_parallel_children(parallel_eqs)...)
+    return CompositeEquation(parent, children, self, fn, rheology, ind_input, Val(IsGlobal), el_number)
 end
 
 
@@ -210,50 +219,10 @@ global_eltype_numbering(c::AbstractViscosity, counter_v::Base.RefValue, counter_
 global_eltype_numbering(c::AbstractElasticity, counter_v::Base.RefValue, counter_el::Base.RefValue, counter_pl::Base.RefValue) = counter_el[] += 1
 global_eltype_numbering(c::AbstractPlasticity, counter_v::Base.RefValue, counter_el::Base.RefValue, counter_pl::Base.RefValue) = counter_pl[] += 1
 
-@inline has_children(::F, branch) where {F} = Val(true)
-@inline has_children(::typeof(compute_pressure), branch) = isvolumetric(branch)
-@inline has_children(::typeof(compute_volumetric_strain_rate), branch) = isvolumetric(branch)
-
-@inline correct_children(fn::F, branch::AbstractCompositeModel, children) where {F} = correct_children(children, has_children(fn, branch))
-@generated function correct_children(fn::F, branch::NTuple{N, AbstractCompositeModel}, children) where {F, N}
-    return quote
-        new_children = Base.@ntuple $N i -> correct_children(children[i], has_children(fn, branch[i]))
-        return superflatten(new_children)
-    end
-end
-@inline correct_children(children, ::Val{true}) = children
-@inline correct_children(::Any, ::Val{false}) = ()
-
-@generated function add_global_equations(iparent, ilocal_childs, iparallel_childs, iself_ref, fns_own_global::NTuple{F, Any}, leafs, branches, ::Val{N}, el_number) where {F, N}
-    return quote
-        Base.@ntuple $N i -> begin
-            @inline
-            iself_ref[] += 1
-            corrected_children = correct_children(fns_own_global[i], branches, iparallel_childs)
-            children = (ilocal_childs..., corrected_children...) .+ (i - 1)
-            CompositeEquation(iparent, children, iself_ref[], fns_own_global[i], leafs, Val(true), el_number)
-        end
-    end
-end
-
-@generated function add_global_equations(iparent, ilocal_childs, iparallel_childs, iself_ref, fns_own_global::F, leafs, branches, ::Val{N}, el_number) where {F, N}
-    return quote
-        Base.@ntuple $N i -> begin
-            @inline
-            iself_ref[] += 1
-            corrected_children = correct_children(fns_own_global[i], branches, iparallel_childs)
-            children = (ilocal_childs..., corrected_children...) .+ (i - 1)
-            CompositeEquation(iparent, children, iself_ref[], fns_own_global, leafs, Val(true), el_number)
-        end
-    end
-end
-
-function add_global_equations(iparent, ilocal_childs, iparallel_childs, iself_ref, fns_own_global::F, leafs, branches, ind_input, ::Val{B}, ::Val{1}, el_number) where {F, B}
+function add_global_equations(iparent, ilocal_childs, iself_ref, fns_own_global::F, leafs, ind_input, ::Val{B}, ::Val{1}, el_number) where {F, B}
     @inline
     iself_ref[] += 1
-    corrected_children = correct_children(fns_own_global, branches, iparallel_childs)
-    children = (ilocal_childs..., corrected_children...)
-    return CompositeEquation(iparent, children, iself_ref[], fns_own_global, leafs, ind_input, Val(B), el_number)
+    return CompositeEquation(iparent, ilocal_childs, iself_ref[], fns_own_global, leafs, ind_input, Val(B), el_number)
 end
 
 @generated function add_local_equations(iparent, ilocal_childs, iself_ref, fns_own_local::F1, fns_own_global::F2, leafs, ::Val{N}, el_number) where {N, F1, F2}
