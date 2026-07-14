@@ -134,9 +134,18 @@ Cumulative equation count contributed by each of `branches` before it, i.e.
 subtree. A branch that itself has nested branches contributes more than one
 equation, so this cannot be assumed to equal `i - 1`.
 """
-@inline function generate_offsets_parallel(branches::NTuple{N, Any}, fn, el_num) where {N}
-    counts = ntuple(i -> branch_equation_count(branches[i], fn, el_num[i]), Val(N))
-    return ntuple(i -> sum(counts[1:(i - 1)]; init = 0), Val(N))
+@generated function generate_offsets_parallel(branches::NTuple{N, Any}, fn, el_num) where {N}
+    offsets = map(1:N) do i
+        i == 1 && return :(0)
+        terms = [:(counts[$j]) for j in 1:(i - 1)]
+        return foldl((a, b) -> :($a + $b), terms)
+    end
+
+    return quote
+        @inline
+        counts = Base.@ntuple $N i -> branch_equation_count(branches[i], fn, el_num[i])
+        return $(Expr(:tuple, offsets...))
+    end
 end
 
 @inline branch_equation_count(branch, fn, el_num_i) =
