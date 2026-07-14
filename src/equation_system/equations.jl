@@ -66,8 +66,10 @@ function generate_equations(c::AbstractCompositeModel, fns_own_global::F, ind_in
     nlocal = length(fns_own_local)
     Nlocal = foo(fns_own_local)
 
+    fn = counterpart(fns_own_global)
+
     ilocal_childs = generate_ilocal_childs(iself, nown, fns_own_local)
-    offsets_parallel = generate_offsets_parallel(branches)
+    offsets_parallel = generate_offsets_parallel(branches, fn, el_num[2])
     iparallel_childs = generate_iparallel_childs(iself, nlocal, nown, offsets_parallel, branches)
 
     # ichildren = (ilocal_childs..., iparallel_childs...)
@@ -80,7 +82,6 @@ function generate_equations(c::AbstractCompositeModel, fns_own_global::F, ind_in
     # need to correct the children of the global equations in absence of local equations (i.e. remove them)
     global_eqs = correct_children(global_eqs0, local_eqs)
 
-    fn = counterpart(fns_own_global)
     parallel_eqs = generate_equations_unroller(branches, fn, el_num, global_eqs, iself_ref)
 
     # return  global_eqs, parallel_eqs
@@ -125,13 +126,21 @@ end
     end
 end
 
-@generated function generate_offsets_parallel(::NTuple{N, Any}) where {N}
-    return quote
-        @inline
-        n = Base.@ntuple $N i -> i
-        (0, n...)
-    end
+"""
+    generate_offsets_parallel(branches, fn, el_num)
+
+Cumulative equation count contributed by each of `branches` before it, i.e.
+`offsets[i]` is the number of equations occupied by `branches[1:i-1]`'s entire
+subtree. A branch that itself has nested branches contributes more than one
+equation, so this cannot be assumed to equal `i - 1`.
+"""
+@inline function generate_offsets_parallel(branches::NTuple{N, Any}, fn, el_num) where {N}
+    counts = ntuple(i -> branch_equation_count(branches[i], fn, el_num[i]), Val(N))
+    return ntuple(i -> sum(counts[1:(i - 1)]; init = 0), Val(N))
 end
+
+@inline branch_equation_count(branch, fn, el_num_i) =
+    length(generate_equations(branch, fn, 0, Val(false), isvolumetric(branch), el_num_i; iparent = 0, iself = 0))
 
 
 correct_children(eqs::CompositeEquation, ::NTuple{N, CompositeEquation}) where {N} = eqs

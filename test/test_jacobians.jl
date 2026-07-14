@@ -179,7 +179,7 @@ end
     x = initial_guess_x(c, vars, args, others)
     J = ForwardDiff.jacobian(y -> compute_residual(c, y, vars, others), x)
     J_sol = SA[
-        1.0e-20   1.0      1.0       0.0
+        1.0e-20   1.0      0.0       1.0
         -1.0      2.0e20   1.0       0.0
         0.0      -1.0      1.5e-20   0.0
         -1.0      0.0      0.0       3.0e20
